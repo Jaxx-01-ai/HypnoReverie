@@ -1,36 +1,61 @@
 # Hypno Reverie
 
-A customizable hypnosis spiral overlay for Bondage Club by Jaxx-01-ai.
+Version **0.2.0** — a customizable hypnosis-themed visual overlay for Bondage Club, by **Jaxx-01-ai**. Effects stay within the left player area and allow game clicks through.
 
-## Install with a bookmark
+## Install / update
 
-Create a bookmark named **Hypno Reverie**. Paste this entire line into its URL field:
+Upload **hypnoreverie.js**, **bookmarklet.txt**, and this **README.md** to the root of Jaxx-01-ai/HypnoReverie, replacing the previous versions. Keep GitHub Pages set to main / root. Wait for deployment, then reload your game and click the bookmark. Reloading is necessary to unload version 0.1.
+
+Create a Firefox bookmark named Hypno Reverie and paste this entire line into its URL field:
 
 ```javascript
-javascript:(function(){if(document.getElementById('player-spiral-addon')||document.getElementById('player-spiral-loader'))return;let s=document.createElement('script');s.id='player-spiral-loader';s.crossOrigin='anonymous';s.src='https://Jaxx-01-ai.github.io/HypnoReverie/hypnoreverie.js?_='+Date.now();s.onload=()=>s.remove();s.onerror=()=>{s.remove();alert('Hypno Reverie could not load. Check that GitHub Pages is published.');};document.head.appendChild(s);})();
+javascript:(()=>{if(window.HypnoReverie){window.HypnoReverie.open();return;}if(document.getElementById('player-spiral-addon')){alert('Reload the game, then click Hypno Reverie again to load the update.');return;}if(document.getElementById('hypnoreverie-loader'))return;const s=document.createElement('script');s.id='hypnoreverie-loader';s.crossOrigin='anonymous';s.src='https://Jaxx-01-ai.github.io/HypnoReverie/hypnoreverie.js?_='+Date.now();s.onload=()=>s.remove();s.onerror=()=>{s.remove();alert('Hypno Reverie could not load. Check the published script URL.');};document.head.appendChild(s);})();
 ```
 
-Open the game, enter a room, and click the bookmark. Open **Hypno Reverie** in the upper left and enable **Show overlay**. Click the bookmark again after reloading the game.
+Open **Hypno Reverie**, then check **Effects on**. Appearance settings save locally per game server. Effects always start off after a reload. Previous v0.1 appearance settings are migrated on first use.
 
-## Controls
+## Visual controls
 
-- Colors and presets: Violet, Monochrome, Ocean.
-- Adjustable opacity, rotation speed/direction, arm count, curve, scale and width.
-- **Escape** disables the overlay. **Alt+Shift+S** toggles it. Speed zero pauses rotation.
-- The effect allows clicks through to the game and stays clear of the chat.
-- Appearance saves locally per game server. The effect always starts off after loading.
+Primary and secondary spirals each have independent enable, colour, background colour/opacity, spiral opacity, arms, spin speed/direction, throb speed/strength, zoom, thickness, blur and curve. The primary tab also contains the width adjustment, limited to the left player area. The secondary spiral starts disabled.
 
-## FUSAM
+## Text
 
-Catalog inclusion has not been requested. This release is for testing first. FUSAM compatibility will be verified before requesting inclusion.
+Enable text in the Text tab. Enter one word or sentence per line in **Edit messages**. Up to 40 messages, 160 characters each. Click outside the editor to apply it. Choose centered messages, a repeating wall, repeated lines, or Write/typewriter. Colour, opacity, duration in seconds, inter-message gap, font size and line count are adjustable. Optional random order is available. The term subliminal describes the brief display mode; no claim of psychological effectiveness is made.
 
-FUSAM's developer instructions: https://gitlab.com/Sidiousious/bc-addon-loader/-/blob/main/README.md
+## Pulse / flash
 
-## Development status
+Choose a soft pulse or a flash that fades out, with fixed intervals, random intervals, or synchronization to text messages. Colour, opacity and duration are adjustable. Pulses are limited to one every two seconds or slower; very fast text will not trigger a flash for every message. Pulse duration cannot overlap a new pulse. Start low; stop if the effect is uncomfortable. Pulse starts disabled.
 
-Version 0.1.0, initial prototype. JavaScript syntax and isolated layout checks passed. Element identifiers were checked against the game's public source. Live Firefox gameplay testing and coexistence with other addons still need verification.
+## Giving someone the keys
 
-The overlay uses MainCanvas and TextAreaChatLog and clips to the left half or chat boundary, whichever comes first. It hides when chat is absent or hidden. Custom game layouts may need adjustments.
+Both players must load v0.2 in the same room.
 
-No account credentials, chat messages or game-state changes are involved. Settings stay in browser local storage. An original visual effect inspired by https://hypnospiral.vercel.app/, without copying its code or assets.
+1. The controller opens **Sharing** and checks **Available as a dominant/controller**. This role is self-declared; it does not use the game's dominance reputation.
+2. The receiver opens **Sharing**, selects that player by name and member number, chooses permission and duration, and clicks **Give keys**. **Find players with the mod** refreshes discovery.
+3. The controller selects the receiver under **Edit overlay**, adjusts their draft, and clicks **Send changes**. An acknowledgement confirms it was applied.
 
+### Permission levels
+
+| Level | Allowed |
+| --- | --- |
+| Visuals only | Edit both spirals |
+| Visuals + text | Edit spirals and text/messages |
+| Full session + control lock | Edit spirals and text, switch effects on/off, lock normal receiver controls |
+
+Pulse/flash changes require the receiver's separate **Also allow pulse/flash changes** checkbox at grant time. Remote users cannot move the overlay into chat or change its width.
+
+Granting access shares the current effect settings and message list with the selected controller. One player can hold keys to your overlay at a time. Grants last 1–30 minutes, are not saved, and are cleared when the room changes, either player leaves, the receiver disconnects, or the other addon stops announcing itself (up to 45 seconds). Replacement grants invalidate old keys. **Return keys** ends a controller's session.
+
+**Escape** or **Stop / revoke** always switches off your effects and revokes keys to your overlay—even during a control lock. Ordinary controls can be locked; the emergency exit cannot. Alt+Shift+S toggles your effects when unlocked.
+
+## Testing status
+
+Automated core and isolated two-player Chromium tests cover settings limits, chat clipping, text modes, rendering, permission levels, targeted control, acknowledgements, token/sender checks, replay rejection, expiry, Escape, room change, disconnect, duplicate loading and cleanup. Live Firefox and real server two-player testing are still required.
+
+Test locally first, then test with one trusted partner using visuals-only access before trying a full session. Verify Escape, leaving the room and disconnecting always end a locked session. This build has not been submitted to FUSAM.
+
+## Implementation / privacy
+
+No game function replacements, character-state changes or public chat commands. Control uses targeted Hidden ChatRoomChat messages under the HypnoReverie channel; these pass through the game server. Brief addon discovery announcements are sent in the current room. Settings and messages are stored in local browser storage. No analytics or third-party backend.
+
+Original code inspired by the controls at https://hypnospiral.vercel.app/; no code or assets copied from that site. Game transport and DOM identifiers were checked against the public Bondage Club source.
