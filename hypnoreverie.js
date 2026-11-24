@@ -1,8 +1,8 @@
-// Hypno Reverie 0.4.1 — Jaxx-01-ai
+// Hypno Reverie 0.5.0 — Jaxx-01-ai
 // Original canvas renderer and opt-in, room-scoped control protocol.
 (() => {
   'use strict';
-  const VERSION = '0.4.1', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
+  const VERSION = '0.5.0', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
   const PRESET_KEY = 'hypnoreverie-presets-v1', PRIVACY_KEY = 'hypnoreverie-head-sharing-v1';
   const clone = value => JSON.parse(JSON.stringify(value));
   const num = (v, fallback, min, max) => typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback;
@@ -108,7 +108,22 @@
     return Array.isArray(raw) ? raw.slice(0, 24).filter(p => p && typeof p.name === 'string' && p.name.trim())
       .map(p => ({ name: p.name.trim().slice(0, 40), settings: normalize(p.settings) })) : [];
   }
-  const core = { normalize, defaults, bounds, ControlGate, textFrame, textPosition, normalizePresets };
+  function drawSpiralTexture(tx,s,size) {
+    const center=size/2,radius=size*0.72,sector=Math.PI*2/s.arms;
+    tx.clearRect(0,0,size,size);tx.fillStyle=s.color;
+    for(let arm=0;arm<s.arms;arm++){
+      tx.beginPath();
+      for(let step=0;step<=300;step++){
+        const r=radius*step/300,a=arm*sector+r/radius*s.curve*Math.PI*2;
+        const x=center+r*Math.cos(a),y=center+r*Math.sin(a);if(step)tx.lineTo(x,y);else tx.moveTo(x,y);
+      }
+      const outer=arm*sector+s.curve*Math.PI*2;
+      tx.arc(center,center,radius,outer,outer+sector*s.thickness);
+      for(let step=300;step>=0;step--){const r=radius*step/300,a=arm*sector+sector*s.thickness+r/radius*s.curve*Math.PI*2;tx.lineTo(center+r*Math.cos(a),center+r*Math.sin(a));}
+      tx.closePath();tx.fill();
+    }
+  }
+  const core = { drawSpiralTexture, normalize, defaults, bounds, ControlGate, textFrame, textPosition, normalizePresets };
   if (typeof module !== 'undefined' && module.exports && typeof document === 'undefined') { module.exports = core; return; }
   if (window.HypnoReverie?.version === VERSION) { window.HypnoReverie.open(); return; }
   if (window.HypnoReverie?.destroy) window.HypnoReverie.destroy();
@@ -130,10 +145,13 @@
   let presets = [], privacy = { broadcast: false, showOthers: true }, hideSharedUntilEnabled = false;
   try { presets = normalizePresets(JSON.parse(localStorage.getItem(PRESET_KEY) || '[]')); } catch {}
   try { const p = JSON.parse(localStorage.getItem(PRIVACY_KEY) || '{}'); privacy = { broadcast: p.broadcast === true, showOthers: p.showOthers !== false }; } catch {}
+  const SESSION_KEY='hypnoreverie-resume-v1';
+  let resume = {remember:false,enabled:false,member:null};
+  try{const value=JSON.parse(localStorage.getItem(SESSION_KEY)||'{}');resume={remember:value.remember===true,enabled:value.enabled===true,member:Number.isSafeInteger(value.member)?value.member:null};}catch{}
   let remoteHeadSharing = false;
-  let enabled = false, locked = false, destroyed = false, socket = null, selected = 'self';
+  let enabled = resume.remember && resume.enabled && resume.member===window.Player?.MemberNumber, locked = false, destroyed = false, socket = null, selected = 'self';
   let activeTime = 0, lastFrame = 0, frameId = 0, rectangle = null, networkRoom = null, networkMember = null;
-  let dominant = false, pulseAllowed = false, status = 'Ready. Effects start off.', lastHello = 0;
+  let dominant = false, pulseAllowed = false, status = enabled ? 'Saved effects resumed.' : 'Ready. Effects are off.', lastHello = 0;
   const gate = new ControlGate(), peers = new Map(), receivedGrants = new Map();
   let viewedProfile = null; const keyRequests = new Map(), requestTimes = new Map();
   const publicHeads = new Map(); let lastPublic = 0, publicWasActive = false, profileButton = null;
@@ -166,17 +184,17 @@
   </style>
   <canvas id="effect" aria-hidden="true" hidden></canvas><canvas id="heads" aria-hidden="true" hidden></canvas>
   <div id="ui" hidden><section id="panel" role="dialog" aria-label="Hypno Reverie settings" hidden>
-    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.4 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
+    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.5 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
       <div class="tabs" role="tablist" aria-label="Settings categories">
         <button data-tab="overview" role="tab" aria-selected="true">Overview</button><button data-tab="primary" role="tab" aria-selected="false">Primary</button><button data-tab="secondary" role="tab" aria-selected="false">Secondary</button>
         <button data-tab="text" role="tab" aria-selected="false">Words</button><button data-tab="pulse" role="tab" aria-selected="false">Pulse</button><button data-tab="head" role="tab" aria-selected="false">Head</button><button data-tab="sharing" role="tab" aria-selected="false">Keys</button><button data-tab="presets" role="tab" aria-selected="false">Presets</button>
       </div>
       <div class="session-bar"><label>Edit <select id="target"><option value="self">My overlay</option></select></label><label><input id="enabled" type="checkbox"> Effects on</label><label id="lock-row" hidden><input id="lock" type="checkbox"> Lock controls</label><button id="preview-toggle" aria-pressed="false">Preview draft</button><span id="session-badge" class="help">Local session</span></div>
     </div>
-    <div id="content"><div id="profile-card" class="card" hidden><h3 id="profile-title"></h3><p id="profile-status"></p><button id="request-keys">Request keys</button></div><div id="requests-card" class="card" hidden><h3>Key requests</h3><div id="requests-list"></div><p class="help">Review a request, choose permissions, then Give keys. A request never grants access automatically.</p></div>
+    <div id="content"><div id="profile-card" class="card" hidden><h3 id="profile-title"></h3><p id="profile-status"></p><div id="request-options"><label>Requested access <select id="request-level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label><label>Duration <select id="request-duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="indefinite">No time limit</option></select></label><label><input id="request-pulse" type="checkbox"> Include pulse / flash changes</label></div><button id="request-keys">Request keys</button></div><div id="requests-card" class="card" hidden><h3>Key requests</h3><div id="requests-list"></div><p class="help">The controller chooses the requested permissions. Yes grants exactly those permissions; No declines.</p></div>
       <div id="remote-note" class="notice" hidden>Editing a remote draft. Send changes to apply it.</div>
       <div id="overview" role="tabpanel"><h3>Set the scene</h3><p>Build your spirals, add words and pulse effects, then save a preset. Changes to your own overlay apply immediately.</p>
-        <div class="card" id="local-session-card"><h3>Session controls</h3><p id="stop-note">Stop your effects and revoke keys to your overlay.</p><button id="stop">Stop / revoke</button><p class="help">While keys are handed over, this button is disabled. Escape stops your session only while controls are unlocked.</p></div>
+        <div class="card" id="local-session-card"><h3>Session controls</h3><p id="stop-note">Stop your effects and revoke keys to your overlay.</p><button id="stop">Stop / revoke</button><label><input id="remember-session" type="checkbox"> Keep effects on across room changes and relog</label><p class="help">Remembers on/off for this account when the addon loads again. Keys and locks still clear when leaving the room or disconnecting.</p><p class="help">While keys are handed over, this button is disabled. Escape stops your session only while controls are unlocked.</p></div>
         <div class="notice">Photosensitivity notice: flashing lights and moving patterns may trigger seizures in people with photosensitive epilepsy. Avoid these effects if they are a trigger for you. Stop if you feel unwell. <a href="https://www.epilepsy.com/what-is-epilepsy/seizure-triggers/photosensitivity" target="_blank" rel="noopener noreferrer">Learn more</a></div>
         <p class="help">Open this menu from the headset icon in your player profile, your bookmark, or Alt+Shift+H. Close the menu to return to play.</p>
       </div>
@@ -187,7 +205,7 @@
       <div id="head" role="tabpanel" hidden><h3>Head effects</h3><p class="help">Combine tiny words, a forehead spiral, spiral eyes, and a halo. Other players see these while your overlay is on; they are hidden on your own character. Use Preview draft to inspect them. Position controls help align unusual poses.</p>
         <div class="card"><label id="broadcast-label"><input id="broadcast-head" type="checkbox"> Share my head effects with the room</label><p class="help">Shares your head-effect settings and the currently displayed words with other Hypno Reverie users. During a grant, head effects enabled by your controller are shared automatically. Each viewer can still hide shared effects.</p><label><input id="show-heads" type="checkbox"> Show other players’ shared head effects</label></div><fieldset id="head-fields"></fieldset>
       </div>
-      <div id="sharing" role="tabpanel" hidden><h3>Hand over the keys</h3><p class="help">Both players need version 0.4 for all features. Dominant/controller status is self-declared; choose by name and member number.</p>
+      <div id="sharing" role="tabpanel" hidden><h3>Hand over the keys</h3><p class="help">Both players need version 0.5 for all features. Dominant/controller status is self-declared; choose by name and member number.</p>
         <div class="card"><label><input id="dominant" type="checkbox"> Available as a dominant/controller</label><button id="discover">Find players</button></div>
         <div class="card"><label>Give keys to <select id="peer"><option value="">No controllers discovered</option></select></label><label>Permission <select id="level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label>
           <label><input id="allow-pulse" type="checkbox"> Also allow pulse/flash changes</label><label>Duration <select id="duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="custom">Custom</option><option value="indefinite">No time limit</option></select></label><label id="minutes-row" hidden>Minutes <input id="minutes" type="number" min="1" max="30" value="15"></label>
@@ -276,6 +294,11 @@
   slider('head-fields',['head','wordSize'],'Tiny word size',8,24,1);
   slider('head-fields',['head','offsetX'],'Horizontal alignment',-200,200,1);
   slider('head-fields',['head','offsetY'],'Vertical alignment',-300,300,1);
+  function saveSession() {
+    resume.enabled=enabled;const member=player()?.MemberNumber;if(Number.isSafeInteger(member))resume.member=member;
+    try{localStorage.setItem(SESSION_KEY,JSON.stringify(resume));}catch{say('Could not save session preference.');}
+  }
+  $('remember-session').onchange=()=>{resume.remember=$('remember-session').checked;saveSession();};
   function save() { try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch { say('Appearance could not be saved.'); } }
   function say(message) { status = message; $('status').textContent = message; }
   function refreshFields(skip) {
@@ -309,6 +332,7 @@
     $('show-heads').checked = privacy.showOthers && !hideSharedUntilEnabled;
     $('local-session-card').hidden = selected !== 'self'; $('broadcast-label').hidden = selected !== 'self';
     $('session-badge').textContent = selected !== 'self' ? 'Remote draft' : gate.grant ? (locked ? 'Controls locked' : 'Keys handed over') : 'Local session';
+    $('remember-session').checked=resume.remember;
     $('status').textContent = status; refreshProfileCard();
   }
   for (const button of root.querySelectorAll('[data-tab]')) button.onclick = () => {
@@ -368,7 +392,7 @@
   $('preset-delete').onclick = () => { if (!$('preset-list').options.length) return; presets.splice(Number($('preset-list').value),1); savePresets(); say('Preset deleted.'); };
   refreshPresets();
   $('enabled').onchange = () => {
-    if (selected === 'self') { if (!locked) { enabled = $('enabled').checked; resetEffectClock(); layout(); } }
+    if (selected === 'self') { if (!locked) { enabled = $('enabled').checked; saveSession(); resetEffectClock(); layout(); } }
     else { const grant = receivedGrants.get(Number(selected)); if (grant?.level === 'session') grant.enabled = $('enabled').checked; }
     refreshFields();
   };
@@ -386,22 +410,25 @@
     const detected = peer && present(member) && Date.now()-peer.seen < 45000;
     $('profile-title').textContent = label(member);
     $('profile-status').textContent = grant ? 'Hypno Reverie detected · You have keys. Edit and preview their draft, then Send changes.' : detected ? 'Hypno Reverie detected · Request keys to edit this player’s effects.' : 'Hypno Reverie not detected in this room. They may need to load it or update. Discovery can take up to 15 seconds.';
-    $('request-keys').hidden = !!grant; $('request-keys').disabled = !detected || Date.now()-(requestTimes.get(member)||0)<30000;
+    $('request-options').hidden = !!grant; $('request-keys').hidden = !!grant; $('request-keys').disabled = !detected || Date.now()-(requestTimes.get(member)||0)<30000;
   }
   $('request-keys').onclick = () => {
     const member=viewedProfile;if(!member || !peers.has(member) || !present(member) || Date.now()-(requestTimes.get(member)||0)<30000)return;
     dominant=true;$('dominant').checked=true;send('hello',{dominant});
-    if(send('requestKeys',{},member)){requestTimes.set(member,Date.now());say('Key request sent. Waiting for their approval.');refreshProfileCard();}
+    if(send('requestKeys',{level:$('request-level').value,minutes:$('request-duration').value==='indefinite'?null:Number($('request-duration').value),allowPulse:$('request-pulse').checked},member)){requestTimes.set(member,Date.now());say('Key request sent. Waiting for their approval.');refreshProfileCard();}
   };
   function refreshRequests() {
     $('requests-card').hidden=!keyRequests.size; $('requests-list').replaceChildren();
-    for(const [member] of keyRequests){
-      const row=document.createElement('div');row.className='row';const name=document.createElement('span');name.textContent=label(member);
-      const review=document.createElement('button');review.textContent='Review';review.disabled=!!gate.grant;review.onclick=()=>{selected='self';viewedProfile=null;updatePeople();open();root.querySelector('[data-tab=sharing]').click();$('peer').value=String(member);say('Choose permissions and duration, then Give keys.');};
-      const decline=document.createElement('button');decline.textContent='Decline';decline.onclick=()=>{send('declineKeys',{},member);keyRequests.delete(member);refreshRequests();};
-      row.append(name,review,decline);$('requests-list').append(row);
+    const levels={visuals:'Visuals only',text:'Visuals + words',session:'Full session + control lock (can turn effects on/off and disable your normal controls and Escape)'};
+    for(const [member,request] of keyRequests){
+      const row=document.createElement('div');row.className='card';const name=document.createElement('p');
+      name.textContent=label(member)+' requests '+levels[request.level]+' · '+(request.minutes===null?'no time limit':request.minutes+' minutes')+' · pulse/flash changes '+(request.allowPulse?'included':'excluded')+'. Shares current settings and messages; controller-enabled head effects are visible to the room.';
+      const yes=document.createElement('button');yes.textContent='Yes';yes.disabled=!!gate.grant;yes.onclick=()=>{if(keyRequests.get(member)!==request || Date.now()-request.at>120000)return;giveKeys(member,request.level,request.minutes,request.allowPulse);};
+      const no=document.createElement('button');no.textContent='No';no.onclick=()=>{send('declineKeys',{},member);keyRequests.delete(member);refreshRequests();};
+      row.append(name,yes,no);$('requests-list').append(row);
     }
   }
+
   function player() { return window.Player; }
   function characters() { return Array.isArray(window.ChatRoomCharacter) ? window.ChatRoomCharacter : []; }
   function present(member) { return characters().some(c => c.MemberNumber === member); }
@@ -417,11 +444,12 @@
     try { window.ServerSend('ChatRoomChat', { Content: CHANNEL, Type: 'Hidden', Target: target, Dictionary: message }); return true; }
     catch { return false; }
   }
-  function revoke(reason, notify = true) {
+  function revoke(reason, notify = true, keepEffects = false) {
     const old = gate.grant;
     if (old && notify) send('revoke', { token: old.token }, old.sender);
     gate.revoke(); locked = false; remoteHeadSharing = false;
-    if (old) enabled = false;
+    if (old && !keepEffects) enabled = false;
+    saveSession();
     say(reason); refreshFields(); updatePeople(); layout();
   }
   function stop() {
@@ -433,25 +461,21 @@
     if (event.key === 'Escape') { if (!locked) stop(); }
     else if (event.altKey && event.shiftKey && event.code === 'KeyH' && !event.repeat) { event.preventDefault(); open(); }
     else if (event.altKey && event.shiftKey && event.code === 'KeyS' && !event.repeat && !locked) {
-      event.preventDefault(); enabled = !enabled; resetEffectClock(); refreshFields(); layout();
+      event.preventDefault(); enabled = !enabled; saveSession(); resetEffectClock(); refreshFields(); layout();
     }
   }
   document.addEventListener('keydown', keydown, true);
   $('dominant').onchange = () => { dominant = $('dominant').checked; send('hello', { dominant }); };
   $('discover').onclick = () => { if (Date.now() - lastHello < 3000) return; lastHello = Date.now(); send('hello', { dominant }); say('Looking for players with Hypno Reverie…'); };
-  $('grant').onclick = () => {
-    if (gate.grant) return;
-    const member = Number($('peer').value), peer = peers.get(member);
-    if (!peer?.dominant || !present(member) || Date.now() - peer.seen > 45000) { say('Choose an available controller in this room.'); return; }
-    if (gate.grant) revoke('Replacing previous keys.');
-    pulseAllowed = $('allow-pulse').checked;
-    const grant = gate.issue(member, $('level').value, crypto.randomUUID(), Date.now(), $('duration').value === 'indefinite' ? null : Number($('duration').value === 'custom' ? $('minutes').value : $('duration').value), pulseAllowed);
-    if (!send('grant', { token: grant.token, level: grant.level, expires: grant.expires, allowPulse: grant.allowPulse, settings, enabled, locked: false }, member)) {
-      gate.revoke(); say('Could not send keys.'); return;
-    }
-    keyRequests.delete(member); refreshRequests();
-    say(`Keys given to ${label(member)}. Escape revokes them while unlocked.`); updatePeople(); refreshFields();
-  };
+  function giveKeys(member,level,minutes,allowPulse) {
+    if(gate.grant)return;
+    const peer=peers.get(member);
+    if(!peer?.dominant || !present(member) || Date.now()-peer.seen>45000){say('This controller is no longer available.');return;}
+    const grant=gate.issue(member,level,crypto.randomUUID(),Date.now(),minutes,allowPulse);
+    if(!send('grant',{token:grant.token,level:grant.level,expires:grant.expires,allowPulse:grant.allowPulse,settings,enabled,locked:false},member)){gate.revoke();say('Could not send keys.');return;}
+    keyRequests.delete(member);say('Keys given to '+label(member)+'. Escape revokes them while unlocked.');updatePeople();refreshFields();
+  }
+  $('grant').onclick = () => giveKeys(Number($('peer').value),$('level').value,$('duration').value==='indefinite'?null:Number($('duration').value==='custom'?$('minutes').value:$('duration').value),$('allow-pulse').checked);
   $('apply').onclick = () => {
     // Commit the message editor if the user clicks Send before its blur handler runs.
     root.activeElement?.blur();
@@ -501,7 +525,8 @@
     if (packet.kind === 'requestKeys' && now-(inboundTimes.get(rateKey)||0)<30000) return;
     inboundTimes.set(rateKey, now);
     if(packet.kind === 'requestKeys'){
-      peers.set(sender,{dominant:true,seen:now});keyRequests.set(sender,now);updatePeople();say(label(sender)+' requested keys. Review the request in the menu.');
+      if(!['visuals','text','session'].includes(packet.level) || !(packet.minutes===null || (Number.isFinite(packet.minutes) && packet.minutes>=1 && packet.minutes<=30)) || typeof packet.allowPulse!=='boolean')return;
+      peers.set(sender,{dominant:true,seen:now});keyRequests.set(sender,{at:now,level:packet.level,minutes:packet.minutes,allowPulse:packet.allowPulse});updatePeople();say(label(sender)+' requested keys. Review the request in the menu.');
       open();return;
     }
     if(packet.kind === 'declineKeys'){say(label(sender)+' declined your key request.');return;}
@@ -533,7 +558,7 @@
       remoteHeadSharing = ['words','forehead','eyes','halo'].some(key => settings.head[key]);
       if (result.enabled !== undefined) enabled = result.enabled;
       if (result.locked !== undefined) locked = result.locked;
-      save(); resetEffectClock(); refreshFields(); updatePeople(); layout(); publishHead(true);
+      save(); saveSession(); resetEffectClock(); refreshFields(); updatePeople(); layout(); publishHead(true);
       send('applied', { token: gate.grant.token, seq: packet.seq }, sender);
       say(`Overlay updated by ${label(sender)}${locked ? ' · normal controls locked' : ''}.`); return;
     }
@@ -547,7 +572,8 @@
     }
   }
   function clearSession(reason) {
-    revoke(reason, false); receivedGrants.clear(); peers.clear(); publicHeads.clear(); keyRequests.clear(); requestTimes.clear(); viewedProfile=null; inboundTimes.clear(); publicWasActive = false; selected = 'self';
+    if(!resume.remember) enabled=false;
+    revoke(reason, false, resume.remember); receivedGrants.clear(); peers.clear(); publicHeads.clear(); keyRequests.clear(); requestTimes.clear(); viewedProfile=null; inboundTimes.clear(); publicWasActive = false; selected = 'self';
     updatePeople(); refreshFields();
   }
   function disconnected() { clearSession('Connection lost. All remote keys cleared.'); }
@@ -570,6 +596,7 @@
     const next = window.ServerSocket;
     if (next !== socket && typeof next?.on === 'function' && typeof next?.off === 'function') { clearSession('Connected. Remote keys start cleared.'); attachSocket(next); }
     const room = roomKey(), member = player()?.MemberNumber;
+    if(resume.member && member && member!==resume.member){enabled=false;saveSession();}
     if (room !== networkRoom || member !== networkMember) {
       clearSession('Room changed. Remote keys cleared.'); networkRoom = room; networkMember = member; lastHello = 0;
     }
@@ -579,7 +606,7 @@
     if (gate.grant && ((gate.grant.expires !== null && now >= gate.grant.expires) || !present(gate.grant.sender) || now - (peers.get(gate.grant.sender)?.seen || 0) > 45000)) revoke('Remote session ended. Keys revoked.');
     for (const [id, grant] of receivedGrants) if ((grant.expires !== null && now >= grant.expires) || !present(id) || now - (peers.get(id)?.seen || grant.seen) > 45000) receivedGrants.delete(id);
     for (const [id, peer] of peers) if (!present(id) || now - peer.seen > 45000) peers.delete(id);
-    for (const [id,when] of keyRequests) if(!present(id) || now-when>120000)keyRequests.delete(id);
+    for (const [id,request] of keyRequests) if(!present(id) || now-request.at>120000)keyRequests.delete(id);
     for (const [id,state] of publicHeads) if (!present(id) || now - state.seen > 5000) publicHeads.delete(id);
     publishHead(); updatePeople();
   }
@@ -589,19 +616,7 @@
     const key = JSON.stringify([s.color, s.arms, s.curve, s.thickness]);
     if (key === textureKeys[i]) return;
     const texture = textures[i]; texture.width = texture.height = 1024;
-    const tx = texture.getContext('2d'), size = 1024, center = size / 2, radius = size * 0.72;
-    tx.clearRect(0, 0, size, size); tx.fillStyle = s.color;
-    const sector = Math.PI * 2 / s.arms;
-    for (let arm = 0; arm < s.arms; arm++) {
-      tx.beginPath();
-      for (let edge = 0; edge < 2; edge++) for (let step = 0; step <= 300; step++) {
-        const r = radius * (edge ? 300 - step : step) / 300;
-        const angle = arm * sector + edge * sector * s.thickness + r / radius * s.curve * Math.PI * 2;
-        const x = center + r * Math.cos(angle), y = center + r * Math.sin(angle);
-        if (!edge && !step) tx.moveTo(x, y); else tx.lineTo(x, y);
-      }
-      tx.closePath(); tx.fill();
-    }
+    drawSpiralTexture(texture.getContext('2d'),s,1024);
     textureKeys[i] = key;
   }
   function syncProfileButton() {

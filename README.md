@@ -1,6 +1,6 @@
 # Hypno Reverie
 
-Version **0.4.1** — a customizable hypnosis-themed visual overlay for Bondage Club, by **Jaxx-01-ai**. Effects stay within the left player area and allow game clicks through.
+Version **0.5.0** — a customizable hypnosis-themed visual overlay for Bondage Club, by **Jaxx-01-ai**. Effects stay within the left player area and allow game clicks through.
 
 ## Install / update
 
@@ -12,15 +12,15 @@ Create a Firefox bookmark named Hypno Reverie and paste this entire line into it
 javascript:(()=>{if(window.HypnoReverie){window.HypnoReverie.open();return;}if(document.getElementById('player-spiral-addon')){alert('Reload the game, then click Hypno Reverie again to load the update.');return;}if(document.getElementById('hypnoreverie-loader'))return;const s=document.createElement('script');s.id='hypnoreverie-loader';s.crossOrigin='anonymous';s.src='https://Jaxx-01-ai.github.io/HypnoReverie/hypnoreverie.js?_='+Date.now();s.onload=()=>s.remove();s.onerror=()=>{s.remove();alert('Hypno Reverie could not load. Check the published script URL.');};document.head.appendChild(s);})();
 ```
 
-Open your own player profile and click the **headset/spiral icon**, or press **Alt+Shift+H**, then check **Effects on**. The menu has tabs across the top and a scrolling settings area. Drag its title bar to move it. Use the **↔** button for a compact size, or drag the bottom-right corner to resize it. The menu stays inside the screen when the browser resizes. There is no launcher on the main player screen. Clicking the bookmark again also opens the menu. Appearance settings save locally per game server. Effects always start off after a reload. Previous v0.1 appearance settings are migrated on first use.
+Open your own player profile and click the **headset/spiral icon**, or press **Alt+Shift+H**, then check **Effects on**. The menu has tabs across the top and a scrolling settings area. Drag its title bar to move it. Use the **↔** button for a compact size, or drag the bottom-right corner to resize it. The menu stays inside the screen when the browser resizes. There is no launcher on the main player screen. Clicking the bookmark again also opens the menu. Appearance settings save locally per game server. Effects start off after a reload unless the local persistence option is enabled. Previous v0.1 appearance settings are migrated on first use.
 
 ## Visual controls
 
 Primary and secondary spirals each have independent enable, colour, background colour/opacity, spiral opacity, arms, spin speed/direction, throb speed/strength, zoom, thickness, blur and curve. The primary tab also contains the width adjustment, limited to the left player area. The secondary spiral starts disabled.
 
-### Expanded spiral ranges (0.4.1)
+### Expanded spiral ranges
 
-Both spiral layers now support arms 1–32, spin 0–12 radians/s, throb speed 0–5 cycles/s, throb strength 0–0.60, zoom 0.25–6, thickness 0.01–0.99, blur 0–50 px, curve 0–12, and spiral/background opacity 0–1. Existing settings and defaults are preserved. Both controller and receiver should update to 0.4.1 to use the wider ranges remotely; older receivers clamp values to their old limits.
+Both spiral layers now support arms 1–32, spin 0–12 radians/s, throb speed 0–5 cycles/s, throb strength 0–0.60, zoom 0.25–6, thickness 0.01–0.99, blur 0–50 px, curve 0–12, and spiral/background opacity 0–1. Existing settings and defaults are preserved. Both controller and receiver should update to 0.5.0 to use the wider ranges remotely; older receivers clamp values to their old limits.
 
 ## Text
 
@@ -32,13 +32,13 @@ Choose a soft pulse or a flash that fades out, with fixed intervals, random inte
 
 ## Giving someone the keys
 
-Both players must load v0.4 in the same room.
+Both players must load v0.5 in the same room.
 
 1. Open the other player's profile and click the **Hypno Reverie headset icon**. The tooltip and menu show whether their addon has been detected in the current room. Discovery can take up to 15 seconds; not detected does not prove that the addon is absent.
-2. Click **Request keys**. This also marks you available as a controller. The other player receives a request in their menu and can **Review** or **Decline** it. Reviewing lets them choose permissions and duration, then explicitly click **Give keys**. Requests never grant access automatically, expire after two minutes, and are limited to one per recipient every 30 seconds.
+2. Choose **Requested access**, **Duration**, and whether to include **pulse / flash changes**, then click **Request keys**. This also marks you available as a controller. The recipient sees the exact requested permissions, including whether control locking is allowed, and clicks **Yes** or **No**. Yes grants exactly the displayed terms; No gives no access. Requests never grant access automatically, expire after two minutes, and are limited to one per recipient every 30 seconds.
 3. Once keys arrive, the other player's controls open in the profile menu you already selected. Later, opening their profile's addon entry selects their controls directly. Adjust the draft, use **Preview draft**, then **Send changes**. An acknowledgement confirms it was applied.
 
-The existing **Keys** tab and **Edit** selector remain available. Controller status is self-declared; it does not use the game's dominance reputation. Both players should use v0.4 for profile requests and the updated sharing behavior.
+The existing **Keys** tab and **Edit** selector remain available. Controller status is self-declared; it does not use the game's dominance reputation. Both players should use v0.5 for profile requests and the updated sharing behavior.
 
 ### Permission levels
 
@@ -53,6 +53,16 @@ Pulse/flash changes require the receiver's separate **Also allow pulse/flash cha
 Granting access shares the current effect settings and message list with the selected controller, and allows controller-enabled head effects to be shared with the room. One player can hold keys to your overlay at a time. Grants last 1–30 minutes or **No time limit**, are not saved, and are cleared when the room changes, either player leaves, the receiver disconnects, or the other addon stops announcing itself (up to 45 seconds). No time limit lasts for the current room session; it does not survive reloads or disconnects. Opening your player profile preserves the grant. **Return keys** ends a controller's session.
 
 **Stop / revoke** is inside the Overview tab. Stop/revoke and re-grant controls are disabled while someone holds your keys. **Escape stops and revokes only while unlocked; Escape is inactive during a control lock.** A controller can unlock or return keys. Room exit, disconnect, expiry, and reloading clear access. Alt+Shift+S toggles effects only while unlocked. This is a voluntary client-side game feature, not a restriction on closing or reloading the browser.
+
+## Keep effects on across room changes and relog
+
+In your own **Overview** tab, enable **Keep effects on across room changes and relog**. This remembers the effects-on state in this browser for the current account. When enabled, changing rooms or reconnecting keeps the visual overlay running; after a page reload, it resumes when Hypno Reverie loads again. With the option off, a room transition stops the overlay and reloads start off. Stopping or switching effects off is remembered even when persistence is enabled.
+
+The bookmark loader must still be clicked after a page reload unless you already have an addon loader configured. This option does not install an automatic loader. Remote keys, locks and automatic controller head sharing remain room-scoped and are never restored after reload. The saved activation state is not restored for a different member account.
+
+## Single-arm spiral fix
+
+The texture renderer now joins the two spiral edges along the outer circle instead of a straight chord. This removes the unintended straight split that was especially visible with one arm. The same fix applies to both spiral layers and the draft preview.
 
 ## Live draft preview
 
@@ -80,7 +90,7 @@ Flashes and moving patterns may trigger seizures in people with photosensitive e
 
 ## Testing status
 
-Automated core and isolated two-player Chromium tests cover settings limits, chat clipping, text modes, rendering, permission levels, targeted control, acknowledgements, token/sender checks, replay rejection, expiry, indefinite grants, locked/unlocked Escape, presets, profile launcher and request approval, local draft preview, menu dragging/resizing, automatic controller sharing, shared head visibility, room change, disconnect, duplicate loading and cleanup. Live Firefox and real server two-player testing are still required.
+Automated core and isolated two-player Chromium tests cover settings limits, chat clipping, text modes, rendering, permission levels, targeted control, acknowledgements, token/sender checks, replay rejection, expiry, indefinite grants, locked/unlocked Escape, presets, profile requests with exact Yes/No approval, single-arm geometry, room/reload persistence, local draft preview, menu dragging/resizing, automatic controller sharing, shared head visibility, room change, disconnect, duplicate loading and cleanup. Live Firefox and real server two-player testing are still required.
 
 Test locally first, then test with one trusted partner using visuals-only access before trying a full session. Verify that Escape does nothing while locked, returning keys stops the session, and leaving the room or disconnecting clears access. Test profile alignment and sharing with a partner. This build has not been submitted to FUSAM.
 
