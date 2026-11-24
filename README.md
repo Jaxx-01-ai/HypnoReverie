@@ -1,8 +1,8 @@
 # Hypno Reverie
 
-Version **0.8.1**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable test release. The existing FUSAM submission remains for v0.6.0.
+Version **0.8.3**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable test release. The existing FUSAM submission remains for v0.6.0.
 
-## Compatibility fixes (0.8.1)
+## Compatibility fixes retained from 0.8.1
 
 The addon registers with BC Mod SDK as **Hypno Reverie**, including its version and repository. This makes its metadata available to SDK-aware addon lists; the particular LSCG/BCX list UIs have not been tested live.
 
@@ -12,44 +12,49 @@ Ghosted players cannot send accepted addon requests, control updates, expression
 
 There is no jQuery dependency. The small local DOM helper was renamed from dollar-sign notation to **byId** to make that clear.
 
-## Wearables (0.8)
+## Wearable fixes (0.8.3)
 
-Five crafted variants appear in the normal game item/clothing pickers. They are not buttons in the Hypno Reverie menu.
+The clothing picker previously displayed the custom name but dropped its crafting data when equipping it. The addon now preserves that data through the native wardrobe path. Ordinary and custom clothing also have separate previews. Native ownership, permission and lock checks remain in use.
 
 | Picker | Item | Native base to own |
 | --- | --- | --- |
 | Blindfold / eyes (ItemHead) | Hypno Reverie Headset | Interactive VR Headset |
 | Hood (ItemHood) | Hypno Reverie Latex Hood | Latex Hood |
 | Arm restraints (ItemArms) | Hypno Reverie Latex Bolero | Bolero Straitjacket |
-| Upper suit (Suit) | Hypno Reverie Latex Top | Catsuit purchase / Seamless Catsuit variant |
-| Lower suit (SuitLower) | Hypno Reverie Latex Bottom | Catsuit purchase / Seamless Catsuit variant |
+| Upper suit (Suit) | Hypno Reverie Latex Top | Latex Catsuit |
+| Lower suit (SuitLower) | Hypno Reverie Latex Bottom | Latex Catsuit |
 
-Open the appropriate slot and select the named crafted variant. Buy its base item in the game shop if it is absent. These entries use normal game inventory, permissions, prerequisites, locks, removal rules, and extended options. They consume no crafting slots. The addon never automatically equips or removes a wearable.
+These items appear in the normal native pickers, not in the addon menu. They consume no crafting slots. Buy the native base if an entry is absent. The addon does not automatically equip, remove or migrate items.
+
+**After updating, re-equip the named Hypno Reverie top and bottom.** They now use LatexCatsuit instead of SeamlessCatsuit. An old equipped SeamlessCatsuit is not silently changed. Re-selecting an already-worn custom item opens its native settings.
 
 ### Artwork and fitting
 
-The visor, hood, and bolero use original generated artwork embedded in hypnoreverie.js. The hood has a softened nose and transparent mouth opening. The bolero uses the native arm restraint's behavior and BackElbowTouch pose, with the new wraparound sleeve artwork drawn in front. It is fitted to the standard torso; unusual body styles and layered outfit combinations need live testing.
+The headset is unchanged. The hood retains the smooth covered-eye artwork, with a smaller, lower mouth opening and slightly lowered facial contours. It ends just below the chin and has separate placement for Original and EchoV2. The custom hood applies the native Latex Hood ear-mask rectangles to the head layer, avoiding bulky side covers. Those masks are local rendering changes; they do not alter the character's stored appearance or native settings, and are removed with the hood or on addon unload.
 
-The catsuit uses a procedural glossy black material over the native Seamless Catsuit silhouettes, with curved chest seams positioned for Small, Normal, Large, and XLarge. This is an adaptation to game artwork, not the high-resolution concept image stretched over the avatar. The lower part follows its own native body-size variants. No waistband or horizontal waist seam is added; the two pieces share the same material treatment across their join. Garment outlines, transparency, layering, masks, opacity, and drawing transforms remain controlled by the game.
+The bolero uses the native collar, shoulders and size-specific breast cutouts. The surface art is clipped to those silhouettes. Its upper shoulder texture is now fitted column by column to the native shoulder edge, correcting the lower inner outline caused by the taller concept-art collar. A three-pixel extension at the upper shoulder edge closes the measured collar-to-shoulder gaps, especially on EchoV2; the chest openings remain unchanged. The collar uses a shallow rounded upper edge with its lower edge anchored to the shoulders; the previous pointed jaw-shaped extension was removed. Native belts and hardware render in their own layers. The bolero retains its normal BackElbowTouch pose, locks and restraint behavior.
 
-Upper-pose references checked: default, BackBoxTie, BackCuffs, BackElbowTouch, Hogtied, OverTheHead, TapedHands, Yoked, and AllFours, across all four breast sizes. Lower references checked: default, Hogtied, Kneel, KneelingSpread, LegsClosed, and Spread, across all four lower sizes. Native standing offsets, inversion, and composite poses remain engine-driven. In AllFours, the top uses the game's dedicated LatexCatsuit silhouette; the separate lower suit follows the game's normal hidden-lower-body behavior. The addon changes the pose mapping only for this crafted top, not other catsuits.
+The catsuit now uses the native Latex Catsuit artwork with a glossy black material treatment. It is **not an exact reproduction of the earlier high-resolution concept art**. Native chest contours, four breast sizes, lower sizes, masks and pose layers provide the fit. No new horizontal waistband is drawn. Separate garments and native shading can still make their boundary visible in some combinations.
 
-The material uses fixed black and silver-gray colors. The native color picker changes the fallback appearance, not the custom material. Existing gloves/options still use their native behavior. Only the four breast-bearing standard body sizes are covered by this test matrix; alternate body styles such as EchoV2 and flat-body assets have not been visually verified.
+Original AllFours uses its dedicated native upper artwork. EchoV2 follows the game's Hogtied upper mapping because a dedicated EchoV2 AllFours Latex Catsuit file is unavailable. The lower Hogtied pose uses the available native Seamless Catsuit silhouette as a fallback. These mappings affect only the named custom clothing and leave the source assets unchanged.
 
-### Modes and compatibility
+The material uses fixed black and silver-gray tones. Native color controls affect fallback and separately rendered hardware layers, not the custom material itself. Other players need this version of the addon to see the same custom render; without it they see the native base item.
 
-The headset and hood start cosmetic/non-blinding. The headset's native Function option chooses Passthrough or Off. The hood's native Vision option enables blocking; its base blocking option also applies light hearing reduction and wardrobe blocking. Locked items obey native settings restrictions. The bolero is a restraint and retains its native restrictions.
+### Validation and limitations
 
-Other users running Hypno Reverie 0.8 see the custom appearance. Players without it see the native base items. Equipped items save through the game as native crafted variants. Your existing v0.7 named headset retains its skin.
+- 112 native garment layers checked across Original and EchoV2, all four sizes and the downloaded upper/lower pose variants. Native alpha is preserved except for the fitted collar and explicitly tested shoulder extension; draw options are preserved.
+- Shoulder diagnostics include the posed BodyUpper, ArmsLeft and ArmsRight layers without a catsuit hiding gaps, with their outlines drawn over the jacket for direct comparison. The assembled clothing preview also applies the native bolero masks to the underlying suit. No exposed cyan pixels remain in the tested upper-shoulder region on either body across all four sizes.
+- Head previews verify placement and native ear masking on both styles, with ordinary-head isolation and unload cleanup.
+- A regression test first reproduces the craft-loss bug using the game's actual AppearanceClick and AppearancePreviewBuild functions, then verifies custom equip, separate previews, permissions, locks and cleanup.
+- Existing overlay, audio, session, SDK, native message-bus and ghost-list regression checks passed in isolated Chromium fixtures.
 
-### Validation and installation
+Black strap and silver hardware colours in the assembled preview are approximations; the live game applies its native colour rendering. Included screenshots are isolated rendering checks, **not live game screenshots**. Live Firefox, multiplayer rendering, other outfit combinations and every composite pose still need in-game testing. The headset/hood start cosmetic; native settings can enable vision blocking. Native lock restrictions remain in force.
 
-The isolated browser fixture checks 60 size/pose material combinations, exact silhouette-alpha preservation, native draw options, local pose-map isolation, ordinary-item isolation, bolero drawing, and cleanup. Additional checks cover native picker injection, ownership and craft permissions, deduplication, default settings, thumbnails for the head wearables, and existing overlay/session/audio behavior. The included fitting screenshots are test renders, not live game screenshots. Live Firefox, multiplayer rendering, every composite pose, and alternate body styles still need in-game testing.
+### Installation
 
-Upload hypnoreverie.js, README.md, and bookmarklet.txt to the existing repository root. The images are embedded; no PNG uploads are needed. MOD-SDK-LICENSE.txt is included for reference; the same MIT notice is embedded in the script. Keep the existing bookmark, reload the game after deployment, then load the addon again.
+Upload hypnoreverie.js, README.md, bookmarklet.txt and MOD-SDK-LICENSE.txt to the existing repository root. The artwork is embedded in the script; PNG uploads are unnecessary. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.8.3 and re-equip the named top and bottom.
 
-The official BC Mod SDK 1.2.0 provides the hooks. Game silhouette and reference artwork is from BondageProjects/Bondage-College and retains its upstream authorship and licensing. Native artwork is loaded from the game, not bundled in the addon. Generated concepts and fitting previews are separate from the deployable script. The existing FUSAM submission is unchanged.
-
+This package has not been published automatically. The FUSAM submission is unchanged. BC Mod SDK 1.2.0 supplies the hooks. Native reference artwork is loaded from the game, is not bundled in the deployed script, and retains its upstream authorship and licensing.
 
 ## Update
 
