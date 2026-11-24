@@ -1,10 +1,49 @@
 # Hypno Reverie
 
-Version **0.6.0**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a test release, not a FUSAM submission.
+Version **0.8.0**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable test release. The existing FUSAM submission remains for v0.6.0.
+
+## Wearables (0.8)
+
+Five crafted variants appear in the normal game item/clothing pickers. They are not buttons in the Hypno Reverie menu.
+
+| Picker | Item | Native base to own |
+| --- | --- | --- |
+| Blindfold / eyes (ItemHead) | Hypno Reverie Headset | Interactive VR Headset |
+| Hood (ItemHood) | Hypno Reverie Latex Hood | Latex Hood |
+| Arm restraints (ItemArms) | Hypno Reverie Latex Bolero | Bolero Straitjacket |
+| Upper suit (Suit) | Hypno Reverie Latex Top | Catsuit purchase / Seamless Catsuit variant |
+| Lower suit (SuitLower) | Hypno Reverie Latex Bottom | Catsuit purchase / Seamless Catsuit variant |
+
+Open the appropriate slot and select the named crafted variant. Buy its base item in the game shop if it is absent. These entries use normal game inventory, permissions, prerequisites, locks, removal rules, and extended options. They consume no crafting slots. The addon never automatically equips or removes a wearable.
+
+### Artwork and fitting
+
+The visor, hood, and bolero use original generated artwork embedded in hypnoreverie.js. The hood has a softened nose and transparent mouth opening. The bolero uses the native arm restraint's behavior and BackElbowTouch pose, with the new wraparound sleeve artwork drawn in front. It is fitted to the standard torso; unusual body styles and layered outfit combinations need live testing.
+
+The catsuit uses a procedural glossy black material over the native Seamless Catsuit silhouettes, with curved chest seams positioned for Small, Normal, Large, and XLarge. This is an adaptation to game artwork, not the high-resolution concept image stretched over the avatar. The lower part follows its own native body-size variants. No waistband or horizontal waist seam is added; the two pieces share the same material treatment across their join. Garment outlines, transparency, layering, masks, opacity, and drawing transforms remain controlled by the game.
+
+Upper-pose references checked: default, BackBoxTie, BackCuffs, BackElbowTouch, Hogtied, OverTheHead, TapedHands, Yoked, and AllFours, across all four breast sizes. Lower references checked: default, Hogtied, Kneel, KneelingSpread, LegsClosed, and Spread, across all four lower sizes. Native standing offsets, inversion, and composite poses remain engine-driven. In AllFours, the top uses the game's dedicated LatexCatsuit silhouette; the separate lower suit follows the game's normal hidden-lower-body behavior. The addon changes the pose mapping only for this crafted top, not other catsuits.
+
+The material uses fixed black and silver-gray colors. The native color picker changes the fallback appearance, not the custom material. Existing gloves/options still use their native behavior. Only the four breast-bearing standard body sizes are covered by this test matrix; alternate body styles such as EchoV2 and flat-body assets have not been visually verified.
+
+### Modes and compatibility
+
+The headset and hood start cosmetic/non-blinding. The headset's native Function option chooses Passthrough or Off. The hood's native Vision option enables blocking; its base blocking option also applies light hearing reduction and wardrobe blocking. Locked items obey native settings restrictions. The bolero is a restraint and retains its native restrictions.
+
+Other users running Hypno Reverie 0.8 see the custom appearance. Players without it see the native base items. Equipped items save through the game as native crafted variants. Your existing v0.7 named headset retains its skin.
+
+### Validation and installation
+
+The isolated browser fixture checks 60 size/pose material combinations, exact silhouette-alpha preservation, native draw options, local pose-map isolation, ordinary-item isolation, bolero drawing, and cleanup. Additional checks cover native picker injection, ownership and craft permissions, deduplication, default settings, thumbnails for the head wearables, and existing overlay/session/audio behavior. The included fitting screenshots are test renders, not live game screenshots. Live Firefox, multiplayer rendering, every composite pose, and alternate body styles still need in-game testing.
+
+Upload hypnoreverie.js, README.md, and bookmarklet.txt to the existing repository root. The images are embedded; no PNG uploads are needed. MOD-SDK-LICENSE.txt is included for reference; the same MIT notice is embedded in the script. Keep the existing bookmark, reload the game after deployment, then load the addon again.
+
+The official BC Mod SDK 1.2.0 provides the hooks. Game silhouette and reference artwork is from BondageProjects/Bondage-College and retains its upstream authorship and licensing. Native artwork is loaded from the game, not bundled in the addon. Generated concepts and fitting previews are separate from the deployable script. The existing FUSAM submission is unchanged.
+
 
 ## Update
 
-Upload **hypnoreverie.js**, **bookmarklet.txt** and **README.md** to the root of Jaxx-01-ai/HypnoReverie, replacing those files. Keep GitHub Pages on main/root. Wait for deployment, reload the game, and click your existing bookmark. Both players should use v0.6 for the new permissions and permanent access. Older session keys are not migrated into permanent grants; grant access again after updating.
+Upload **hypnoreverie.js**, **bookmarklet.txt** and **README.md** to the root of Jaxx-01-ai/HypnoReverie, replacing those files. Keep GitHub Pages on main/root. Wait for deployment, reload the game, and click your existing bookmark. Both players should use v0.8 to see the new wearable appearances. Older session keys are not migrated into permanent grants; grant access again after updating.
 
 The bookmark is unchanged. Its complete URL is in bookmarklet.txt. After a reload, the bookmark must still be clicked unless an addon loader is already configured. Persistence does not install an automatic loader.
 
