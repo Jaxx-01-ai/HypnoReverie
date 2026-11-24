@@ -1,8 +1,8 @@
-// Hypno Reverie 0.3.0 — Jaxx-01-ai
+// Hypno Reverie 0.4.0 — Jaxx-01-ai
 // Original canvas renderer and opt-in, room-scoped control protocol.
 (() => {
   'use strict';
-  const VERSION = '0.3.0', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
+  const VERSION = '0.4.0', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
   const PRESET_KEY = 'hypnoreverie-presets-v1', PRIVACY_KEY = 'hypnoreverie-head-sharing-v1';
   const clone = value => JSON.parse(JSON.stringify(value));
   const num = (v, fallback, min, max) => typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback;
@@ -130,12 +130,14 @@
   let presets = [], privacy = { broadcast: false, showOthers: true }, hideSharedUntilEnabled = false;
   try { presets = normalizePresets(JSON.parse(localStorage.getItem(PRESET_KEY) || '[]')); } catch {}
   try { const p = JSON.parse(localStorage.getItem(PRIVACY_KEY) || '{}'); privacy = { broadcast: p.broadcast === true, showOthers: p.showOthers !== false }; } catch {}
+  let remoteHeadSharing = false;
   let enabled = false, locked = false, destroyed = false, socket = null, selected = 'self';
   let activeTime = 0, lastFrame = 0, frameId = 0, rectangle = null, networkRoom = null, networkMember = null;
   let dominant = false, pulseAllowed = false, status = 'Ready. Effects start off.', lastHello = 0;
   const gate = new ControlGate(), peers = new Map(), receivedGrants = new Map();
+  let viewedProfile = null; const keyRequests = new Map(), requestTimes = new Map();
   const publicHeads = new Map(); let lastPublic = 0, publicWasActive = false, profileButton = null;
-  const phases = [0, 0], textures = [document.createElement('canvas'), document.createElement('canvas')], textureKeys = ['', ''];
+  const phases = [0, 0], effectTextures = [document.createElement('canvas'), document.createElement('canvas')], effectTextureKeys = ['', ''];
   const host = document.createElement('div'); host.id = 'hypnoreverie-addon';
   host.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:10000';
   document.body.append(host);
@@ -156,20 +158,25 @@
     fieldset{border:0;padding:0;margin:0;min-width:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}fieldset>label{background:#22192d;border:1px solid #36253f;border-radius:10px;padding:11px;font-size:13px}.wide{grid-column:1/-1}fieldset:disabled{opacity:.5}.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.card{padding:15px;background:#241a30;border:1px solid #463052;border-radius:12px;margin:0 0 13px}.card label{margin:10px 0}.notice{padding:10px 12px;background:#38223b;border:1px solid #684364;border-radius:9px;font-size:12px;margin:10px 0;line-height:1.5}.notice a{color:#e0c3ff}
     #footer{padding:12px 20px;border-top:1px solid #463052;background:#21172e}.footer-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}#status{margin:0;font-size:12px;flex:1}#remote-actions{display:flex;gap:8px}#grant-info{overflow-wrap:anywhere}select{max-width:100%}.danger-note{color:#e7abc9}
     @media(max-width:560px){fieldset{grid-template-columns:1fr}.header,#content,#footer{padding-left:12px;padding-right:12px}.tabs button{padding:8px}.session-bar #target{max-width:180px}.brand h2{font-size:18px}}
+    #panel{position:fixed;resize:both;min-width:min(340px,calc(100vw - 16px));min-height:min(360px,calc(100vh - 16px));max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);container-type:inline-size}
+    #drag-bar,#preview-bar{cursor:move;touch-action:none;user-select:none}#compact{margin-left:auto}.brand #close{margin-left:0}
+    #preview-window{position:fixed;left:16px;top:16px;width:310px;max-width:calc(100vw - 16px);background:#21172e;border:1px solid #70568b;border-radius:12px;pointer-events:auto;padding:10px;box-shadow:0 8px 30px #0008}
+    #preview-bar{display:flex;align-items:center;justify-content:space-between}#preview-window p{margin:6px 0;font-size:11px}#preview-canvas{display:block;width:100%;max-height:45vh;object-fit:contain;background:#161222}
+    @container(max-width:510px){fieldset{grid-template-columns:1fr}.header,#content,#footer{padding-left:10px;padding-right:10px}.brand h2{font-size:17px}.brand svg{width:32px;height:32px}.tabs{padding-top:8px}.tabs button{padding:6px}.session-bar{gap:6px}.session-bar #target{max-width:170px}}
   </style>
   <canvas id="effect" aria-hidden="true" hidden></canvas><canvas id="heads" aria-hidden="true" hidden></canvas>
   <div id="ui" hidden><section id="panel" role="dialog" aria-label="Hypno Reverie settings" hidden>
-    <div class="header"><div class="brand">${LOGO}<div><h2>Hypno Reverie</h2><small>0.3 · Your session, your settings</small></div><button id="close" aria-label="Close menu">×</button></div>
+    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.4 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
       <div class="tabs" role="tablist" aria-label="Settings categories">
         <button data-tab="overview" role="tab" aria-selected="true">Overview</button><button data-tab="primary" role="tab" aria-selected="false">Primary</button><button data-tab="secondary" role="tab" aria-selected="false">Secondary</button>
         <button data-tab="text" role="tab" aria-selected="false">Words</button><button data-tab="pulse" role="tab" aria-selected="false">Pulse</button><button data-tab="head" role="tab" aria-selected="false">Head</button><button data-tab="sharing" role="tab" aria-selected="false">Keys</button><button data-tab="presets" role="tab" aria-selected="false">Presets</button>
       </div>
-      <div class="session-bar"><label>Edit <select id="target"><option value="self">My overlay</option></select></label><label><input id="enabled" type="checkbox"> Effects on</label><label id="lock-row" hidden><input id="lock" type="checkbox"> Lock controls</label><span id="session-badge" class="help">Local session</span></div>
+      <div class="session-bar"><label>Edit <select id="target"><option value="self">My overlay</option></select></label><label><input id="enabled" type="checkbox"> Effects on</label><label id="lock-row" hidden><input id="lock" type="checkbox"> Lock controls</label><button id="preview-toggle" aria-pressed="false">Preview draft</button><span id="session-badge" class="help">Local session</span></div>
     </div>
-    <div id="content">
+    <div id="content"><div id="profile-card" class="card" hidden><h3 id="profile-title"></h3><p id="profile-status"></p><button id="request-keys">Request keys</button></div><div id="requests-card" class="card" hidden><h3>Key requests</h3><div id="requests-list"></div><p class="help">Review a request, choose permissions, then Give keys. A request never grants access automatically.</p></div>
       <div id="remote-note" class="notice" hidden>Editing a remote draft. Send changes to apply it.</div>
       <div id="overview" role="tabpanel"><h3>Set the scene</h3><p>Build your spirals, add words and pulse effects, then save a preset. Changes to your own overlay apply immediately.</p>
-        <div class="card"><h3>Session controls</h3><p id="stop-note">Stop your effects and revoke keys to your overlay.</p><button id="stop">Stop / revoke</button><p class="help">While keys are handed over, this button is disabled. Escape stops your session only while controls are unlocked.</p></div>
+        <div class="card" id="local-session-card"><h3>Session controls</h3><p id="stop-note">Stop your effects and revoke keys to your overlay.</p><button id="stop">Stop / revoke</button><p class="help">While keys are handed over, this button is disabled. Escape stops your session only while controls are unlocked.</p></div>
         <div class="notice">Photosensitivity notice: flashing lights and moving patterns may trigger seizures in people with photosensitive epilepsy. Avoid these effects if they are a trigger for you. Stop if you feel unwell. <a href="https://www.epilepsy.com/what-is-epilepsy/seizure-triggers/photosensitivity" target="_blank" rel="noopener noreferrer">Learn more</a></div>
         <p class="help">Open this menu from the headset icon in your player profile, your bookmark, or Alt+Shift+H. Close the menu to return to play.</p>
       </div>
@@ -178,13 +185,13 @@
       <div id="text" role="tabpanel" hidden><h3>Word flashes</h3><p class="help">One word or sentence per line. Random positions stay within the player area; center + periphery alternates between the middle and edges.</p><fieldset id="text-fields"></fieldset></div>
       <div id="pulse" role="tabpanel" hidden><h3>Pulse & flash</h3><p class="help">Choose a rhythm. Flashes remain limited to one every two seconds or slower.</p><fieldset id="pulse-fields"></fieldset></div>
       <div id="head" role="tabpanel" hidden><h3>Head effects</h3><p class="help">Combine tiny words, a forehead spiral, spiral eyes, and a halo. Effects appear only while your overlay is on. Position controls help align unusual poses.</p>
-        <div class="card"><label><input id="broadcast-head" type="checkbox"> Share my head effects with the room</label><p class="help">Shares your head-effect settings and the currently displayed words with other Hypno Reverie users. Your controller cannot enable this option.</p><label><input id="show-heads" type="checkbox"> Show other players’ shared head effects</label></div><fieldset id="head-fields"></fieldset>
+        <div class="card"><label id="broadcast-label"><input id="broadcast-head" type="checkbox"> Share my head effects with the room</label><p class="help">Shares your head-effect settings and the currently displayed words with other Hypno Reverie users. During a grant, head effects enabled by your controller are shared automatically. Each viewer can still hide shared effects.</p><label><input id="show-heads" type="checkbox"> Show other players’ shared head effects</label></div><fieldset id="head-fields"></fieldset>
       </div>
-      <div id="sharing" role="tabpanel" hidden><h3>Hand over the keys</h3><p class="help">Both players need version 0.3. Dominant/controller status is self-declared; choose by name and member number.</p>
+      <div id="sharing" role="tabpanel" hidden><h3>Hand over the keys</h3><p class="help">Both players need version 0.4 for all features. Dominant/controller status is self-declared; choose by name and member number.</p>
         <div class="card"><label><input id="dominant" type="checkbox"> Available as a dominant/controller</label><button id="discover">Find players</button></div>
         <div class="card"><label>Give keys to <select id="peer"><option value="">No controllers discovered</option></select></label><label>Permission <select id="level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label>
           <label><input id="allow-pulse" type="checkbox"> Also allow pulse/flash changes</label><label>Duration <select id="duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="custom">Custom</option><option value="indefinite">No time limit</option></select></label><label id="minutes-row" hidden>Minutes <input id="minutes" type="number" min="1" max="30" value="15"></label>
-          <p class="help">A grant shares your current settings and message list. No time limit lasts for this room session; room changes, disconnects, returning keys, or Escape while unlocked end it. Grants are never saved.</p>
+          <p class="help">A grant shares your current settings and message list, and allows controller-enabled head effects to be visible to the room. No time limit lasts for this room session; room changes, disconnects, returning keys, or Escape while unlocked end it. Grants are never saved.</p>
           <div class="row"><button id="grant">Give keys</button><button id="revoke">Revoke keys</button></div><p id="grant-info"></p>
         </div>
       </div>
@@ -194,13 +201,13 @@
       </div>
     </div>
     <div id="footer"><div class="footer-row"><p id="status" role="status"></p><div id="remote-actions" hidden><button id="apply">Send changes</button><button id="release">Return keys</button></div></div><div class="help">Escape: stop when unlocked · Alt+Shift+H: menu · Alt+Shift+S: toggle when unlocked</div></div>
-  </section></div>`;
+  </section></div><section id="preview-window" hidden aria-label="Local draft preview"><div id="preview-bar"><strong>Draft preview</strong><button id="preview-close" aria-label="Close preview">×</button></div><p id="preview-label" class="help"></p><canvas id="preview-canvas" width="500" height="500"></canvas><p class="help">Local preview · Send changes to update their screen. Head position uses a sample figure.</p></section>`;
   const $ = id => root.getElementById(id), canvas = $('effect'), ctx = canvas.getContext('2d');
   const heads = $('heads'), hx = heads.getContext('2d'); let headRectangle = null;
   const fields = [];
   function getPath(object, path) { return path.reduce((value, key) => value[key], object); }
   function setPath(object, path, value) { path.slice(0, -1).reduce((v, k) => v[k], object)[path.at(-1)] = value; }
-  function editState() { return selected === 'self' ? settings : receivedGrants.get(Number(selected))?.draft || settings; }
+  function editState() { return selected === 'self' ? settings : receivedGrants.get(Number(selected))?.draft || normalize(); }
   function field(parent, path, title, type, min, max, step, options) {
     const label = document.createElement('label'), input = document.createElement(type === 'select' ? 'select' : type === 'textarea' ? 'textarea' : 'input');
     const id = 'setting-' + path.join('-'); input.id = id; label.htmlFor = id;
@@ -212,7 +219,7 @@
     if (output) label.append(output);
     label.append(input); if (type === 'textarea') label.classList.add('wide'); $(parent).append(label);
     const record = { input, path, type, output }; fields.push(record);
-    input.addEventListener(type === 'textarea' ? 'change' : 'input', () => {
+    input.addEventListener('input', () => {
       if (selected === 'self' && locked) return;
       const value = type === 'checkbox' ? input.checked : ['range', 'number'].includes(type) ? Number(input.value) : type === 'textarea' ? input.value.split('\n') : input.value;
       const next = clone(editState()); setPath(next, path, value);
@@ -282,7 +289,8 @@
       if (record.output) record.output.value = Number(value).toFixed(record.input.step === '1' ? 0 : 2);
       record.input.disabled = selected !== 'self' && record.path[0] === 'width';
     }
-    const localLocked = selected === 'self' && locked;
+    const noAccess = selected !== 'self' && !remote;
+    const localLocked = (selected === 'self' && locked) || noAccess;
     $('primary-fields').disabled = $('secondary-fields').disabled = localLocked;
     $('text-fields').disabled = localLocked || (selected !== 'self' && remote?.level === 'visuals');
     $('pulse-fields').disabled = localLocked || (selected !== 'self' && !remote?.allowPulse);
@@ -290,23 +298,47 @@
     $('enabled').disabled = localLocked || (selected !== 'self' && remote?.level !== 'session');
     $('lock-row').hidden = selected === 'self' || remote?.level !== 'session';
     $('lock').checked = !!remote?.locked;
-    $('remote-actions').hidden = $('remote-note').hidden = selected === 'self';
+    $('remote-actions').hidden = selected === 'self' || noAccess; $('remote-note').hidden = selected === 'self' || noAccess;
+    $('preview-toggle').disabled = noAccess;
     $('head-fields').disabled = localLocked;
     for (const record of fields) if (selected !== 'self' && remote?.level === 'visuals' && record.path[0] === 'head' && ['words','wordMode'].includes(record.path[1])) record.input.disabled = true;
     $('stop').disabled = $('revoke').disabled = $('grant').disabled = !!gate.grant;
     for (const id of ['peer','level','allow-pulse','duration','minutes']) $(id).disabled = !!gate.grant;
-    $('preset-load').disabled = localLocked;
+    $('preset-load').disabled = localLocked; $('preset-save').disabled = noAccess;
     $('broadcast-head').checked = privacy.broadcast;
     $('show-heads').checked = privacy.showOthers && !hideSharedUntilEnabled;
-    $('session-badge').textContent = gate.grant ? (locked ? 'Controls locked' : 'Keys handed over') : 'Local session';
-    $('status').textContent = status;
+    $('local-session-card').hidden = selected !== 'self'; $('broadcast-label').hidden = selected !== 'self';
+    $('session-badge').textContent = selected !== 'self' ? 'Remote draft' : gate.grant ? (locked ? 'Controls locked' : 'Keys handed over') : 'Local session';
+    $('status').textContent = status; refreshProfileCard();
   }
   for (const button of root.querySelectorAll('[data-tab]')) button.onclick = () => {
+    $('content').scrollTop = 0;
     for (const tab of root.querySelectorAll('[data-tab]')) {
       const active = tab === button; tab.setAttribute('aria-selected', String(active)); $(tab.dataset.tab).hidden = !active;
     }
   };
-  function open() { $('ui').hidden = $('panel').hidden = false; refreshFields(); }
+  let windowReady = false;
+  function clampWindow(element) {
+    if (element.hidden) return;
+    const r = element.getBoundingClientRect();
+    element.style.left = Math.max(8,Math.min(r.left,innerWidth-r.width-8))+'px';
+    element.style.top = Math.max(8,Math.min(r.top,innerHeight-r.height-8))+'px';
+  }
+  function draggable(element,bar) {
+    let drag = null;
+    bar.addEventListener('pointerdown',e => {
+      if (e.button !== 0 || e.target.closest('button')) return;
+      const r=element.getBoundingClientRect();drag={x:e.clientX-r.left,y:e.clientY-r.top};bar.setPointerCapture(e.pointerId);e.preventDefault();
+    });
+    bar.addEventListener('pointermove',e => { if(!drag)return; element.style.left=(e.clientX-drag.x)+'px';element.style.top=(e.clientY-drag.y)+'px';clampWindow(element); });
+    const finish=()=>{drag=null;};bar.addEventListener('pointerup',finish);bar.addEventListener('pointercancel',finish);
+  }
+  draggable($('panel'),$('drag-bar'));draggable($('preview-window'),$('preview-bar'));
+  const windowObserver = new ResizeObserver(()=>{clampWindow($('panel'));clampWindow($('preview-window'));});windowObserver.observe($('panel'));
+  $('compact').onclick=()=>{const panel=$('panel'),small=panel.getBoundingClientRect().width>520;panel.style.width=small?'390px':'760px';panel.style.height=small?'500px':'680px';clampWindow(panel);};
+  function showPreview(on) { $('preview-window').hidden=!on;$('preview-toggle').setAttribute('aria-pressed',String(on));clampWindow($('preview-window')); }
+  $('preview-toggle').onclick=()=>showPreview($('preview-window').hidden);$('preview-close').onclick=()=>showPreview(false);
+  function open() { $('ui').hidden = $('panel').hidden = false; if(!windowReady){const p=$('panel');p.style.width=Math.min(760,innerWidth-32)+'px';p.style.height=Math.min(680,innerHeight-32)+'px';p.style.left=Math.max(8,(innerWidth-760)/2)+'px';p.style.top='24px';windowReady=true;}clampWindow($('panel'));refreshFields(); }
   $('close').onclick = () => { $('ui').hidden = $('panel').hidden = true; };
   function privacySave() { try { localStorage.setItem(PRIVACY_KEY, JSON.stringify(privacy)); } catch {} }
   $('broadcast-head').onchange = () => { privacy.broadcast = $('broadcast-head').checked; privacySave(); publishHead(true); };
@@ -341,7 +373,35 @@
     refreshFields();
   };
   $('lock').onchange = () => { const grant = receivedGrants.get(Number(selected)); if (grant?.level === 'session') grant.locked = $('lock').checked; };
-  $('target').onchange = () => { selected = $('target').value; refreshFields(); };
+  $('target').onchange = () => { selected = $('target').value; viewedProfile = selected === 'self' ? null : Number(selected); refreshFields(); };
+  function openProfile(member) {
+    viewedProfile = member === player()?.MemberNumber ? null : member; selected = viewedProfile === null ? 'self' : String(member);
+    updatePeople(); open();
+    if (!receivedGrants.has(member)) root.querySelector('[data-tab=overview]').click();
+  }
+  function refreshProfileCard() {
+    const member = viewedProfile, peer = peers.get(member), grant = receivedGrants.get(member);
+    $('profile-card').hidden = member === null;
+    if(member === null)return;
+    const detected = peer && present(member) && Date.now()-peer.seen < 45000;
+    $('profile-title').textContent = label(member);
+    $('profile-status').textContent = grant ? 'Hypno Reverie detected · You have keys. Edit and preview their draft, then Send changes.' : detected ? 'Hypno Reverie detected · Request keys to edit this player’s effects.' : 'Hypno Reverie not detected in this room. They may need to load it or update. Discovery can take up to 15 seconds.';
+    $('request-keys').hidden = !!grant; $('request-keys').disabled = !detected || Date.now()-(requestTimes.get(member)||0)<30000;
+  }
+  $('request-keys').onclick = () => {
+    const member=viewedProfile;if(!member || !peers.has(member) || !present(member) || Date.now()-(requestTimes.get(member)||0)<30000)return;
+    dominant=true;$('dominant').checked=true;send('hello',{dominant});
+    if(send('requestKeys',{},member)){requestTimes.set(member,Date.now());say('Key request sent. Waiting for their approval.');refreshProfileCard();}
+  };
+  function refreshRequests() {
+    $('requests-card').hidden=!keyRequests.size; $('requests-list').replaceChildren();
+    for(const [member] of keyRequests){
+      const row=document.createElement('div');row.className='row';const name=document.createElement('span');name.textContent=label(member);
+      const review=document.createElement('button');review.textContent='Review';review.disabled=!!gate.grant;review.onclick=()=>{selected='self';viewedProfile=null;updatePeople();open();root.querySelector('[data-tab=sharing]').click();$('peer').value=String(member);say('Choose permissions and duration, then Give keys.');};
+      const decline=document.createElement('button');decline.textContent='Decline';decline.onclick=()=>{send('declineKeys',{},member);keyRequests.delete(member);refreshRequests();};
+      row.append(name,review,decline);$('requests-list').append(row);
+    }
+  }
   function player() { return window.Player; }
   function characters() { return Array.isArray(window.ChatRoomCharacter) ? window.ChatRoomCharacter : []; }
   function present(member) { return characters().some(c => c.MemberNumber === member); }
@@ -360,7 +420,7 @@
   function revoke(reason, notify = true) {
     const old = gate.grant;
     if (old && notify) send('revoke', { token: old.token }, old.sender);
-    gate.revoke(); locked = false;
+    gate.revoke(); locked = false; remoteHeadSharing = false;
     if (old) enabled = false;
     say(reason); refreshFields(); updatePeople(); layout();
   }
@@ -389,6 +449,7 @@
     if (!send('grant', { token: grant.token, level: grant.level, expires: grant.expires, allowPulse: grant.allowPulse, settings, enabled, locked: false }, member)) {
       gate.revoke(); say('Could not send keys.'); return;
     }
+    keyRequests.delete(member); refreshRequests();
     say(`Keys given to ${label(member)}. Escape revokes them while unlocked.`); updatePeople(); refreshFields();
   };
   $('apply').onclick = () => {
@@ -414,11 +475,13 @@
     };
     populate($('peer'), candidates.length ? candidates.map(([id]) => [String(id), label(id)]) : [['', 'No controllers discovered']]);
     if (candidates.some(([id]) => String(id) === peerValue)) $('peer').value = peerValue;
-    populate($('target'), [['self', 'My overlay'], ...[...receivedGrants].map(([id]) => [String(id), label(id)])]);
-    if (targetValue === 'self' || receivedGrants.has(Number(targetValue))) $('target').value = targetValue;
+    const targets = new Set(receivedGrants.keys()); if(viewedProfile !== null)targets.add(viewedProfile);
+    populate($('target'), [['self', 'My overlay'], ...[...targets].map(id => [String(id), label(id)])]);
+    if (targetValue === 'self' || targets.has(Number(targetValue))) $('target').value = targetValue;
     else { selected = 'self'; $('target').value = 'self'; refreshFields(); }
     const g = gate.grant;
     $('grant-info').textContent = g ? `Keys: ${label(g.sender)} · ${g.level} · ${g.expires === null ? 'no time limit' : Math.max(0, Math.ceil((g.expires - Date.now()) / 60000)) + ' min remaining'}${locked ? ' · normal controls locked' : ''}` : 'No one has keys to your overlay.';
+    refreshFields(); refreshRequests();
   }
   const inboundTimes = new Map();
   function onMessage(data) {
@@ -429,13 +492,19 @@
     const sender = data.Sender, packet = data.Dictionary;
     if (sender === player()?.MemberNumber || !present(sender) || !packet || typeof packet !== 'object' || packet.v !== 2 ||
       (packet.to !== null && packet.to !== player()?.MemberNumber)) return;
-    if (!['hello', 'helloAck', 'grant', 'ackGrant', 'set', 'applied', 'release', 'revoke', 'head'].includes(packet.kind)) return;
+    if (!['hello', 'helloAck', 'grant', 'ackGrant', 'set', 'applied', 'release', 'revoke', 'head', 'requestKeys', 'declineKeys'].includes(packet.kind)) return;
     // Discovery and cosmetic head state may broadcast; control always targets a member.
     if (!['hello', 'head'].includes(packet.kind) && packet.to !== player()?.MemberNumber) return;
     try { if (JSON.stringify(packet).length > 16000) return; } catch { return; }
     const now = Date.now(), rateKey = `${sender}:${packet.kind}`;
     if (now - (inboundTimes.get(rateKey) || 0) < 150 && !(packet.kind === 'head' && packet.active === false)) return;
+    if (packet.kind === 'requestKeys' && now-(inboundTimes.get(rateKey)||0)<30000) return;
     inboundTimes.set(rateKey, now);
+    if(packet.kind === 'requestKeys'){
+      peers.set(sender,{dominant:true,seen:now});keyRequests.set(sender,now);updatePeople();say(label(sender)+' requested keys. Review the request in the menu.');
+      open();return;
+    }
+    if(packet.kind === 'declineKeys'){say(label(sender)+' declined your key request.');return;}
     if (packet.kind === 'head') {
       if (packet.active === true) publicHeads.set(sender, { head: normalize({head:packet.head}).head, message: typeof packet.message === 'string' ? packet.message.slice(0,160) : '', seen: now });
       else publicHeads.delete(sender);
@@ -461,9 +530,10 @@
       const result = gate.apply(sender, packet, settings, now, present(sender));
       if (!result) return;
       settings = result.settings;
+      remoteHeadSharing = ['words','forehead','eyes','halo'].some(key => settings.head[key]);
       if (result.enabled !== undefined) enabled = result.enabled;
       if (result.locked !== undefined) locked = result.locked;
-      save(); resetEffectClock(); refreshFields(); updatePeople(); layout();
+      save(); resetEffectClock(); refreshFields(); updatePeople(); layout(); publishHead(true);
       send('applied', { token: gate.grant.token, seq: packet.seq }, sender);
       say(`Overlay updated by ${label(sender)}${locked ? ' · normal controls locked' : ''}.`); return;
     }
@@ -477,14 +547,14 @@
     }
   }
   function clearSession(reason) {
-    revoke(reason, false); receivedGrants.clear(); peers.clear(); publicHeads.clear(); inboundTimes.clear(); publicWasActive = false; selected = 'self';
+    revoke(reason, false); receivedGrants.clear(); peers.clear(); publicHeads.clear(); keyRequests.clear(); requestTimes.clear(); viewedProfile=null; inboundTimes.clear(); publicWasActive = false; selected = 'self';
     updatePeople(); refreshFields();
   }
   function disconnected() { clearSession('Connection lost. All remote keys cleared.'); }
   function memberLeft(data) {
     const member = data?.SourceMemberNumber ?? data?.MemberNumber;
     if (gate.grant?.sender === member) revoke('Controller left the room. Keys revoked.', false);
-    receivedGrants.delete(member); peers.delete(member); publicHeads.delete(member); updatePeople();
+    receivedGrants.delete(member); peers.delete(member); publicHeads.delete(member); keyRequests.delete(member); updatePeople();
   }
   function roomSync() { clearSession('Room synchronized. Remote keys cleared.'); lastHello = 0; }
   function attachSocket(next) {
@@ -509,12 +579,13 @@
     if (gate.grant && ((gate.grant.expires !== null && now >= gate.grant.expires) || !present(gate.grant.sender) || now - (peers.get(gate.grant.sender)?.seen || 0) > 45000)) revoke('Remote session ended. Keys revoked.');
     for (const [id, grant] of receivedGrants) if ((grant.expires !== null && now >= grant.expires) || !present(id) || now - (peers.get(id)?.seen || grant.seen) > 45000) receivedGrants.delete(id);
     for (const [id, peer] of peers) if (!present(id) || now - peer.seen > 45000) peers.delete(id);
+    for (const [id,when] of keyRequests) if(!present(id) || now-when>120000)keyRequests.delete(id);
     for (const [id,state] of publicHeads) if (!present(id) || now - state.seen > 5000) publicHeads.delete(id);
     publishHead(); updatePeople();
   }
   let pulseStart = -Infinity, nextPulse = 0, lastPulse = -Infinity, lastTextCycle = -1;
   function resetEffectClock() { activeTime = 0; lastFrame = 0; pulseStart = -Infinity; nextPulse = 0; lastPulse = -Infinity; lastTextCycle = -1; }
-  function makeTexture(i, s) {
+  function makeTexture(i, s, textures = effectTextures, textureKeys = effectTextureKeys) {
     const key = JSON.stringify([s.color, s.arms, s.curve, s.thickness]);
     if (key === textureKeys[i]) return;
     const texture = textures[i]; texture.width = texture.height = 1024;
@@ -534,17 +605,18 @@
     textureKeys[i] = key;
   }
   function syncProfileButton() {
-    const menu = document.getElementById('information-sheet-screen-menu');
-    const self = window.InformationSheetSelection?.MemberNumber === player()?.MemberNumber;
-    if (window.CurrentScreen !== 'InformationSheet' || !menu || !self) { profileButton?.remove(); profileButton = null; return; }
-    if (profileButton?.isConnected) return;
-    const onClick = () => open();
-    if (typeof window.InformationSheetMenuButton === 'function') profileButton = window.InformationSheetMenuButton('hypnoreverie-profile', onClick, 'data:image/svg+xml,' + encodeURIComponent(LOGO), 'Hypno Reverie');
-    else { profileButton = document.createElement('button'); profileButton.innerHTML = LOGO; profileButton.title = 'Hypno Reverie'; profileButton.onclick = onClick; profileButton.style.cssText = 'width:60px;height:60px;cursor:pointer'; }
-    profileButton.setAttribute('aria-label','Hypno Reverie'); menu.append(profileButton);
+    const menu = document.getElementById('information-sheet-screen-menu'),member = window.InformationSheetSelection?.MemberNumber;
+    if (window.CurrentScreen !== 'InformationSheet' || !menu || !Number.isSafeInteger(member)) { profileButton?.remove(); profileButton = null; return; }
+    const self=member===player()?.MemberNumber,peer=peers.get(member),detected=peer && present(member) && Date.now()-peer.seen<45000;
+    const title=self?'Hypno Reverie':detected?'Hypno Reverie · addon detected':'Hypno Reverie · addon not detected';
+    if (profileButton?.isConnected && profileButton.dataset.member===String(member)) { profileButton.title=title;profileButton.setAttribute('aria-label',title);return; }
+    profileButton?.remove();const onClick = () => openProfile(member);
+    if (typeof window.InformationSheetMenuButton === 'function') profileButton = window.InformationSheetMenuButton('hypnoreverie-profile', onClick, 'data:image/svg+xml,' + encodeURIComponent(LOGO), title);
+    else { profileButton = document.createElement('button'); profileButton.innerHTML = LOGO; profileButton.onclick = onClick; profileButton.style.cssText = 'width:60px;height:60px;cursor:pointer'; }
+    profileButton.dataset.member=String(member);profileButton.title=title;profileButton.setAttribute('aria-label',title);menu.append(profileButton);
   }
   function layout() {
-    syncProfileButton();
+    syncProfileButton(); clampWindow($('panel')); clampWindow($('preview-window'));
     const game = document.getElementById('MainCanvas'), chat = document.getElementById('TextAreaChatLog');
     const visible = window.CurrentScreen === 'ChatRoom' && chat && getComputedStyle(chat).visibility !== 'hidden' && !chat.closest('[hidden]');
     rectangle = visible ? bounds(game?.getBoundingClientRect(), chat.getBoundingClientRect(), settings.width, innerWidth, innerHeight) : null;
@@ -558,15 +630,15 @@
       if (layer.width !== w || layer.height !== h) { layer.width = w; layer.height = h; }
     }
   }
-  function wrapText(message, maxWidth) {
+  function wrapText(message, maxWidth, ctx) {
     const lines = []; let line = '';
     for (const char of message) {
       if (line && ctx.measureText(line + char).width > maxWidth) { lines.push(line); line = char; } else line += char;
     }
     if (line) lines.push(line); return lines.slice(0, 12);
   }
-  function drawText(frame, w, h) {
-    const t = settings.text; if (!frame.message) return;
+  function drawText(frame, w, h, t = settings.text, context = ctx) {
+    const ctx = context; if (!frame.message) return;
     ctx.save(); ctx.fillStyle = t.color; ctx.globalAlpha = t.opacity;
     const size = t.fontSize * Math.min(w, h) / 700;
     ctx.font = `600 ${Math.max(9, size)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -580,11 +652,11 @@
       for (let i = 0; i < t.lines; i++) ctx.fillText(message, w / 2, h * (i + 1) / (t.lines + 1), w * 0.94);
     } else if (t.mode === 'scatter' || t.mode === 'mixed') {
       const pos = textPosition(t.mode, frame.cycle), maxWidth = w * Math.min(0.8,2*Math.min(pos.x,1-pos.x)-0.04);
-      const lines = wrapText(message, maxWidth), spacing = size * 1.3;
+      const lines = wrapText(message, maxWidth, ctx), spacing = size * 1.3;
       const centerY = Math.max(lines.length*spacing/2,Math.min(h-lines.length*spacing/2,pos.y*h));
       lines.forEach((line,i) => ctx.fillText(line,pos.x*w,centerY+(i-(lines.length-1)/2)*spacing,maxWidth));
     } else {
-      const lines = wrapText(message, w * 0.9), spacing = size * 1.3;
+      const lines = wrapText(message, w * 0.9, ctx), spacing = size * 1.3;
       lines.forEach((line, i) => ctx.fillText(line, w / 2, h / 2 + (i - (lines.length - 1) / 2) * spacing));
     }
     ctx.restore();
@@ -608,7 +680,7 @@
     return {head:settings.head,message:textFrame({...settings.text,enabled:true},activeTime).message};
   }
   function publishHead(force = false) {
-    const active = enabled && privacy.broadcast && ['words','forehead','eyes','halo'].some(key => settings.head[key]);
+    const active = enabled && (privacy.broadcast || remoteHeadSharing) && ['words','forehead','eyes','halo'].some(key => settings.head[key]);
     if (!active && !publicWasActive) return;
     if (!force && Date.now() - lastPublic < 950) return;
     const state = ownHeadState();
@@ -633,22 +705,8 @@
       return [{c,x:offset+(count === 1 ? 0 : startX+(i%5)*space),y:count === 1 ? 0 : startY+Math.floor(i/5)*500,zoom}];
     });
   }
-  function drawHeads(time) {
-    if (heads.hidden || !hx || !headRectangle) return;
-    hx.clearRect(0,0,heads.width,heads.height);
-    const game = document.getElementById('MainCanvas')?.getBoundingClientRect(); if (!game) return;
-    const scale = game.width/2000 * heads.width/headRectangle.width;
-    hx.save(); hx.scale(scale,scale);
-    try {
-      for (const {c,x,y,zoom} of characterPositions()) {
-        const self = c.MemberNumber === player()?.MemberNumber;
-        const state = self ? (enabled ? ownHeadState() : null) : privacy.showOthers && !hideSharedUntilEnabled ? publicHeads.get(c.MemberNumber) : null;
-        if (!state || (!self && Date.now()-state.seen > 5000)) continue;
-        const h = state.head, ratio = num(c.HeightRatio,1,0.1,3);
-        let box = [x+180*zoom,y+20*zoom,140*zoom,160*zoom];
-        if (typeof window.DialogGetCharacterZone === 'function') box = window.DialogGetCharacterZone(c,[180,20,140,160],x,y,zoom,ratio);
-        if (!box?.every(Number.isFinite)) continue;
-        const unit = zoom*ratio, cx = box[0]+box[2]/2+h.offsetX*unit, cy = box[1]+box[3]/2+h.offsetY*unit;
+  function drawHeadGlyph(hx,state,time,cx,cy,unit) {
+    const h=state.head;
         hx.save(); hx.translate(cx,cy); hx.scale(unit,unit); hx.strokeStyle = hx.fillStyle = h.color; hx.globalAlpha = h.opacity;
         hx.shadowColor = '#100920'; hx.shadowBlur = 2;
         const spiral = (sx,sy,r) => {
@@ -668,8 +726,55 @@
           }
         }
         hx.restore();
+  }
+  function drawHeads(time) {
+    if (heads.hidden || !hx || !headRectangle) return;
+    hx.clearRect(0,0,heads.width,heads.height);
+    const game = document.getElementById('MainCanvas')?.getBoundingClientRect(); if (!game) return;
+    const scale = game.width/2000 * heads.width/headRectangle.width;
+    hx.save(); hx.scale(scale,scale);
+    try {
+      for (const {c,x,y,zoom} of characterPositions()) {
+        const self = c.MemberNumber === player()?.MemberNumber;
+        const state = self ? (enabled ? ownHeadState() : null) : privacy.showOthers && !hideSharedUntilEnabled ? publicHeads.get(c.MemberNumber) : null;
+        if (!state || (!self && Date.now()-state.seen > 5000)) continue;
+        const h = state.head, ratio = num(c.HeightRatio,1,0.1,3);
+        let box = [x+180*zoom,y+20*zoom,140*zoom,160*zoom];
+        if (typeof window.DialogGetCharacterZone === 'function') box = window.DialogGetCharacterZone(c,[180,20,140,160],x,y,zoom,ratio);
+        if (!box?.every(Number.isFinite)) continue;
+        const unit = zoom*ratio, cx = box[0]+box[2]/2+h.offsetX*unit, cy = box[1]+box[3]/2+h.offsetY*unit;
+        drawHeadGlyph(hx,state,time,cx,cy,unit);
       }
     } finally { hx.restore(); }
+  }
+  const previewCanvas=$('preview-canvas'), previewContext=previewCanvas.getContext('2d');
+  const previewTextures=[document.createElement('canvas'),document.createElement('canvas')],previewKeys=['',''];
+  let previewTime=0,previewConfig='',previewPulse=-Infinity,previewNext=0,previewLast=-Infinity,previewCycle=-1;
+  function renderPreview(dt) {
+    if($('preview-window').hidden || document.hidden || !previewContext)return;
+    if(selected !== 'self' && !receivedGrants.has(Number(selected))){showPreview(false);return;}
+    const config=editState(),key=selected+JSON.stringify(config);
+    if(key!==previewConfig){previewConfig=key;previewTime=0;previewPulse=previewLast=-Infinity;previewNext=0;previewCycle=-1;}
+    previewTime+=dt;
+    $('preview-label').textContent=(selected==='self'?'My overlay':label(Number(selected)))+' · unsent appearance preview';
+    const c=previewContext,w=500,h=500;c.clearRect(0,0,w,h);c.fillStyle='#282331';c.fillRect(0,0,w,h);
+    c.fillStyle='#71687f';c.beginPath();c.ellipse(250,195,38,48,0,0,Math.PI*2);c.fill();c.fillRect(210,245,80,230);
+    config.spirals.forEach((s,i)=>{
+      if(!s.enabled)return;makeTexture(i,s,previewTextures,previewKeys);
+      c.save();c.globalAlpha=s.backgroundOpacity;c.fillStyle=s.background;c.fillRect(0,0,w,h);
+      c.globalAlpha=s.opacity;c.translate(w/2,h/2);c.rotate(previewTime*s.spin*(s.reverse?-1:1));c.filter=s.blur?'blur('+s.blur*w/700+'px)':'none';
+      const side=Math.hypot(w,h)*s.zoom*(1+Math.sin(previewTime*s.throbSpeed*Math.PI*2)*s.throbStrength),count=Math.ceil(Math.hypot(w,h)/side/2);
+      for(let x=-count;x<=count;x++)for(let y=-count;y<=count;y++)c.drawImage(previewTextures[i],(x-.5)*side,(y-.5)*side,side,side);c.restore();
+    });
+    const frame=textFrame(config.text,previewTime),pulse=config.pulse;
+    if(pulse.enabled){
+      const due=pulse.mode==='text'?config.text.enabled&&frame.cycle!==previewCycle&&frame.message:previewTime>=previewNext;
+      if(due&&previewTime-previewLast>=Math.max(2,pulse.duration)){previewPulse=previewLast=previewTime;previewNext=previewTime+(pulse.mode==='random'?pulse.randomMin+random01(Math.floor(previewTime*100)+1)*(pulse.randomMax-pulse.randomMin):pulse.interval);}
+      const progress=(previewTime-previewPulse)/pulse.duration;
+      if(progress>=0&&progress<=1){c.save();c.fillStyle=pulse.color;c.globalAlpha=pulse.opacity*(pulse.shape==='soft'?Math.sin(progress*Math.PI)**2:(1-progress)**2);c.fillRect(0,0,w,h);c.restore();}
+    }
+    drawText(frame,w,h,config.text,c);previewCycle=frame.cycle;
+    drawHeadGlyph(c,{head:config.head,message:textFrame({...config.text,enabled:true},previewTime).message},previewTime,250+config.head.offsetX*.5,195+config.head.offsetY*.5,.5);
   }
   function render(time) {
     if (destroyed) return;
@@ -686,13 +791,13 @@
         const throb = 1 + Math.sin(activeTime * s.throbSpeed * Math.PI * 2) * s.throbStrength;
         // Tiling preserves coverage when zoomed out, while the canvas clips at the player boundary.
         const side = Math.hypot(w, h) * s.zoom * throb, count = Math.ceil(Math.hypot(w, h) / side / 2);
-        for (let x = -count; x <= count; x++) for (let y = -count; y <= count; y++) ctx.drawImage(textures[i], (x - 0.5) * side, (y - 0.5) * side, side, side);
+        for (let x = -count; x <= count; x++) for (let y = -count; y <= count; y++) ctx.drawImage(effectTextures[i], (x - 0.5) * side, (y - 0.5) * side, side, side);
         ctx.restore();
       });
       const text = textFrame(settings.text, activeTime);
       drawPulse(text, w, h); drawText(text, w, h); lastTextCycle = text.cycle;
     }
-    drawHeads(time / 1000);
+    drawHeads(time / 1000); renderPreview(dt);
     frameId = requestAnimationFrame(render);
   }
   const layoutTimer = setInterval(layout, 200), networkTimer = setInterval(networkTick, 1000);
@@ -700,7 +805,7 @@
   window.HypnoReverie = { version: VERSION, open, stop,
     destroy() {
       stop(); destroyed = true; cancelAnimationFrame(frameId); clearInterval(layoutTimer); clearInterval(networkTimer);
-      attachSocket(null); document.removeEventListener('keydown', keydown, true);
+      windowObserver.disconnect(); attachSocket(null); document.removeEventListener('keydown', keydown, true);
       removeEventListener('resize', layout); removeEventListener('scroll', layout, true); document.removeEventListener('visibilitychange', layout);
       profileButton?.remove(); host.remove(); delete window.HypnoReverie;
     } };
