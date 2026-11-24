@@ -1,9 +1,9 @@
-// Hypno Reverie 0.8.0 — Jaxx-01-ai
+// Hypno Reverie 0.8.1 — Jaxx-01-ai
 // Original canvas renderer and opt-in, room-scoped control protocol.
 (() => {
   'use strict';
   const BOOT = typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():String(Math.random());
-  const VERSION = '0.8.0', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
+  const VERSION = '0.8.1', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
   const PRESET_KEY = 'hypnoreverie-presets-v1', PRIVACY_KEY = 'hypnoreverie-head-sharing-v1';
   const clone = value => JSON.parse(JSON.stringify(value));
   const num = (v, fallback, min, max) => typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback;
@@ -305,7 +305,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   </style>
   <div id="focus-blur" hidden></div><canvas id="effect" aria-hidden="true" hidden></canvas><canvas id="heads" aria-hidden="true" hidden></canvas>
   <div id="ui" hidden><section id="panel" role="dialog" aria-label="Hypno Reverie settings" hidden>
-    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.8 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
+    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.8.1 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
       <div class="tabs" role="tablist" aria-label="Settings categories">
         <button data-tab="overview" role="tab" aria-selected="true">Overview</button><button data-tab="primary" role="tab" aria-selected="false">Primary</button><button data-tab="secondary" role="tab" aria-selected="false">Secondary</button>
         <button data-tab="text" role="tab" aria-selected="false">Words</button><button data-tab="pulse" role="tab" aria-selected="false">Pulse</button><button data-tab="audio" role="tab" aria-selected="false">Audio</button><button data-tab="focus" role="tab" aria-selected="false">Focus</button><button data-tab="expressions" role="tab" aria-selected="false">Face</button><button data-tab="head" role="tab" aria-selected="false">Head</button><button data-tab="sharing" role="tab" aria-selected="false">Keys</button><button data-tab="presets" role="tab" aria-selected="false">Presets</button>
@@ -344,8 +344,8 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     </div>
     <div id="footer"><div class="footer-row"><p id="status" role="status"></p><div id="remote-actions" hidden><button id="apply">Send changes</button><button id="release">Return keys</button></div></div><div class="help">Escape: stop when unlocked · Alt+Shift+H: menu · Alt+Shift+S: toggle when unlocked</div></div>
   </section></div><section id="preview-window" hidden aria-label="Local draft preview"><div id="preview-bar"><strong>Draft preview</strong><button id="preview-close" aria-label="Close preview">×</button></div><p id="preview-label" class="help"></p><canvas id="preview-canvas" width="500" height="500"></canvas><p class="help">Local preview · Send changes to update their screen. Head position uses a sample figure.</p></section>`;
-  const $ = id => root.getElementById(id), canvas = $('effect'), ctx = canvas.getContext('2d');
-  const heads = $('heads'), hx = heads.getContext('2d'); let headRectangle = null;
+  const byId = id => root.getElementById(id), canvas = byId('effect'), ctx = canvas.getContext('2d');
+  const heads = byId('heads'), hx = heads.getContext('2d'); let headRectangle = null;
   const fields = [];
   function getPath(object, path) { return path.reduce((value, key) => value[key], object); }
   function setPath(object, path, value) { path.slice(0, -1).reduce((v, k) => v[k], object)[path.at(-1)] = value; }
@@ -359,7 +359,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if (options) for (const [value, text] of options) { const option = document.createElement('option'); option.value = value; option.textContent = text; input.append(option); }
     const output = type === 'range' ? document.createElement('output') : null;
     if (output) label.append(output);
-    label.append(input); if (type === 'textarea') label.classList.add('wide'); $(parent).append(label);
+    label.append(input); if (type === 'textarea') label.classList.add('wide'); byId(parent).append(label);
     const record = { input, path, type, output }; fields.push(record);
     input.addEventListener('input', () => {
       if (selected === 'self' && locked) return;
@@ -474,9 +474,9 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     resume.enabled=enabled;const member=player()?.MemberNumber;if(Number.isSafeInteger(member))resume.member=member;
     try{localStorage.setItem(SESSION_KEY,JSON.stringify(resume));}catch{say('Could not save session preference.');}
   }
-  $('remember-session').onchange=()=>{resume.remember=$('remember-session').checked;saveSession();};
+  byId('remember-session').onchange=()=>{resume.remember=byId('remember-session').checked;saveSession();};
   function save() { try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch { say('Appearance could not be saved.'); } }
-  function say(message) { status = message; $('status').textContent = message; }
+  function say(message) { status = message; byId('status').textContent = message; }
   function refreshFields(skip) {
     const current = editState(), remote = receivedGrants.get(Number(selected));
     for (const record of fields) {
@@ -490,35 +490,35 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     }
     const noAccess = selected !== 'self' && !remote;
     const localLocked = (selected === 'self' && locked) || noAccess;
-    $('primary-fields').disabled = $('secondary-fields').disabled = localLocked;
-    $('text-fields').disabled = localLocked || (selected !== 'self' && remote?.level === 'visuals');
-    $('pulse-fields').disabled = localLocked || (selected !== 'self' && !remote?.allowPulse);
-    $('enabled').checked = selected === 'self' ? enabled : !!remote?.enabled;
-    $('enabled').disabled = localLocked || (selected !== 'self' && remote?.level !== 'session');
-    $('lock-row').hidden = selected === 'self' || remote?.level !== 'session';
-    $('lock').checked = !!remote?.locked;
-    $('remote-actions').hidden = selected === 'self' || noAccess; $('remote-note').hidden = selected === 'self' || noAccess;
-    $('preview-toggle').disabled = noAccess;
-    $('head-fields').disabled = $('focus-fields').disabled = localLocked; $('audio-fields').disabled=localLocked || (selected!=='self'&&!remote?.allowAudio);
-    if(selected!=='self'&&!remote?.allowPulse)for(const key of ['colorPulse','colorA','colorB','colorOpacity','beatSource','beats'])$('setting-focus-'+key).disabled=true;
+    byId('primary-fields').disabled = byId('secondary-fields').disabled = localLocked;
+    byId('text-fields').disabled = localLocked || (selected !== 'self' && remote?.level === 'visuals');
+    byId('pulse-fields').disabled = localLocked || (selected !== 'self' && !remote?.allowPulse);
+    byId('enabled').checked = selected === 'self' ? enabled : !!remote?.enabled;
+    byId('enabled').disabled = localLocked || (selected !== 'self' && remote?.level !== 'session');
+    byId('lock-row').hidden = selected === 'self' || remote?.level !== 'session';
+    byId('lock').checked = !!remote?.locked;
+    byId('remote-actions').hidden = selected === 'self' || noAccess; byId('remote-note').hidden = selected === 'self' || noAccess;
+    byId('preview-toggle').disabled = noAccess;
+    byId('head-fields').disabled = byId('focus-fields').disabled = localLocked; byId('audio-fields').disabled=localLocked || (selected!=='self'&&!remote?.allowAudio);
+    if(selected!=='self'&&!remote?.allowPulse)for(const key of ['colorPulse','colorA','colorB','colorOpacity','beatSource','beats'])byId('setting-focus-'+key).disabled=true;
     refreshFace();
     for (const record of fields) if (selected !== 'self' && remote?.level === 'visuals' && record.path[0] === 'head' && ['words','wordMode'].includes(record.path[1])) record.input.disabled = true;
-    $('stop').disabled = $('revoke').disabled = $('grant').disabled = !!gate.grant;
-    for (const id of ['peer','level','allow-pulse','allow-audio','allow-expressions','duration','minutes']) $(id).disabled = !!gate.grant;
-    $('preset-load').disabled = localLocked; $('preset-save').disabled = noAccess;
-    $('broadcast-head').checked = privacy.broadcast;
-    $('own-head-row').hidden=selected!=='self';$('show-own-head').checked=ownHeadVisible;$('show-own-head').disabled=!!gate.grant&&!selfHeadAllowed;
-    $('allow-own-head-row').hidden=selected==='self'||!remote;$('allow-own-head').checked=!!remote?.allowSelfHead;
-    $('show-heads').checked = privacy.showOthers && !hideSharedUntilEnabled;
-    $('local-session-card').hidden = selected !== 'self'; $('broadcast-label').hidden = selected !== 'self';
-    $('session-badge').textContent = selected !== 'self' ? 'Remote draft' : gate.grant ? (locked ? 'Controls locked' : 'Keys handed over') : 'Local session';
-    $('remember-session').checked=resume.remember;
-    $('status').textContent = status; refreshProfileCard();
+    byId('stop').disabled = byId('revoke').disabled = byId('grant').disabled = !!gate.grant;
+    for (const id of ['peer','level','allow-pulse','allow-audio','allow-expressions','duration','minutes']) byId(id).disabled = !!gate.grant;
+    byId('preset-load').disabled = localLocked; byId('preset-save').disabled = noAccess;
+    byId('broadcast-head').checked = privacy.broadcast;
+    byId('own-head-row').hidden=selected!=='self';byId('show-own-head').checked=ownHeadVisible;byId('show-own-head').disabled=!!gate.grant&&!selfHeadAllowed;
+    byId('allow-own-head-row').hidden=selected==='self'||!remote;byId('allow-own-head').checked=!!remote?.allowSelfHead;
+    byId('show-heads').checked = privacy.showOthers && !hideSharedUntilEnabled;
+    byId('local-session-card').hidden = selected !== 'self'; byId('broadcast-label').hidden = selected !== 'self';
+    byId('session-badge').textContent = selected !== 'self' ? 'Remote draft' : gate.grant ? (locked ? 'Controls locked' : 'Keys handed over') : 'Local session';
+    byId('remember-session').checked=resume.remember;
+    byId('status').textContent = status; refreshProfileCard();
   }
   for (const button of root.querySelectorAll('[data-tab]')) button.onclick = () => {
-    $('content').scrollTop = 0;
+    byId('content').scrollTop = 0;
     for (const tab of root.querySelectorAll('[data-tab]')) {
-      const active = tab === button; tab.setAttribute('aria-selected', String(active)); $(tab.dataset.tab).hidden = !active;
+      const active = tab === button; tab.setAttribute('aria-selected', String(active)); byId(tab.dataset.tab).hidden = !active;
     }
   };
   let windowReady = false;
@@ -537,49 +537,49 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     bar.addEventListener('pointermove',e => { if(!drag)return; element.style.left=(e.clientX-drag.x)+'px';element.style.top=(e.clientY-drag.y)+'px';clampWindow(element); });
     const finish=()=>{drag=null;};bar.addEventListener('pointerup',finish);bar.addEventListener('pointercancel',finish);
   }
-  draggable($('panel'),$('drag-bar'));draggable($('preview-window'),$('preview-bar'));
-  const windowObserver = new ResizeObserver(()=>{clampWindow($('panel'));clampWindow($('preview-window'));});windowObserver.observe($('panel'));
-  $('compact').onclick=()=>{const panel=$('panel'),small=panel.getBoundingClientRect().width>520;panel.style.width=small?'390px':'760px';panel.style.height=small?'500px':'680px';clampWindow(panel);};
-  function showPreview(on) { $('preview-window').hidden=!on;$('preview-toggle').setAttribute('aria-pressed',String(on));clampWindow($('preview-window')); }
-  $('preview-toggle').onclick=()=>showPreview($('preview-window').hidden);$('preview-close').onclick=()=>showPreview(false);
-  function open() { $('ui').hidden = $('panel').hidden = false; if(!windowReady){const p=$('panel');p.style.width=Math.min(760,innerWidth-32)+'px';p.style.height=Math.min(680,innerHeight-32)+'px';p.style.left=Math.max(8,(innerWidth-760)/2)+'px';p.style.top='24px';windowReady=true;}clampWindow($('panel'));refreshFields(); }
-  $('close').onclick = () => { $('ui').hidden = $('panel').hidden = true; };
+  draggable(byId('panel'),byId('drag-bar'));draggable(byId('preview-window'),byId('preview-bar'));
+  const windowObserver = new ResizeObserver(()=>{clampWindow(byId('panel'));clampWindow(byId('preview-window'));});windowObserver.observe(byId('panel'));
+  byId('compact').onclick=()=>{const panel=byId('panel'),small=panel.getBoundingClientRect().width>520;panel.style.width=small?'390px':'760px';panel.style.height=small?'500px':'680px';clampWindow(panel);};
+  function showPreview(on) { byId('preview-window').hidden=!on;byId('preview-toggle').setAttribute('aria-pressed',String(on));clampWindow(byId('preview-window')); }
+  byId('preview-toggle').onclick=()=>showPreview(byId('preview-window').hidden);byId('preview-close').onclick=()=>showPreview(false);
+  function open() { byId('ui').hidden = byId('panel').hidden = false; if(!windowReady){const p=byId('panel');p.style.width=Math.min(760,innerWidth-32)+'px';p.style.height=Math.min(680,innerHeight-32)+'px';p.style.left=Math.max(8,(innerWidth-760)/2)+'px';p.style.top='24px';windowReady=true;}clampWindow(byId('panel'));refreshFields(); }
+  byId('close').onclick = () => { byId('ui').hidden = byId('panel').hidden = true; };
   function privacySave() { try { localStorage.setItem(PRIVACY_KEY, JSON.stringify(privacy)); } catch {} }
-  $('show-own-head').onchange=()=>{if(!gate.grant||selfHeadAllowed)ownHeadVisible=$('show-own-head').checked;refreshFields();};
-  $('allow-own-head').onchange=()=>{const g=receivedGrants.get(Number(selected));if(g)g.allowSelfHead=$('allow-own-head').checked;};
-  $('broadcast-head').onchange = () => { privacy.broadcast = $('broadcast-head').checked; privacySave(); publishHead(true); };
-  $('show-heads').onchange = () => { privacy.showOthers = $('show-heads').checked; hideSharedUntilEnabled = false; privacySave(); layout(); };
-  $('duration').onchange = () => { $('minutes-row').hidden = $('duration').value !== 'custom'; };
+  byId('show-own-head').onchange=()=>{if(!gate.grant||selfHeadAllowed)ownHeadVisible=byId('show-own-head').checked;refreshFields();};
+  byId('allow-own-head').onchange=()=>{const g=receivedGrants.get(Number(selected));if(g)g.allowSelfHead=byId('allow-own-head').checked;};
+  byId('broadcast-head').onchange = () => { privacy.broadcast = byId('broadcast-head').checked; privacySave(); publishHead(true); };
+  byId('show-heads').onchange = () => { privacy.showOthers = byId('show-heads').checked; hideSharedUntilEnabled = false; privacySave(); layout(); };
+  byId('duration').onchange = () => { byId('minutes-row').hidden = byId('duration').value !== 'custom'; };
   function refreshPresets() {
-    const value = $('preset-list').value; $('preset-list').replaceChildren();
-    for (const [i,p] of presets.entries()) { const o = document.createElement('option'); o.value = i; o.textContent = p.name; $('preset-list').append(o); }
-    if (presets[Number(value)]) $('preset-list').value = value;
+    const value = byId('preset-list').value; byId('preset-list').replaceChildren();
+    for (const [i,p] of presets.entries()) { const o = document.createElement('option'); o.value = i; o.textContent = p.name; byId('preset-list').append(o); }
+    if (presets[Number(value)]) byId('preset-list').value = value;
   }
   function savePresets() { try { localStorage.setItem(PRESET_KEY,JSON.stringify(presets)); } catch { say('Preset storage is unavailable.'); } refreshPresets(); }
-  $('preset-save').onclick = () => {
-    root.activeElement?.blur(); const name = $('preset-name').value.trim().slice(0,40);
+  byId('preset-save').onclick = () => {
+    root.activeElement?.blur(); const name = byId('preset-name').value.trim().slice(0,40);
     if (!name) { say('Enter a preset name.'); return; }
     const existing = presets.findIndex(p => p.name === name);
     if (existing < 0 && presets.length >= 24) { say('Delete a preset first (24 maximum).'); return; }
     const preset = {name,settings:normalize(editState())};
     if (existing >= 0) presets[existing] = preset; else presets.push(preset);
-    savePresets(); $('preset-list').value = existing >= 0 ? existing : presets.length - 1; say('Preset saved.');
+    savePresets(); byId('preset-list').value = existing >= 0 ? existing : presets.length - 1; say('Preset saved.');
   };
-  $('preset-load').onclick = () => {
-    const preset = presets[Number($('preset-list').value)]; if (!preset || (selected === 'self' && locked)) return;
+  byId('preset-load').onclick = () => {
+    const preset = presets[Number(byId('preset-list').value)]; if (!preset || (selected === 'self' && locked)) return;
     if (selected === 'self') { settings = normalize(preset.settings); save(); resetEffectClock(); }
     else { const grant = receivedGrants.get(Number(selected)); if (grant) grant.draft = normalize(preset.settings); }
     refreshFields(); layout(); say(selected === 'self' ? 'Preset loaded.' : 'Preset loaded into remote draft. Send changes to apply permitted settings.');
   };
-  $('preset-delete').onclick = () => { if (!$('preset-list').options.length) return; presets.splice(Number($('preset-list').value),1); savePresets(); say('Preset deleted.'); };
+  byId('preset-delete').onclick = () => { if (!byId('preset-list').options.length) return; presets.splice(Number(byId('preset-list').value),1); savePresets(); say('Preset deleted.'); };
   refreshPresets();
-  $('enabled').onchange = () => {
-    if (selected === 'self') { if (!locked) { enabled = $('enabled').checked; saveSession(); resetEffectClock(); layout(); } }
-    else { const grant = receivedGrants.get(Number(selected)); if (grant?.level === 'session') grant.enabled = $('enabled').checked; }
+  byId('enabled').onchange = () => {
+    if (selected === 'self') { if (!locked) { enabled = byId('enabled').checked; saveSession(); resetEffectClock(); layout(); } }
+    else { const grant = receivedGrants.get(Number(selected)); if (grant?.level === 'session') grant.enabled = byId('enabled').checked; }
     refreshFields();
   };
-  $('lock').onchange = () => { const grant = receivedGrants.get(Number(selected)); if (grant?.level === 'session') grant.locked = $('lock').checked; };
-  $('target').onchange = () => { selected = $('target').value; viewedProfile = selected === 'self' ? null : Number(selected); refreshFields(); };
+  byId('lock').onchange = () => { const grant = receivedGrants.get(Number(selected)); if (grant?.level === 'session') grant.locked = byId('lock').checked; };
+  byId('target').onchange = () => { selected = byId('target').value; viewedProfile = selected === 'self' ? null : Number(selected); refreshFields(); };
   function openProfile(member) {
     viewedProfile = member === player()?.MemberNumber ? null : member; selected = viewedProfile === null ? 'self' : String(member);
     updatePeople(); open();
@@ -587,27 +587,27 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   }
   function refreshProfileCard() {
     const member = viewedProfile, peer = peers.get(member), grant = receivedGrants.get(member);
-    $('profile-card').hidden = member === null;
+    byId('profile-card').hidden = member === null;
     if(member === null)return;
     const detected = peer && present(member) && Date.now()-peer.seen < 45000;
-    $('profile-title').textContent = label(member);
-    $('profile-status').textContent = grant ? 'Hypno Reverie detected · You have keys. Edit and preview their draft, then Send changes.' : detected ? 'Hypno Reverie detected · Request keys to edit this player’s effects.' : 'Hypno Reverie not detected in this room. They may need to load it or update. Discovery can take up to 15 seconds.';
-    $('request-options').hidden = !!grant; $('request-keys').hidden = !!grant; $('request-keys').disabled = !detected || Date.now()-(requestTimes.get(member)||0)<30000;
+    byId('profile-title').textContent = label(member);
+    byId('profile-status').textContent = grant ? 'Hypno Reverie detected · You have keys. Edit and preview their draft, then Send changes.' : detected ? 'Hypno Reverie detected · Request keys to edit this player’s effects.' : 'Hypno Reverie not detected in this room. They may need to load it or update. Discovery can take up to 15 seconds.';
+    byId('request-options').hidden = !!grant; byId('request-keys').hidden = !!grant; byId('request-keys').disabled = !detected || Date.now()-(requestTimes.get(member)||0)<30000;
   }
-  $('request-keys').onclick = () => {
+  byId('request-keys').onclick = () => {
     const member=viewedProfile;if(!member || !peers.has(member) || !present(member) || Date.now()-(requestTimes.get(member)||0)<30000)return;
-    dominant=true;$('dominant').checked=true;send('hello',{dominant});
-    if(send('requestKeys',{level:$('request-level').value,minutes:$('request-duration').value==='indefinite'?null:Number($('request-duration').value),allowPulse:$('request-pulse').checked,allowAudio:$('request-audio').checked,allowExpressions:$('request-expressions').checked},member)){requestTimes.set(member,Date.now());say('Key request sent. Waiting for their approval.');refreshProfileCard();}
+    dominant=true;byId('dominant').checked=true;send('hello',{dominant});
+    if(send('requestKeys',{level:byId('request-level').value,minutes:byId('request-duration').value==='indefinite'?null:Number(byId('request-duration').value),allowPulse:byId('request-pulse').checked,allowAudio:byId('request-audio').checked,allowExpressions:byId('request-expressions').checked},member)){requestTimes.set(member,Date.now());say('Key request sent. Waiting for their approval.');refreshProfileCard();}
   };
   function refreshRequests() {
-    $('requests-card').hidden=!keyRequests.size; $('requests-list').replaceChildren();
+    byId('requests-card').hidden=!keyRequests.size; byId('requests-list').replaceChildren();
     const levels={visuals:'Visuals only',text:'Visuals + words',session:'Full session + control lock (can turn effects on/off and disable your normal controls and Escape)'};
     for(const [member,request] of keyRequests){
       const row=document.createElement('div');row.className='card';const name=document.createElement('p');
       name.textContent=label(member)+' requests '+levels[request.level]+' · '+(request.minutes===null?'PERMANENT: survives room changes and relog until returned or revoked':request.minutes+' minutes')+' · pulse/flash changes '+(request.allowPulse?'included':'excluded')+' · audio '+(request.allowAudio?'included':'excluded')+' · facial expressions '+(request.allowExpressions?'included':'excluded')+'. Shares current settings and messages; controller-enabled head effects are visible to the room.';
       const yes=document.createElement('button');yes.textContent='Yes';yes.disabled=!!gate.grant;yes.onclick=()=>{if(keyRequests.get(member)!==request || Date.now()-request.at>120000)return;giveKeys(member,request.level,request.minutes,request.allowPulse,request.allowAudio,request.allowExpressions);};
       const no=document.createElement('button');no.textContent='No';no.onclick=()=>{send('declineKeys',{},member);keyRequests.delete(member);refreshRequests();};
-      row.append(name,yes,no);$('requests-list').append(row);
+      row.append(name,yes,no);byId('requests-list').append(row);
     }
   }
 
@@ -616,15 +616,15 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   function faceOptions(character){const result={};for(const item of character?.Appearance||[]){const name=item.Asset?.Group?.Name;if(!FACE_GROUPS.includes(name))continue;let values=typeof window.InventoryGetItemProperty==='function'?window.InventoryGetItemProperty(item,'AllowExpression',true):item.Asset?.Group?.AllowExpression;if(Array.isArray(values)&&values.length)result[name]=[null,...values];}return cleanFaceOptions(result);}
   function refreshFace(){
     const remote=receivedGrants.get(Number(selected)),options=selected==='self'?faceOptions(player()):remote?.faceOptions||{};
-    const group=$('face-group').value,value=$('face-value').value,key=JSON.stringify(options);
-    if($('face-group').dataset.key!==key){$('face-group').dataset.key=key;$('face-group').replaceChildren();for(const name of Object.keys(options)){const option=document.createElement('option');option.value=name;option.textContent=name;$('face-group').append(option);}if(options[group])$('face-group').value=group;$('face-value').dataset.group='';}
-    const chosen=$('face-group').value;
-    if($('face-value').dataset.group!==chosen){$('face-value').replaceChildren();for(const expression of options[chosen]||[]){const option=document.createElement('option');option.value=expression??'';option.textContent=expression===null?'Default':expression.replace(/([a-z])([A-Z])/g,'$1 $2');$('face-value').append(option);}$('face-value').dataset.group=chosen;}
+    const group=byId('face-group').value,value=byId('face-value').value,key=JSON.stringify(options);
+    if(byId('face-group').dataset.key!==key){byId('face-group').dataset.key=key;byId('face-group').replaceChildren();for(const name of Object.keys(options)){const option=document.createElement('option');option.value=name;option.textContent=name;byId('face-group').append(option);}if(options[group])byId('face-group').value=group;byId('face-value').dataset.group='';}
+    const chosen=byId('face-group').value;
+    if(byId('face-value').dataset.group!==chosen){byId('face-value').replaceChildren();for(const expression of options[chosen]||[]){const option=document.createElement('option');option.value=expression??'';option.textContent=expression===null?'Default':expression.replace(/([a-z])([A-Z])/g,'$1 $2');byId('face-value').append(option);}byId('face-value').dataset.group=chosen;}
     const available=Object.keys(options).length>0,permitted=selected==='self'?!locked:!!remote?.allowExpressions;
-    $('face-apply').disabled=$('face-group').disabled=$('face-value').disabled=!available||!permitted;
-    $('face-status').textContent=!available?'No supported expression choices found on this character.':!permitted?'Expression control is not granted, or your controls are locked.':'Choose an expression and Apply. The game may block choices due to equipped items.';
+    byId('face-apply').disabled=byId('face-group').disabled=byId('face-value').disabled=!available||!permitted;
+    byId('face-status').textContent=!available?'No supported expression choices found on this character.':!permitted?'Expression control is not granted, or your controls are locked.':'Choose an expression and Apply. The game may block choices due to equipped items.';
   }
-  $('face-group').onchange=()=>{$('face-value').dataset.group='';refreshFace();};
+  byId('face-group').onchange=()=>{byId('face-value').dataset.group='';refreshFace();};
   function applyFace(group,value){
     if(!FACE_GROUPS.includes(group) || !(value===null||typeof value==='string'))return {ok:false,message:'Unsupported expression.'};
     const c=player(),options=faceOptions(c);
@@ -633,17 +633,17 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     for(const name of groups){const item=c.Appearance.find(item=>item.Asset?.Group?.Name===name);if(!item)continue;const reason=window.CharacterIsExpressionDisallowed(c,item,value);if(reason)return {ok:false,message:'The game blocked this expression: '+String(reason)};}
     window.CharacterSetFacialExpression(c,group,value);c.ActiveExpression?.setWithoutReload?.(group,value);return {ok:true,message:'Expression applied.'};
   }
-  $('face-apply').onclick=()=>{const group=$('face-group').value,value=$('face-value').value||null;if(selected==='self'){if(!locked){try{say(applyFace(group,value).message);}catch{say('The game could not apply that expression.');}}return;}const grant=receivedGrants.get(Number(selected));if(!grant?.allowExpressions||Date.now()-(grant.lastSend||0)<300)return;grant.lastSend=Date.now();grant.seq++;send('expression',{token:grant.token,seq:grant.seq,group,value},Number(selected));};
+  byId('face-apply').onclick=()=>{const group=byId('face-group').value,value=byId('face-value').value||null;if(selected==='self'){if(!locked){try{say(applyFace(group,value).message);}catch{say('The game could not apply that expression.');}}return;}const grant=receivedGrants.get(Number(selected));if(!grant?.allowExpressions||Date.now()-(grant.lastSend||0)<300)return;grant.lastSend=Date.now();grant.seq++;send('expression',{token:grant.token,seq:grant.seq,group,value},Number(selected));};
   function player() { return window.Player; }
   function characters() { return Array.isArray(window.ChatRoomCharacter) ? window.ChatRoomCharacter : []; }
-  function present(member) { return characters().some(c => c.MemberNumber === member); }
+  function present(member) { return !ghosted(member)&&characters().some(c => c.MemberNumber === member); }
   function label(member) { const c = characters().find(c => c.MemberNumber === member); return `${c?.Nickname || c?.Name || 'Player'} (#${member})`; }
   function roomKey() {
     if (!window.ChatRoomData || !player()?.MemberNumber || !(typeof window.ServerPlayerIsInChatRoom === 'function' ? window.ServerPlayerIsInChatRoom() : window.CurrentScreen === 'ChatRoom')) return null;
     return JSON.stringify([window.ChatRoomData.Name, window.ChatRoomData.Space, window.ChatRoomData.Language]);
   }
   function send(kind, payload = {}, target = null) {
-    if (!roomKey() || !socket?.connected || typeof window.ServerSend !== 'function') return false;
+    if (!installMessageHandler() || !roomKey() || !socket?.connected || typeof window.ServerSend !== 'function' || (target!==null&&ghosted(target))) return false;
     const message = { v: 2, kind, boot:BOOT, ...payload, to: target };
     if (JSON.stringify(message).length > 16000) return false;
     try { window.ServerSend('ChatRoomChat', { Content: CHANNEL, Type: 'Hidden', Target: target, Dictionary: message }); return true; }
@@ -662,7 +662,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     enabled = false; revoke('Stopped. Remote keys revoked.');
     resetEffectClock(); canvas.hidden = true; hideSharedUntilEnabled = true; heads.hidden = true; publishHead(true); refreshFields();
   }
-  $('stop').onclick = () => { if (!gate.grant) stop(); }; $('revoke').onclick = () => { if (!gate.grant) revoke('Keys revoked; overlay stopped.'); };
+  byId('stop').onclick = () => { if (!gate.grant) stop(); }; byId('revoke').onclick = () => { if (!gate.grant) revoke('Keys revoked; overlay stopped.'); };
   function keydown(event) {
     if (event.key === 'Escape') { if (!locked) stop(); }
     else if (event.altKey && event.shiftKey && event.code === 'KeyH' && !event.repeat) { event.preventDefault(); open(); }
@@ -671,8 +671,8 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     }
   }
   document.addEventListener('keydown', keydown, true);
-  $('dominant').onchange = () => { dominant = $('dominant').checked; send('hello', { dominant }); };
-  $('discover').onclick = () => { if (Date.now() - lastHello < 3000) return; lastHello = Date.now(); send('hello', { dominant }); say('Looking for players with Hypno Reverie…'); };
+  byId('dominant').onchange = () => { dominant = byId('dominant').checked; send('hello', { dominant }); };
+  byId('discover').onclick = () => { if (Date.now() - lastHello < 3000) return; lastHello = Date.now(); send('hello', { dominant }); say('Looking for players with Hypno Reverie…'); };
   function giveKeys(member,level,minutes,allowPulse,allowAudio=false,allowExpressions=false) {
     if(gate.grant)return;
     const peer=peers.get(member);
@@ -682,8 +682,8 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if(minutes===null){savePermanent();permanentAnnouncedToken=grant.token;}
     keyRequests.delete(member);say('Keys given to '+label(member)+'. Escape revokes them while unlocked.');updatePeople();refreshFields();
   }
-  $('grant').onclick = () => giveKeys(Number($('peer').value),$('level').value,$('duration').value==='indefinite'?null:Number($('duration').value==='custom'?$('minutes').value:$('duration').value),$('allow-pulse').checked,$('allow-audio').checked,$('allow-expressions').checked);
-  $('apply').onclick = () => {
+  byId('grant').onclick = () => giveKeys(Number(byId('peer').value),byId('level').value,byId('duration').value==='indefinite'?null:Number(byId('duration').value==='custom'?byId('minutes').value:byId('duration').value),byId('allow-pulse').checked,byId('allow-audio').checked,byId('allow-expressions').checked);
+  byId('apply').onclick = () => {
     // Commit the message editor if the user clicks Send before its blur handler runs.
     root.activeElement?.blur();
     const member = Number(selected), grant = receivedGrants.get(member);
@@ -693,29 +693,30 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if (send('set', { token: grant.token, seq: grant.seq, settings: grant.draft, enabled: grant.enabled, locked: grant.locked, allowSelfHead:grant.allowSelfHead===true }, member)) say('Changes sent; waiting for acknowledgement.');
     else say('Could not send changes.');
   };
-  $('release').onclick = () => {
+  byId('release').onclick = () => {
     const member = Number(selected), grant = receivedGrants.get(member);
     if (grant) send('release', { token: grant.token }, member);
     receivedGrants.delete(member); selected = 'self'; updatePeople(); refreshFields(); say('Keys returned.');
   };
   function updatePeople() {
-    const peerValue = $('peer').value, targetValue = selected;
+    const peerValue = byId('peer').value, targetValue = selected;
     const candidates = [...peers].filter(([id, p]) => p.dominant && present(id) && Date.now() - p.seen < 45000);
     const populate = (select, items) => {
       select.replaceChildren(); for (const [value, text] of items) { const o = document.createElement('option'); o.value = value; o.textContent = text; select.append(o); }
     };
-    populate($('peer'), candidates.length ? candidates.map(([id]) => [String(id), label(id)]) : [['', 'No controllers discovered']]);
-    if (candidates.some(([id]) => String(id) === peerValue)) $('peer').value = peerValue;
+    populate(byId('peer'), candidates.length ? candidates.map(([id]) => [String(id), label(id)]) : [['', 'No controllers discovered']]);
+    if (candidates.some(([id]) => String(id) === peerValue)) byId('peer').value = peerValue;
     const targets = new Set(receivedGrants.keys()); if(viewedProfile !== null)targets.add(viewedProfile);
-    populate($('target'), [['self', 'My overlay'], ...[...targets].map(id => [String(id), label(id)])]);
-    if (targetValue === 'self' || targets.has(Number(targetValue))) $('target').value = targetValue;
-    else { selected = 'self'; $('target').value = 'self'; refreshFields(); }
+    populate(byId('target'), [['self', 'My overlay'], ...[...targets].map(id => [String(id), label(id)])]);
+    if (targetValue === 'self' || targets.has(Number(targetValue))) byId('target').value = targetValue;
+    else { selected = 'self'; byId('target').value = 'self'; refreshFields(); }
     const g = gate.grant;
-    $('grant-info').textContent = g ? `Keys: ${label(g.sender)} · ${g.level} · ${g.expires === null ? 'permanent access' : Math.max(0, Math.ceil((g.expires - Date.now()) / 60000)) + ' min remaining'}${locked ? ' · normal controls locked' : ''}` : 'No one has keys to your overlay.';
+    byId('grant-info').textContent = g ? `Keys: ${label(g.sender)} · ${g.level} · ${g.expires === null ? 'permanent access' : Math.max(0, Math.ceil((g.expires - Date.now()) / 60000)) + ' min remaining'}${locked ? ' · normal controls locked' : ''}` : 'No one has keys to your overlay.';
     refreshFields(); refreshRequests();
   }
   const inboundTimes = new Map();
   function onMessage(data) {
+    if(ghosted(data?.Sender))return;
     if (!data || data.Type !== 'Hidden' || data.Content !== CHANNEL || !Number.isSafeInteger(data.Sender) || !roomKey()) return;
     if (roomKey() !== networkRoom || player()?.MemberNumber !== networkMember) {
       if(permanent && player()?.MemberNumber && permanent.owner!==player().MemberNumber){forgetPermanent();gate.revoke();locked=false;enabled=false;}
@@ -800,16 +801,52 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     receivedGrants.delete(member); peers.delete(member); publicHeads.delete(member); keyRequests.delete(member); updatePeople();
   }
   function roomSync() { clearSession('Room synchronized. Remote keys cleared.'); lastHello = 0; }
+  function ghosted(member) {
+    const p=player(),character=characters().find(c=>c.MemberNumber===member);
+    if(!p||!Number.isSafeInteger(member))return false;
+    if(Array.isArray(p.GhostList)&&p.GhostList.includes(member))return true;
+    try { return typeof p.HasOnGhostlist==='function'&&p.HasOnGhostlist(character||member)===true; }
+    catch { return true; } // If the game's permission check fails, don't accept remote control.
+  }
+  function clearGhostedPeers() {
+    const controller=gate.grant?.sender??permanent?.sender;
+    if(controller!==undefined&&ghosted(controller))revoke('Controller is ghosted. Remote access revoked.',false);
+    for(const map of [receivedGrants,peers,publicHeads,keyRequests,requestTimes])for(const id of map.keys())if(ghosted(id))map.delete(id);
+    if(selected!=='self'&&ghosted(Number(selected))){selected='self';refreshFields();}
+    if(viewedProfile!==null&&ghosted(viewedProfile))viewedProfile=null;
+  }
+  const addonMessageHandler={
+    Description:'Hypno Reverie protocol',
+    // Native ghost filtering runs at -200; native hidden-message handling runs at -1.
+    Priority:-50,
+    Callback(data,sender){
+      if(data?.Type!=='Hidden'||data.Content!==CHANNEL)return false;
+      if(!destroyed&&sender?.MemberNumber===data.Sender&&!ghosted(data.Sender))onMessage(data);
+      return true;
+    }
+  };
+  function installMessageHandler(){
+    const handlers=window.ChatRoomMessageHandlers;
+    if(destroyed||!Array.isArray(handlers)||typeof window.ChatRoomRegisterMessageHandler!=='function')return false;
+    if(!handlers.includes(addonMessageHandler))window.ChatRoomRegisterMessageHandler(addonMessageHandler);
+    return handlers.includes(addonMessageHandler);
+  }
+  function removeMessageHandler(){
+    const handlers=window.ChatRoomMessageHandlers;if(!Array.isArray(handlers))return;
+    const i=handlers.indexOf(addonMessageHandler);if(i>=0)handlers.splice(i,1);
+  }
+
   function attachSocket(next) {
     if (socket) {
-      socket.off('ChatRoomMessage', onMessage); socket.off('disconnect', disconnected);
+      socket.off('disconnect', disconnected);
       socket.off('ChatRoomSyncMemberLeave', memberLeft); socket.off('ChatRoomSync', roomSync);
     }
     socket = next;
-    if (socket) { socket.on('ChatRoomMessage', onMessage); socket.on('disconnect', disconnected);
+    if (socket) { socket.on('disconnect', disconnected);
       socket.on('ChatRoomSyncMemberLeave', memberLeft); socket.on('ChatRoomSync', roomSync); }
   }
   function networkTick() {
+    installMessageHandler();clearGhostedPeers();
     const next = window.ServerSocket;
     if (next !== socket && typeof next?.on === 'function' && typeof next?.off === 'function') { clearSession('Connected. Remote keys start cleared.'); attachSocket(next); }
     const room = roomKey(), member = player()?.MemberNumber;
@@ -848,7 +885,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     profileButton.dataset.member=String(member);profileButton.title=title;profileButton.setAttribute('aria-label',title);menu.append(profileButton);
   }
   function layout() {
-    syncProfileButton(); clampWindow($('panel')); clampWindow($('preview-window'));
+    syncProfileButton(); clampWindow(byId('panel')); clampWindow(byId('preview-window'));
     const game = document.getElementById('MainCanvas'), chat = document.getElementById('TextAreaChatLog');
     const visible = window.CurrentScreen === 'ChatRoom' && chat && getComputedStyle(chat).visibility !== 'hidden' && !chat.closest('[hidden]');
     rectangle = visible ? bounds(game?.getBoundingClientRect(), chat.getBoundingClientRect(), settings.width, innerWidth, innerHeight) : null;
@@ -970,7 +1007,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       }
     } finally { hx.restore(); }
   }
-  const previewCanvas=$('preview-canvas'), previewContext=previewCanvas.getContext('2d');
+  const previewCanvas=byId('preview-canvas'), previewContext=previewCanvas.getContext('2d');
   const previewTextures=[document.createElement('canvas'),document.createElement('canvas')],previewKeys=['',''];
   let previewTime=0,previewConfig='',previewPulseState=newPulseState();
   function focusRadius(f,time,w,h){const end=Math.min(f.opening,f.endOpening),amount=f.tighten?Math.min(1,time/f.tightenSeconds):0;return Math.min(w,h)*(f.opening+(end-f.opening)*amount);}
@@ -1010,14 +1047,14 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       if(f.fixation==='ring'){c.ellipse(0,0,r,r*.8,0,0,Math.PI*2);c.stroke();c.beginPath();c.rect(-r*.12,r*.65,r*.24,r*.3);}
       else for(let i=0;i<=150;i++){const a=i/150*Math.PI*6,rr=r*i/150;const x=Math.cos(a)*rr,y=Math.sin(a)*rr;if(i)c.lineTo(x,y);else c.moveTo(x,y);}c.stroke();c.restore();}
   }
-  function updateFocusBackdrop(){const el=$('focus-blur'),r=rectangle,f=settings.focus;el.hidden=!r||!enabled||!f.enabled||f.blur<=0||document.hidden;if(el.hidden)return;const radius=focusRadius(f,activeTime,r.width,r.height);Object.assign(el.style,{left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',backdropFilter:'blur('+f.blur+'px)',maskImage:'radial-gradient(circle at center,transparent '+radius+'px,black '+(radius+Math.min(r.width,r.height)*.12)+'px)'});}
+  function updateFocusBackdrop(){const el=byId('focus-blur'),r=rectangle,f=settings.focus;el.hidden=!r||!enabled||!f.enabled||f.blur<=0||document.hidden;if(el.hidden)return;const radius=focusRadius(f,activeTime,r.width,r.height);Object.assign(el.style,{left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',backdropFilter:'blur('+f.blur+'px)',maskImage:'radial-gradient(circle at center,transparent '+radius+'px,black '+(radius+Math.min(r.width,r.height)*.12)+'px)'});}
   function renderPreview(dt) {
-    if($('preview-window').hidden || document.hidden || !previewContext)return;
+    if(byId('preview-window').hidden || document.hidden || !previewContext)return;
     if(selected !== 'self' && !receivedGrants.has(Number(selected))){showPreview(false);return;}
     const config=editState(),key=selected+JSON.stringify(config);
     if(key!==previewConfig){previewConfig=key;previewTime=0;previewPulseState=newPulseState();}
     previewTime+=dt;
-    $('preview-label').textContent=(selected==='self'?'My overlay':label(Number(selected)))+' · unsent appearance preview';
+    byId('preview-label').textContent=(selected==='self'?'My overlay':label(Number(selected)))+' · unsent appearance preview';
     const c=previewContext,w=500,h=500;c.clearRect(0,0,w,h);c.fillStyle='#282331';c.fillRect(0,0,w,h);
     c.fillStyle='#71687f';c.beginPath();c.ellipse(250,195,38,48,0,0,Math.PI*2);c.fill();c.fillRect(210,245,80,230);
     config.spirals.forEach((layer,i)=>drawVisualLayer(c,layer,previewTime,w,h,i,previewTextures,previewKeys));
@@ -1051,13 +1088,13 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     const play=audioReady&&audioContext?.state==='running'&&config.enabled&&(audioDraft?validDraft:enabled)&&!document.hidden;
     const key=play?JSON.stringify(config)+(audioDraft?selected:'live'):'';
     if(key!==audioKey){disposeAudio(audioGraph);audioGraph=null;audioKey=key;if(play){try{audioGraph=buildAudioMix(audioContext,config,audioContext.destination);}catch(error){audioKey='';audioReady=false;audioMutedByError=true;say('Audio could not start: '+error.message);}}}
-    $('audio-status').textContent=audioMutedByError?'Audio unavailable. Try Start audio again.':!audioReady?'Audio needs a local click after loading.':audioContext?.state!=='running'?'Browser paused audio. Click Start audio to resume.':play?(audioDraft?'Listening to the selected draft locally.':'Audio playing on this device.'):'Audio ready; enable the audio layer and effects to play.';
+    byId('audio-status').textContent=audioMutedByError?'Audio unavailable. Try Start audio again.':!audioReady?'Audio needs a local click after loading.':audioContext?.state!=='running'?'Browser paused audio. Click Start audio to resume.':play?(audioDraft?'Listening to the selected draft locally.':'Audio playing on this device.'):'Audio ready; enable the audio layer and effects to play.';
   }
-  $('audio-start').onclick=async()=>{try{const Context=window.AudioContext||window.webkitAudioContext;if(!Context)throw Error('Web Audio is unavailable');audioContext ||= new Context();await audioContext.resume();audioReady=true;audioMutedByError=false;syncAudio();}catch(error){say('Audio could not start: '+error.message);}};
-  $('audio-mute').onclick=()=>{audioReady=false;syncAudio();};
-  $('audio-preview').onchange=()=>{audioDraft=$('audio-preview').checked;syncAudio();};
+  byId('audio-start').onclick=async()=>{try{const Context=window.AudioContext||window.webkitAudioContext;if(!Context)throw Error('Web Audio is unavailable');audioContext ||= new Context();await audioContext.resume();audioReady=true;audioMutedByError=false;syncAudio();}catch(error){say('Audio could not start: '+error.message);}};
+  byId('audio-mute').onclick=()=>{audioReady=false;syncAudio();};
+  byId('audio-preview').onchange=()=>{audioDraft=byId('audio-preview').checked;syncAudio();};
   function audioClock(fallback){return audioGraph&&audioReady&&audioContext?.state==='running'?Math.max(0,audioContext.currentTime-audioGraph.start):fallback;}
-  const wearableMod=bcModSdk.registerMod({name:'HypnoReverieWearables',fullName:'Hypno Reverie Wearables',version:VERSION,repository:'https://github.com/Jaxx-01-ai/HypnoReverie'},{allowReplace:true});
+  const wearableMod=bcModSdk.registerMod({name:'HypnoReverie',fullName:'Hypno Reverie',version:VERSION,repository:'https://github.com/Jaxx-01-ai/HypnoReverie'},{allowReplace:true});
   let pickerInstalled=false, previewInstalled=false, buildContext=null, previewItem=null;
   const skinDefinitions=[
     {...wearableVariants[0],source:HEADSET_IMAGE,width:116,x:42,y:136,centerY:true,layers:['Body','Display'],drawLayer:'Display'},
@@ -1214,7 +1251,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   addEventListener('resize', layout); addEventListener('scroll', layout, true); document.addEventListener('visibilitychange', layout);
   window.HypnoReverie = { version: VERSION, open, stop,
     destroy() {
-      stop(); destroyed = true; clearInterval(wearableTimer);clearInterval(catsuitTimer);catsuitCache.clear();removeWearables();cancelAnimationFrame(frameId); clearInterval(layoutTimer); clearInterval(networkTimer);
+      stop(); destroyed = true; removeMessageHandler(); clearInterval(wearableTimer);clearInterval(catsuitTimer);catsuitCache.clear();removeWearables();cancelAnimationFrame(frameId); clearInterval(layoutTimer); clearInterval(networkTimer);
       clearInterval(audioTimer);disposeAudio(audioGraph,true);audioGraph=null;audioContext?.close().catch(()=>{});windowObserver.disconnect(); attachSocket(null); document.removeEventListener('keydown', keydown, true);
       removeEventListener('resize', layout); removeEventListener('scroll', layout, true); document.removeEventListener('visibilitychange', layout);
       profileButton?.remove(); host.remove(); delete window.HypnoReverie;

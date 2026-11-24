@@ -1,6 +1,16 @@
 # Hypno Reverie
 
-Version **0.8.0**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable test release. The existing FUSAM submission remains for v0.6.0.
+Version **0.8.1**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable test release. The existing FUSAM submission remains for v0.6.0.
+
+## Compatibility fixes (0.8.1)
+
+The addon registers with BC Mod SDK as **Hypno Reverie**, including its version and repository. This makes its metadata available to SDK-aware addon lists; the particular LSCG/BCX list UIs have not been tested live.
+
+Incoming addon packets now use **ChatRoomRegisterMessageHandler** at priority -50, after the game's ghost-list filter (-200) and before native hidden-message processing (-1). There is no direct ChatRoomMessage socket listener. Unrelated messages pass through unchanged. If the message-handler API is unavailable, remote messaging stays disabled instead of falling back to a raw socket listener.
+
+Ghosted players cannot send accepted addon requests, control updates, expressions, or shared head effects. Ghosting an active controller revokes their keys, including permanent access, and stops their remote session on the next one-second network tick. The addon also prevents direct outgoing messages to ghosted players and drops their cached peer state. Unghosting does not restore revoked keys. Unloading removes only this addon's handler and SDK registration.
+
+There is no jQuery dependency. The small local DOM helper was renamed from dollar-sign notation to **byId** to make that clear.
 
 ## Wearables (0.8)
 
