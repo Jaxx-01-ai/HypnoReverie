@@ -1,8 +1,9 @@
-// Hypno Reverie 0.5.0 — Jaxx-01-ai
+// Hypno Reverie 0.6.0 — Jaxx-01-ai
 // Original canvas renderer and opt-in, room-scoped control protocol.
 (() => {
   'use strict';
-  const VERSION = '0.5.0', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
+  const BOOT = typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():String(Math.random());
+  const VERSION = '0.6.0', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
   const PRESET_KEY = 'hypnoreverie-presets-v1', PRIVACY_KEY = 'hypnoreverie-head-sharing-v1';
   const clone = value => JSON.parse(JSON.stringify(value));
   const num = (v, fallback, min, max) => typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback;
@@ -11,13 +12,15 @@
   const choice = (v, values, fallback) => values.includes(v) ? v : fallback;
   const spiralDefault = { enabled: true, color: '#b47bff', background: '#171024', backgroundOpacity: 0.2,
     opacity: 0.4, arms: 4, spin: 0.7, reverse: false, throbSpeed: 0.4, throbStrength: 0,
-    zoom: 1, thickness: 0.5, blur: 0, curve: 2.5 };
+    zoom: 1, thickness: 0.5, blur: 0, curve: 2.5, taper: 0, style: 'spiral' };
   const defaults = { width: 50, spirals: [spiralDefault, { ...spiralDefault, enabled: false, color: '#69e0e8',
     opacity: 0.22, arms: 3, reverse: true, backgroundOpacity: 0, spin: 0.45 }],
     text: { enabled: false, color: '#ffffff', opacity: 0.8, duration: 2, gap: 0.5, fontSize: 54,
       mode: 'center', lines: 5, random: false, messages: [] },
     pulse: { enabled: false, mode: 'interval', color: '#c3a2ff', opacity: 0.15, duration: 0.8,
-      interval: 5, randomMin: 4, randomMax: 10, shape: 'soft' },
+      interval: 5, randomMin: 4, randomMax: 10, startDelay: 0, textDelay: 0, every: 1, shape: 'soft' },
+    audio: {enabled:false,master:0.2,binaural:false,leftHz:180,rightHz:184,toneLevel:0.18,iso:false,isoHz:180,isoRate:4,isoDuty:0.5,isoLevel:0.15,music:'none',musicLevel:0.2,heartbeat:false,bpm:60,heartLevel:0.2,breathing:false,inhale:4,exhale:6,pause:1,breathLevel:0.15},
+    focus: {enabled:false,opening:0.3,darkness:0.8,blur:8,tighten:false,endOpening:0.15,tightenSeconds:60,fixation:'none',size:0.1,glow:16,color:'#d4a6ff',colorPulse:false,colorA:'#40105f',colorB:'#f3a2d5',colorOpacity:0.15,beatSource:'heartbeat',beats:8},
     head: { words: false, forehead: false, eyes: false, halo: false, color: '#bf93ff', opacity: 0.7,
       size: 1, wordSize: 14, offsetX: 0, offsetY: 0, wordMode: 'orbit' } };
   function normalize(raw = {}) {
@@ -30,22 +33,26 @@
         spin: num(s.spin, d.spin, 0, 12), reverse: bool(s.reverse, d.reverse),
         throbSpeed: num(s.throbSpeed, d.throbSpeed, 0, 5), throbStrength: num(s.throbStrength, d.throbStrength, 0, 0.6),
         zoom: num(s.zoom, d.zoom, 0.25, 6), thickness: num(s.thickness, d.thickness, 0.01, 0.99),
-        blur: num(s.blur, d.blur, 0, 50), curve: num(s.curve, d.curve, 0, 12) };
+        blur: num(s.blur, d.blur, 0, 50), curve: num(s.curve, d.curve, 0, 12), taper:num(s.taper,0,0,0.95), style:choice(s.style,['spiral','rings','hearts','petals','polygon','star'], 'spiral') };
     });
+    const a=raw.audio||{}, f=raw.focus||{};
     const t = raw.text || {}, p = raw.pulse || {}, h = raw.head || {}, td = defaults.text, pd = defaults.pulse;
     const messages = Array.isArray(t.messages) ? t.messages.filter(x => typeof x === 'string')
       .slice(0, 40).map(x => x.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 160).trim()).filter(Boolean) : [];
-    const min = num(p.randomMin, pd.randomMin, 2, 120);
+    const min = num(p.randomMin, pd.randomMin, 2, 300);
     return { width: num(raw.width, 50, 10, 50), spirals,
       text: { enabled: bool(t.enabled, false), color: color(t.color, td.color), opacity: num(t.opacity, td.opacity, 0, 1),
-        duration: num(t.duration, td.duration, 0.08, 30), gap: num(t.gap, td.gap, 0, 30),
+        duration: num(t.duration, td.duration, 0.001, 30), gap: num(t.gap, td.gap, 0, 30),
         fontSize: num(t.fontSize, td.fontSize, 12, 180), mode: choice(t.mode, ['center', 'wall', 'lines', 'write', 'scatter', 'mixed'], 'center'),
         lines: Math.round(num(t.lines, td.lines, 1, 12)), random: bool(t.random, false), messages },
       pulse: { enabled: bool(p.enabled, false), mode: choice(p.mode, ['interval', 'random', 'text'], 'interval'),
         color: color(p.color, pd.color), opacity: num(p.opacity, pd.opacity, 0, 0.45),
-        duration: num(p.duration, pd.duration, 0.3, 3), interval: num(p.interval, pd.interval, 2, 120),
-        randomMin: min, randomMax: Math.max(min, num(p.randomMax, pd.randomMax, 2, 120)),
+        duration: num(p.duration, pd.duration, 0.05, 10), interval: num(p.interval, pd.interval, 2, 300),
+        randomMin: min, randomMax: Math.max(min, num(p.randomMax, pd.randomMax, 2, 300)),
+        startDelay: num(p.startDelay, 0, 0, 60), textDelay: num(p.textDelay, 0, 0, 5), every: Math.round(num(p.every, 1, 1, 20)),
         shape: choice(p.shape, ['soft', 'flash'], 'soft') },
+      audio: {enabled:bool(a.enabled,false),master:num(a.master,0.2,0,0.6),binaural:bool(a.binaural,false),leftHz:num(a.leftHz,180,40,1000),rightHz:num(a.rightHz,184,40,1000),toneLevel:num(a.toneLevel,0.18,0,0.5),iso:bool(a.iso,false),isoHz:num(a.isoHz,180,40,1000),isoRate:num(a.isoRate,4,0.1,30),isoDuty:num(a.isoDuty,0.5,0.1,0.9),isoLevel:num(a.isoLevel,0.15,0,0.5),music:choice(a.music,['none','velvet','drift','rain'], 'none'),musicLevel:num(a.musicLevel,0.2,0,0.5),heartbeat:bool(a.heartbeat,false),bpm:num(a.bpm,60,30,180),heartLevel:num(a.heartLevel,0.2,0,0.5),breathing:bool(a.breathing,false),inhale:num(a.inhale,4,1,12),exhale:num(a.exhale,6,1,16),pause:num(a.pause,1,0,8),breathLevel:num(a.breathLevel,0.15,0,0.5)},
+      focus: {enabled:bool(f.enabled,false),opening:num(f.opening,0.3,0.1,0.8),darkness:num(f.darkness,0.8,0,1),blur:num(f.blur,8,0,24),tighten:bool(f.tighten,false),endOpening:num(f.endOpening,0.15,0.08,0.7),tightenSeconds:num(f.tightenSeconds,60,5,300),fixation:choice(f.fixation,['none','spiral','ring'],'none'),size:num(f.size,0.1,0.025,0.25),glow:num(f.glow,16,0,40),color:color(f.color,'#d4a6ff'),colorPulse:bool(f.colorPulse,false),colorA:color(f.colorA,'#40105f'),colorB:color(f.colorB,'#f3a2d5'),colorOpacity:num(f.colorOpacity,0.15,0,0.35),beatSource:choice(f.beatSource,['heartbeat','iso','binaural'],'heartbeat'),beats:Math.round(num(f.beats,8,1,64))},
       head: { words: bool(h.words, false), forehead: bool(h.forehead, false), eyes: bool(h.eyes, false), halo: bool(h.halo, false),
         color: color(h.color, '#bf93ff'), opacity: num(h.opacity, 0.7, 0, 0.9), size: num(h.size, 1, 0.4, 2),
         wordSize: num(h.wordSize, 14, 8, 24), offsetX: num(h.offsetX, 0, -200, 200), offsetY: num(h.offsetY, 0, -300, 300),
@@ -61,10 +68,10 @@
   // This gate is the only path by which a remote command can change the receiver.
   class ControlGate {
     constructor() { this.grant = null; this.lastSequence = 0; this.lastCommand = -Infinity; }
-    issue(sender, level, token, now, minutes, allowPulse) {
+    issue(sender, level, token, now, minutes, allowPulse, allowAudio=false, allowExpressions=false) {
       if (!Number.isSafeInteger(sender) || !['visuals', 'text', 'session'].includes(level) || typeof token !== 'string' || token.length < 16)
         throw new Error('Invalid grant');
-      this.grant = { sender, level, token, expires: minutes === null ? null : now + num(minutes, 15, 1, 30) * 60000, allowPulse: !!allowPulse };
+      this.grant = { sender, level, token, expires: minutes === null ? null : now + num(minutes, 15, 1, 30) * 60000, allowPulse: !!allowPulse, allowAudio:!!allowAudio, allowExpressions:!!allowExpressions };
       this.lastSequence = 0; this.lastCommand = -Infinity;
       return clone(this.grant);
     }
@@ -76,12 +83,15 @@
       if (!packet.settings || typeof packet.settings !== 'object') return null;
       const incoming = normalize(packet.settings), next = clone(current);
       next.spirals = incoming.spirals;
-      next.head = incoming.head;
+      next.head = incoming.head; next.focus=incoming.focus;
+      if(!g.allowPulse)for(const key of ['colorPulse','colorA','colorB','colorOpacity','beatSource','beats'])next.focus[key]=current.focus[key];
+      if(g.allowAudio)next.audio=incoming.audio;
       if (g.level === 'visuals') { next.head.words = current.head.words; next.head.wordMode = current.head.wordMode; }
       if (g.level !== 'visuals') next.text = incoming.text;
       if (g.allowPulse) next.pulse = incoming.pulse;
       this.lastSequence = packet.seq; this.lastCommand = now;
       return { settings: normalize(next), enabled: g.level === 'session' && typeof packet.enabled === 'boolean' ? packet.enabled : undefined,
+        allowSelfHead: typeof packet.allowSelfHead==='boolean'?packet.allowSelfHead:undefined,
         locked: g.level === 'session' && typeof packet.locked === 'boolean' ? packet.locked : undefined };
     }
   }
@@ -91,7 +101,7 @@
     // Stable pseudo-random order means changing frame rate does not skip words.
     const index = t.random ? ((Math.imul(cycle + 1, 1664525) + 1013904223) >>> 0) % t.messages.length : cycle % t.messages.length;
     const message = age < t.duration ? t.messages[index] : '';
-    return { message, index, cycle, progress: Math.min(1, age / Math.max(0.08, t.duration * 0.75)) };
+    return { message, index, cycle, progress: Math.min(1, age / Math.max(0.000001, t.duration * 0.75)) };
   }
   function random01(seed) {
     let value = seed | 0; value ^= value >>> 16; value = Math.imul(value, 0x7feb352d); value ^= value >>> 15;
@@ -114,16 +124,60 @@
     for(let arm=0;arm<s.arms;arm++){
       tx.beginPath();
       for(let step=0;step<=300;step++){
-        const r=radius*step/300,a=arm*sector+r/radius*s.curve*Math.PI*2;
+        const r=radius*step/300,a=arm*sector+r/radius*s.curve*Math.PI*2+sector*s.thickness*(s.taper||0)*(1-r/radius)/2;
         const x=center+r*Math.cos(a),y=center+r*Math.sin(a);if(step)tx.lineTo(x,y);else tx.moveTo(x,y);
       }
       const outer=arm*sector+s.curve*Math.PI*2;
       tx.arc(center,center,radius,outer,outer+sector*s.thickness);
-      for(let step=300;step>=0;step--){const r=radius*step/300,a=arm*sector+sector*s.thickness+r/radius*s.curve*Math.PI*2;tx.lineTo(center+r*Math.cos(a),center+r*Math.sin(a));}
+      for(let step=300;step>=0;step--){const r=radius*step/300,a=arm*sector+sector*s.thickness*(1-(s.taper||0)*(1-r/radius)/2)+r/radius*s.curve*Math.PI*2;tx.lineTo(center+r*Math.cos(a),center+r*Math.sin(a));}
       tx.closePath();tx.fill();
     }
   }
-  const core = { drawSpiralTexture, normalize, defaults, bounds, ControlGate, textFrame, textPosition, normalizePresets };
+  function newPulseState() { return {start:-Infinity,last:-Infinity,next:0,cycle:-1,queued:null}; }
+  function pulseFrame(p,frame,textEnabled,time,state,random=Math.random) {
+    if(!p.enabled)return 0;
+    if(time<p.startDelay){state.cycle=frame.cycle;return 0;}
+    if(p.mode==='text'){
+      if(textEnabled && frame.message && frame.cycle!==state.cycle && (frame.cycle+1)%p.every===0 && state.queued===null)state.queued=time+p.textDelay;
+      state.cycle=frame.cycle;
+    }
+    const due=p.mode==='text'?state.queued!==null && time>=state.queued:time>=Math.max(p.startDelay,state.next);
+    if(due && time-state.last>=Math.max(2,p.duration)){
+      state.start=state.last=time;state.queued=null;
+      state.next=time+(p.mode==='random'?p.randomMin+random()*(p.randomMax-p.randomMin):p.interval);
+    }
+    const progress=(time-state.start)/p.duration;
+    return progress>=0&&progress<=1?p.opacity*(p.shape==='soft'?Math.sin(progress*Math.PI)**2:(1-progress)**2):0;
+  }
+  function synthesizeTrack(kind,a,rate=22050) {
+    const duration=kind==='iso'?1/a.isoRate:kind==='heart'?60/a.bpm:kind==='breath'?a.inhale+a.exhale+a.pause:32;
+    const data=new Float32Array(Math.max(1,Math.round(duration*rate)));let low=0;
+    const chords=[[130.81,164.81,196],[110,130.81,164.81],[87.31,110,130.81],[98,123.47,146.83]];
+    for(let i=0;i<data.length;i++){
+      const t=i/rate;let v=0;
+      if(kind==='iso'){const phase=t/duration;const edge=.025;const envelope=Math.min(1,phase/edge,Math.max(0,(a.isoDuty-phase)/edge));v=Math.sin(t*a.isoHz*Math.PI*2)*Math.max(0,envelope);}
+      else if(kind==='heart'){for(const [delay,amp,freq]of [[0,1,58],[duration*.23,.65,72]]){const x=t-delay;if(x>=0&&x<duration*.22)v+=amp*Math.sin(x*freq*Math.PI*2)*Math.sin(Math.min(1,x/.012)*Math.PI/2)*Math.exp(-x*40);}}
+      else if(kind==='breath'){low=low*.92+(random01(i+87)*2-1)*.08;const env=t<a.inhale?Math.sin(t/a.inhale*Math.PI)**1.5:t<a.inhale+a.exhale?.7*Math.sin((t-a.inhale)/a.exhale*Math.PI)**1.5:0;v=low*env*2;}
+      else {
+        const chord=chords[Math.floor(t/8)%4],u=t%8,env=Math.sin(u/8*Math.PI)**2;
+        for(let n=0;n<3;n++)v+=Math.sin(t*chord[n]*Math.PI*2)*env*.16;
+        if(a.music==='drift'){const slot=Math.floor(t/2),age=t%2,freq=chords[Math.floor(slot/4)%4][slot%3]*4;v=v*.45+Math.sin(t*freq*Math.PI*2)*Math.sin(Math.min(1,age/.03)*Math.PI/2)*Math.exp(-age*2)*.2;}
+        if(a.music==='rain'){low=low*.97+(random01(i+99)*2-1)*.03;v=v*.6+low*.8*Math.sin(t/32*Math.PI)**2;}
+      }
+      data[i]=Math.max(-1,Math.min(1,v));
+    }
+    return {data,rate,duration:data.length/rate};
+  }
+  function buildAudioMix(context,a,destination) {
+    const nodes=[],sources=[],bus=context.createGain(),compressor=context.createDynamicsCompressor();
+    nodes.push(bus,compressor);bus.gain.value=a.master*.35;compressor.threshold.value=-12;compressor.ratio.value=8;bus.connect(compressor);compressor.connect(destination);
+    const start=context.currentTime+.03;
+    const loop=(kind,level)=>{const track=synthesizeTrack(kind,a),buffer=context.createBuffer(1,track.data.length,track.rate);buffer.copyToChannel(track.data,0);const source=context.createBufferSource(),gain=context.createGain();source.buffer=buffer;source.loop=true;gain.gain.value=level;source.connect(gain);gain.connect(bus);source.start(start);sources.push(source);nodes.push(source,gain);};
+    if(a.binaural){const merger=context.createChannelMerger(2);merger.channelInterpretation='discrete';merger.connect(bus);nodes.push(merger);for(const [channel,hz]of [a.leftHz,a.rightHz].entries()){const osc=context.createOscillator(),gain=context.createGain();osc.type='sine';osc.frequency.value=hz;gain.gain.value=a.toneLevel;osc.connect(gain);gain.connect(merger,0,channel);osc.start(start);sources.push(osc);nodes.push(osc,gain);}}
+    if(a.iso)loop('iso',a.isoLevel);if(a.heartbeat)loop('heart',a.heartLevel);if(a.breathing)loop('breath',a.breathLevel);if(a.music!=='none')loop('music',a.musicLevel);
+    return {start,bus,sources,nodes};
+  }
+  const core = { synthesizeTrack, buildAudioMix, newPulseState, pulseFrame, drawSpiralTexture, normalize, defaults, bounds, ControlGate, textFrame, textPosition, normalizePresets };
   if (typeof module !== 'undefined' && module.exports && typeof document === 'undefined') { module.exports = core; return; }
   if (window.HypnoReverie?.version === VERSION) { window.HypnoReverie.open(); return; }
   if (window.HypnoReverie?.destroy) window.HypnoReverie.destroy();
@@ -148,11 +202,14 @@
   const SESSION_KEY='hypnoreverie-resume-v1';
   let resume = {remember:false,enabled:false,member:null};
   try{const value=JSON.parse(localStorage.getItem(SESSION_KEY)||'{}');resume={remember:value.remember===true,enabled:value.enabled===true,member:Number.isSafeInteger(value.member)?value.member:null};}catch{}
-  let remoteHeadSharing = false;
+  const PERMANENT_KEY='hypnoreverie-permanent-v1';let permanent=null,permanentAnnouncedToken='';
+  try{const v=JSON.parse(localStorage.getItem(PERMANENT_KEY)||'null');if(v && v.owner===window.Player?.MemberNumber && Number.isSafeInteger(v.sender) && ['visuals','text','session'].includes(v.level))permanent={owner:v.owner,sender:v.sender,level:v.level,allowPulse:v.allowPulse===true,allowAudio:v.allowAudio===true,allowExpressions:v.allowExpressions===true,enabled:v.enabled===true,locked:v.locked===true&&v.level==='session',headSharing:v.headSharing===true};}catch{}
+  let remoteHeadSharing = false, selfHeadAllowed = false, ownHeadVisible = false;
   let enabled = resume.remember && resume.enabled && resume.member===window.Player?.MemberNumber, locked = false, destroyed = false, socket = null, selected = 'self';
   let activeTime = 0, lastFrame = 0, frameId = 0, rectangle = null, networkRoom = null, networkMember = null;
   let dominant = false, pulseAllowed = false, status = enabled ? 'Saved effects resumed.' : 'Ready. Effects are off.', lastHello = 0;
   const gate = new ControlGate(), peers = new Map(), receivedGrants = new Map();
+  if(permanent){enabled=permanent.enabled;locked=permanent.locked;remoteHeadSharing=permanent.headSharing;gate.issue(permanent.sender,permanent.level,crypto.randomUUID(),Date.now(),null,permanent.allowPulse,permanent.allowAudio,permanent.allowExpressions);}
   let viewedProfile = null; const keyRequests = new Map(), requestTimes = new Map();
   const publicHeads = new Map(); let lastPublic = 0, publicWasActive = false, profileButton = null;
   const phases = [0, 0], effectTextures = [document.createElement('canvas'), document.createElement('canvas')], effectTextureKeys = ['', ''];
@@ -163,7 +220,7 @@
   const LOGO = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><rect x=\"4\" y=\"17\" width=\"56\" height=\"33\" rx=\"12\" fill=\"#251a3c\" stroke=\"#c4a0ff\" stroke-width=\"3\"/><path d=\"M6 24 1 28v12l5 3m52-19 5 4v12l-5 3M24 50l8-7 8 7\" fill=\"none\" stroke=\"#c4a0ff\" stroke-width=\"3\"/><path d=\"M33 33c0-3-5-3-5 1 0 6 10 6 10-1 0-10-16-10-16 1 0 14 23 14 23-1 0-18-30-18-30 1\" fill=\"none\" stroke=\"#e5d6ff\" stroke-width=\"2.5\" stroke-linecap=\"round\"/></svg>";
   root.innerHTML = `<style>
     :host{color-scheme:dark;font:14px system-ui,sans-serif;color:#f2edff}*{box-sizing:border-box}[hidden]{display:none!important}
-    #effect,#heads{position:fixed;pointer-events:none}#ui{position:fixed;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;padding:16px}
+    #focus-blur{position:fixed;pointer-events:none}#effect,#heads{position:fixed;pointer-events:none}#ui{position:fixed;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;padding:16px}
     button,select,input,textarea{font:inherit;color:inherit}button,select{background:#2b203d;border:1px solid #6b537f;border-radius:8px;padding:8px 11px;cursor:pointer}
     button{pointer-events:auto}button:hover{background:#47305f}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #cfafff;outline-offset:2px}
     button:disabled{opacity:.4;cursor:not-allowed}#stop{background:#592c42;border-color:#b5678d}#panel{pointer-events:auto;width:min(760px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:#17121f;border:1px solid #70568b;border-radius:18px;box-shadow:0 18px 80px #000b;overflow:hidden}
@@ -182,19 +239,19 @@
     #preview-bar{display:flex;align-items:center;justify-content:space-between}#preview-window p{margin:6px 0;font-size:11px}#preview-canvas{display:block;width:100%;max-height:45vh;object-fit:contain;background:#161222}
     @container(max-width:510px){fieldset{grid-template-columns:1fr}.header,#content,#footer{padding-left:10px;padding-right:10px}.brand h2{font-size:17px}.brand svg{width:32px;height:32px}.tabs{padding-top:8px}.tabs button{padding:6px}.session-bar{gap:6px}.session-bar #target{max-width:170px}}
   </style>
-  <canvas id="effect" aria-hidden="true" hidden></canvas><canvas id="heads" aria-hidden="true" hidden></canvas>
+  <div id="focus-blur" hidden></div><canvas id="effect" aria-hidden="true" hidden></canvas><canvas id="heads" aria-hidden="true" hidden></canvas>
   <div id="ui" hidden><section id="panel" role="dialog" aria-label="Hypno Reverie settings" hidden>
-    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.5 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
+    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.6 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
       <div class="tabs" role="tablist" aria-label="Settings categories">
         <button data-tab="overview" role="tab" aria-selected="true">Overview</button><button data-tab="primary" role="tab" aria-selected="false">Primary</button><button data-tab="secondary" role="tab" aria-selected="false">Secondary</button>
-        <button data-tab="text" role="tab" aria-selected="false">Words</button><button data-tab="pulse" role="tab" aria-selected="false">Pulse</button><button data-tab="head" role="tab" aria-selected="false">Head</button><button data-tab="sharing" role="tab" aria-selected="false">Keys</button><button data-tab="presets" role="tab" aria-selected="false">Presets</button>
+        <button data-tab="text" role="tab" aria-selected="false">Words</button><button data-tab="pulse" role="tab" aria-selected="false">Pulse</button><button data-tab="audio" role="tab" aria-selected="false">Audio</button><button data-tab="focus" role="tab" aria-selected="false">Focus</button><button data-tab="expressions" role="tab" aria-selected="false">Face</button><button data-tab="head" role="tab" aria-selected="false">Head</button><button data-tab="sharing" role="tab" aria-selected="false">Keys</button><button data-tab="presets" role="tab" aria-selected="false">Presets</button>
       </div>
       <div class="session-bar"><label>Edit <select id="target"><option value="self">My overlay</option></select></label><label><input id="enabled" type="checkbox"> Effects on</label><label id="lock-row" hidden><input id="lock" type="checkbox"> Lock controls</label><button id="preview-toggle" aria-pressed="false">Preview draft</button><span id="session-badge" class="help">Local session</span></div>
     </div>
-    <div id="content"><div id="profile-card" class="card" hidden><h3 id="profile-title"></h3><p id="profile-status"></p><div id="request-options"><label>Requested access <select id="request-level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label><label>Duration <select id="request-duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="indefinite">No time limit</option></select></label><label><input id="request-pulse" type="checkbox"> Include pulse / flash changes</label></div><button id="request-keys">Request keys</button></div><div id="requests-card" class="card" hidden><h3>Key requests</h3><div id="requests-list"></div><p class="help">The controller chooses the requested permissions. Yes grants exactly those permissions; No declines.</p></div>
+    <div id="content"><div id="profile-card" class="card" hidden><h3 id="profile-title"></h3><p id="profile-status"></p><div id="request-options"><label>Requested access <select id="request-level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label><label>Duration <select id="request-duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="indefinite">Permanent access</option></select></label><label><input id="request-pulse" type="checkbox"> Include pulse / flash changes</label><label><input id="request-audio" type="checkbox"> Include audio control</label><label><input id="request-expressions" type="checkbox"> Include facial expressions</label></div><button id="request-keys">Request keys</button></div><div id="requests-card" class="card" hidden><h3>Key requests</h3><div id="requests-list"></div><p class="help">The controller chooses the requested permissions. Yes grants exactly those permissions; No declines.</p></div>
       <div id="remote-note" class="notice" hidden>Editing a remote draft. Send changes to apply it.</div>
       <div id="overview" role="tabpanel"><h3>Set the scene</h3><p>Build your spirals, add words and pulse effects, then save a preset. Changes to your own overlay apply immediately.</p>
-        <div class="card" id="local-session-card"><h3>Session controls</h3><p id="stop-note">Stop your effects and revoke keys to your overlay.</p><button id="stop">Stop / revoke</button><label><input id="remember-session" type="checkbox"> Keep effects on across room changes and relog</label><p class="help">Remembers on/off for this account when the addon loads again. Keys and locks still clear when leaving the room or disconnecting.</p><p class="help">While keys are handed over, this button is disabled. Escape stops your session only while controls are unlocked.</p></div>
+        <div class="card" id="local-session-card"><h3>Session controls</h3><p id="stop-note">Stop your effects and revoke keys to your overlay.</p><button id="stop">Stop / revoke</button><label><input id="remember-session" type="checkbox"> Keep effects on across room changes and relog</label><p class="help">Remembers on/off for this account when the addon loads again. Timed keys clear when leaving the room. Permanent access preserves effects and lock until returned or revoked.</p><p class="help">While keys are handed over, this button is disabled. Escape stops your session only while controls are unlocked.</p></div>
         <div class="notice">Photosensitivity notice: flashing lights and moving patterns may trigger seizures in people with photosensitive epilepsy. Avoid these effects if they are a trigger for you. Stop if you feel unwell. <a href="https://www.epilepsy.com/what-is-epilepsy/seizure-triggers/photosensitivity" target="_blank" rel="noopener noreferrer">Learn more</a></div>
         <p class="help">Open this menu from the headset icon in your player profile, your bookmark, or Alt+Shift+H. Close the menu to return to play.</p>
       </div>
@@ -202,14 +259,17 @@
       <div id="secondary" role="tabpanel" hidden><h3>Secondary spiral</h3><p class="help">Blend an independent spiral over the primary.</p><fieldset id="secondary-fields"></fieldset></div>
       <div id="text" role="tabpanel" hidden><h3>Word flashes</h3><p class="help">One word or sentence per line. Random positions stay within the player area; center + periphery alternates between the middle and edges.</p><fieldset id="text-fields"></fieldset></div>
       <div id="pulse" role="tabpanel" hidden><h3>Pulse & flash</h3><p class="help">Choose a rhythm. Flashes remain limited to one every two seconds or slower.</p><fieldset id="pulse-fields"></fieldset></div>
-      <div id="head" role="tabpanel" hidden><h3>Head effects</h3><p class="help">Combine tiny words, a forehead spiral, spiral eyes, and a halo. Other players see these while your overlay is on; they are hidden on your own character. Use Preview draft to inspect them. Position controls help align unusual poses.</p>
-        <div class="card"><label id="broadcast-label"><input id="broadcast-head" type="checkbox"> Share my head effects with the room</label><p class="help">Shares your head-effect settings and the currently displayed words with other Hypno Reverie users. During a grant, head effects enabled by your controller are shared automatically. Each viewer can still hide shared effects.</p><label><input id="show-heads" type="checkbox"> Show other players’ shared head effects</label></div><fieldset id="head-fields"></fieldset>
+      <div id="audio" role="tabpanel" hidden><h3>Audio layers</h3><p class="help">Headphones separate the left/right tones. Ambient music and sound loops are generated locally. Start at a comfortable volume.</p><div class="card"><button id="audio-start">Start audio on this device</button><button id="audio-mute">Mute audio</button><label><input id="audio-preview" type="checkbox"> Listen to selected draft locally</label><p id="audio-status" class="help">Audio needs a local click after loading.</p></div><fieldset id="audio-fields"></fieldset></div>
+      <div id="focus" role="tabpanel" hidden><h3>Fixation & tunnel vision</h3><p class="help">A soft opening keeps the center clear. Words draw over the fixation point. Colour changes follow the selected audio rhythm, with a gentle minimum two-second cycle.</p><fieldset id="focus-fields"></fieldset></div>
+      <div id="expressions" role="tabpanel" hidden><h3>Facial expressions</h3><p class="help">Use the character’s supported game expressions, including mouth and tongue options when available. Changes use the game’s expression rules and are visible in the room.</p><label>Face group <select id="face-group"></select></label><label>Expression <select id="face-value"></select></label><button id="face-apply">Apply expression</button><p id="face-status" class="help"></p></div>
+      <div id="head" role="tabpanel" hidden><h3>Head effects</h3><p class="help">Combine tiny words, a forehead spiral, spiral eyes, and a halo. Other players see these while your overlay is on; your own view starts off. During a grant, the controller must allow you to use Show my head effects. Use Preview draft to inspect the design. Position controls help align unusual poses.</p>
+        <div class="card"><label id="broadcast-label"><input id="broadcast-head" type="checkbox"> Share my head effects with the room</label><p class="help">Shares your head-effect settings and the currently displayed words with other Hypno Reverie users. During a grant, head effects enabled by your controller are shared automatically. Each viewer can still hide shared effects.</p><label><input id="show-heads" type="checkbox"> Show other players’ shared head effects</label></div><label id="own-head-row"><input id="show-own-head" type="checkbox"> Show my head effects (off by default)</label><label id="allow-own-head-row" hidden><input id="allow-own-head" type="checkbox"> Allow wearer to view head effects</label><fieldset id="head-fields"></fieldset>
       </div>
-      <div id="sharing" role="tabpanel" hidden><h3>Hand over the keys</h3><p class="help">Both players need version 0.5 for all features. Dominant/controller status is self-declared; choose by name and member number.</p>
+      <div id="sharing" role="tabpanel" hidden><h3>Hand over the keys</h3><p class="help">Both players need version 0.6 for all features. Dominant/controller status is self-declared; choose by name and member number.</p>
         <div class="card"><label><input id="dominant" type="checkbox"> Available as a dominant/controller</label><button id="discover">Find players</button></div>
         <div class="card"><label>Give keys to <select id="peer"><option value="">No controllers discovered</option></select></label><label>Permission <select id="level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label>
-          <label><input id="allow-pulse" type="checkbox"> Also allow pulse/flash changes</label><label>Duration <select id="duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="custom">Custom</option><option value="indefinite">No time limit</option></select></label><label id="minutes-row" hidden>Minutes <input id="minutes" type="number" min="1" max="30" value="15"></label>
-          <p class="help">A grant shares your current settings and message list, and allows controller-enabled head effects to be visible to the room. No time limit lasts for this room session; room changes, disconnects, returning keys, or Escape while unlocked end it. Grants are never saved.</p>
+          <label><input id="allow-pulse" type="checkbox"> Also allow pulse/flash changes</label><label><input id="allow-audio" type="checkbox"> Also allow audio control</label><label><input id="allow-expressions" type="checkbox"> Also allow facial expressions</label><label>Duration <select id="duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="custom">Custom</option><option value="indefinite">No time limit</option></select></label><label id="minutes-row" hidden>Minutes <input id="minutes" type="number" min="1" max="30" value="15"></label>
+          <p class="help">A grant shares your current settings and message list, and allows controller-enabled head effects to be visible to the room. Permanent access remembers this controller, permissions, effects and lock across room changes and relog. Returning or revoking keys ends it. Timed grants remain room-scoped. Control messages require both players in the same room.</p>
           <div class="row"><button id="grant">Give keys</button><button id="revoke">Revoke keys</button></div><p id="grant-info"></p>
         </div>
       </div>
@@ -249,6 +309,8 @@
   function slider(parent, path, title, min, max, step = 0.01) { field(parent, path, title, 'range', min, max, step); }
   for (const [i, parent] of ['primary-fields', 'secondary-fields'].entries()) {
     const path = key => ['spirals', i, key];
+    field(parent,path('style'),'Pattern','select',null,null,null,[['spiral','Spiral'],['rings','Expanding rings'],['hearts','Heart tunnel'],['petals','Flower tunnel'],['polygon','Polygon tunnel'],['star','Star tunnel']]);
+    slider(parent,path('taper'),'Thin towards center',0,0.95);
     field(parent, path('enabled'), 'Enable this spiral', 'checkbox');
     field(parent, path('color'), 'Spiral colour', 'color');
     field(parent, path('background'), 'Background colour', 'color');
@@ -271,8 +333,8 @@
     [['center', 'Centered message'], ['wall', 'Wall of text'], ['lines', 'Lines'], ['write', 'Write / typewriter'], ['scatter', 'Random positions'], ['mixed', 'Center + periphery']]);
   field('text-fields', ['text', 'color'], 'Text colour', 'color');
   slider('text-fields', ['text', 'opacity'], 'Text opacity', 0, 1);
-  field('text-fields', ['text', 'duration'], 'Message duration (seconds)', 'number', 0.08, 30, 0.01);
-  field('text-fields', ['text', 'gap'], 'Gap between messages (seconds)', 'number', 0, 30, 0.05);
+  field('text-fields', ['text', 'duration'], 'Message duration (seconds)', 'number', 0.001, 30, 0.001);
+  field('text-fields', ['text', 'gap'], 'Gap between messages (seconds)', 'number', 0, 30, 0.001);
   slider('text-fields', ['text', 'fontSize'], 'Font size (px)', 12, 180, 1);
   slider('text-fields', ['text', 'lines'], 'Number of lines', 1, 12, 1);
   field('text-fields', ['text', 'random'], 'Random message order', 'checkbox');
@@ -282,10 +344,13 @@
   field('pulse-fields', ['pulse', 'shape'], 'Effect', 'select', null, null, null, [['soft', 'Soft pulse'], ['flash', 'Flash with fade']]);
   field('pulse-fields', ['pulse', 'color'], 'Pulse colour', 'color');
   slider('pulse-fields', ['pulse', 'opacity'], 'Pulse opacity', 0, 0.45);
-  field('pulse-fields', ['pulse', 'duration'], 'Pulse duration (seconds)', 'number', 0.3, 3, 0.1);
-  field('pulse-fields', ['pulse', 'interval'], 'Interval (seconds)', 'number', 2, 120, 0.5);
-  field('pulse-fields', ['pulse', 'randomMin'], 'Random minimum (seconds)', 'number', 2, 120, 0.5);
-  field('pulse-fields', ['pulse', 'randomMax'], 'Random maximum (seconds)', 'number', 2, 120, 0.5);
+  field('pulse-fields', ['pulse', 'duration'], 'Pulse duration (seconds)', 'number', 0.05, 10, 0.001);
+  field('pulse-fields', ['pulse', 'interval'], 'Interval (seconds)', 'number', 2, 300, 0.001);
+  field('pulse-fields', ['pulse', 'randomMin'], 'Random minimum (seconds)', 'number', 2, 300, 0.001);
+  field('pulse-fields', ['pulse', 'randomMax'], 'Random maximum (seconds)', 'number', 2, 300, 0.001);
+  field('pulse-fields',['pulse','startDelay'],'Start delay (seconds)','number',0,60,0.001);
+  field('pulse-fields',['pulse','textDelay'],'Delay after word (text timing only)','number',0,5,0.001);
+  field('pulse-fields',['pulse','every'],'Pulse every Nth message (text timing only)','number',1,20,1);
   for (const [key, title] of [['words','Tiny words'],['forehead','Forehead spiral'],['eyes','Spiral eyes'],['halo','Spiral halo']]) field('head-fields', ['head',key], title, 'checkbox');
   field('head-fields',['head','wordMode'],'Word motion','select',null,null,null,[['orbit','Orbit around head'],['sparkle','Appear around head']]);
   field('head-fields',['head','color'],'Head effect colour','color');
@@ -294,7 +359,54 @@
   slider('head-fields',['head','wordSize'],'Tiny word size',8,24,1);
   slider('head-fields',['head','offsetX'],'Horizontal alignment',-200,200,1);
   slider('head-fields',['head','offsetY'],'Vertical alignment',-300,300,1);
+  field('audio-fields',['audio','enabled'],'Enable audio layer','checkbox');
+  slider('audio-fields',['audio','master'],'Master level',0,0.6);
+  field('audio-fields',['audio','binaural'],'Left / right tones','checkbox');
+  field('audio-fields',['audio','leftHz'],'Left frequency (Hz)','number',40,1000,0.1);
+  field('audio-fields',['audio','rightHz'],'Right frequency (Hz)','number',40,1000,0.1);
+  slider('audio-fields',['audio','toneLevel'],'Tone level',0,0.5);
+  field('audio-fields',['audio','iso'],'Isochronic pulse track','checkbox');
+  field('audio-fields',['audio','isoHz'],'Pulse tone (Hz)','number',40,1000,0.1);
+  field('audio-fields',['audio','isoRate'],'Pulses per second','number',0.1,30,0.1);
+  slider('audio-fields',['audio','isoDuty'],'Pulse on-time fraction',0.1,0.9);
+  slider('audio-fields',['audio','isoLevel'],'Pulse track level',0,0.5);
+  field('audio-fields',['audio','music'],'Ambient music','select',null,null,null,[['none','None'],['velvet','Velvet chords'],['drift','Slow drifting bells'],['rain','Rain & warm pads']]);
+  slider('audio-fields',['audio','musicLevel'],'Music level',0,0.5);
+  field('audio-fields',['audio','heartbeat'],'Heartbeat','checkbox');
+  field('audio-fields',['audio','bpm'],'Heartbeat speed (BPM)','number',30,180,1);
+  slider('audio-fields',['audio','heartLevel'],'Heartbeat level',0,0.5);
+  field('audio-fields',['audio','breathing'],'Breathing sound','checkbox');
+  field('audio-fields',['audio','inhale'],'Inhale (seconds)','number',1,12,0.1);
+  field('audio-fields',['audio','exhale'],'Exhale (seconds)','number',1,16,0.1);
+  field('audio-fields',['audio','pause'],'Breath pause (seconds)','number',0,8,0.1);
+  slider('audio-fields',['audio','breathLevel'],'Breathing level',0,0.5);
+  field('focus-fields',['focus','enabled'],'Darken / blur periphery','checkbox');
+  slider('focus-fields',['focus','opening'],'Clear center radius',0.1,0.8);
+  slider('focus-fields',['focus','darkness'],'Outer darkness',0,1);
+  slider('focus-fields',['focus','blur'],'Outer blur (px)',0,24,1);
+  field('focus-fields',['focus','tighten'],'Slowly tighten tunnel','checkbox');
+  slider('focus-fields',['focus','endOpening'],'Final opening',0.08,0.7);
+  field('focus-fields',['focus','tightenSeconds'],'Tightening duration (seconds)','number',5,300,1);
+  field('focus-fields',['focus','fixation'],'Center fixation','select',null,null,null,[['none','None'],['spiral','Glowing spiral'],['ring','Rotating collar ring']]);
+  slider('focus-fields',['focus','size'],'Fixation size',0.025,0.25);
+  slider('focus-fields',['focus','glow'],'Glow',0,40,1);
+  field('focus-fields',['focus','color'],'Fixation colour','color');
+  field('focus-fields',['focus','colorPulse'],'Beat-synced gentle colours','checkbox');
+  field('focus-fields',['focus','colorA'],'First colour','color');field('focus-fields',['focus','colorB'],'Second colour','color');
+  slider('focus-fields',['focus','colorOpacity'],'Colour intensity',0,0.35);
+  field('focus-fields',['focus','beatSource'],'Rhythm source','select',null,null,null,[['heartbeat','Heartbeat'],['iso','Isochronic pulses'],['binaural','Left/right frequency difference']]);
+  field('focus-fields',['focus','beats'],'Beats per colour cycle','number',1,64,1);
+  function savePermanent(){
+    const g=gate.grant;if(!g || g.expires!==null)return;
+    const owner=player()?.MemberNumber??permanent?.owner;if(!Number.isSafeInteger(owner))return;
+    permanent={owner,sender:g.sender,level:g.level,allowPulse:g.allowPulse,allowAudio:g.allowAudio,allowExpressions:g.allowExpressions,enabled,locked,headSharing:remoteHeadSharing};
+    try{localStorage.setItem(PERMANENT_KEY,JSON.stringify(permanent));}catch{say('Permanent access could not be saved in this browser.');}
+  }
+  function forgetPermanent(){permanent=null;permanentAnnouncedToken='';try{localStorage.removeItem(PERMANENT_KEY);}catch{}}
+  function rotatePermanent(){if(!permanent)return;gate.issue(permanent.sender,permanent.level,crypto.randomUUID(),Date.now(),null,permanent.allowPulse,permanent.allowAudio,permanent.allowExpressions);permanentAnnouncedToken='';}
+  function sendPermanent(member){if(!permanent || permanent.sender!==member || !gate.grant || permanentAnnouncedToken===gate.grant.token)return;const g=gate.grant;if(send('grant',{token:g.token,level:g.level,expires:null,permanent:true,allowPulse:g.allowPulse,allowAudio:g.allowAudio,allowExpressions:g.allowExpressions,faceOptions:faceOptions(player()),settings,enabled,locked},member))permanentAnnouncedToken=g.token;}
   function saveSession() {
+    if(permanent)savePermanent();
     resume.enabled=enabled;const member=player()?.MemberNumber;if(Number.isSafeInteger(member))resume.member=member;
     try{localStorage.setItem(SESSION_KEY,JSON.stringify(resume));}catch{say('Could not save session preference.');}
   }
@@ -323,12 +435,16 @@
     $('lock').checked = !!remote?.locked;
     $('remote-actions').hidden = selected === 'self' || noAccess; $('remote-note').hidden = selected === 'self' || noAccess;
     $('preview-toggle').disabled = noAccess;
-    $('head-fields').disabled = localLocked;
+    $('head-fields').disabled = $('focus-fields').disabled = localLocked; $('audio-fields').disabled=localLocked || (selected!=='self'&&!remote?.allowAudio);
+    if(selected!=='self'&&!remote?.allowPulse)for(const key of ['colorPulse','colorA','colorB','colorOpacity','beatSource','beats'])$('setting-focus-'+key).disabled=true;
+    refreshFace();
     for (const record of fields) if (selected !== 'self' && remote?.level === 'visuals' && record.path[0] === 'head' && ['words','wordMode'].includes(record.path[1])) record.input.disabled = true;
     $('stop').disabled = $('revoke').disabled = $('grant').disabled = !!gate.grant;
-    for (const id of ['peer','level','allow-pulse','duration','minutes']) $(id).disabled = !!gate.grant;
+    for (const id of ['peer','level','allow-pulse','allow-audio','allow-expressions','duration','minutes']) $(id).disabled = !!gate.grant;
     $('preset-load').disabled = localLocked; $('preset-save').disabled = noAccess;
     $('broadcast-head').checked = privacy.broadcast;
+    $('own-head-row').hidden=selected!=='self';$('show-own-head').checked=ownHeadVisible;$('show-own-head').disabled=!!gate.grant&&!selfHeadAllowed;
+    $('allow-own-head-row').hidden=selected==='self'||!remote;$('allow-own-head').checked=!!remote?.allowSelfHead;
     $('show-heads').checked = privacy.showOthers && !hideSharedUntilEnabled;
     $('local-session-card').hidden = selected !== 'self'; $('broadcast-label').hidden = selected !== 'self';
     $('session-badge').textContent = selected !== 'self' ? 'Remote draft' : gate.grant ? (locked ? 'Controls locked' : 'Keys handed over') : 'Local session';
@@ -365,6 +481,8 @@
   function open() { $('ui').hidden = $('panel').hidden = false; if(!windowReady){const p=$('panel');p.style.width=Math.min(760,innerWidth-32)+'px';p.style.height=Math.min(680,innerHeight-32)+'px';p.style.left=Math.max(8,(innerWidth-760)/2)+'px';p.style.top='24px';windowReady=true;}clampWindow($('panel'));refreshFields(); }
   $('close').onclick = () => { $('ui').hidden = $('panel').hidden = true; };
   function privacySave() { try { localStorage.setItem(PRIVACY_KEY, JSON.stringify(privacy)); } catch {} }
+  $('show-own-head').onchange=()=>{if(!gate.grant||selfHeadAllowed)ownHeadVisible=$('show-own-head').checked;refreshFields();};
+  $('allow-own-head').onchange=()=>{const g=receivedGrants.get(Number(selected));if(g)g.allowSelfHead=$('allow-own-head').checked;};
   $('broadcast-head').onchange = () => { privacy.broadcast = $('broadcast-head').checked; privacySave(); publishHead(true); };
   $('show-heads').onchange = () => { privacy.showOthers = $('show-heads').checked; hideSharedUntilEnabled = false; privacySave(); layout(); };
   $('duration').onchange = () => { $('minutes-row').hidden = $('duration').value !== 'custom'; };
@@ -415,20 +533,43 @@
   $('request-keys').onclick = () => {
     const member=viewedProfile;if(!member || !peers.has(member) || !present(member) || Date.now()-(requestTimes.get(member)||0)<30000)return;
     dominant=true;$('dominant').checked=true;send('hello',{dominant});
-    if(send('requestKeys',{level:$('request-level').value,minutes:$('request-duration').value==='indefinite'?null:Number($('request-duration').value),allowPulse:$('request-pulse').checked},member)){requestTimes.set(member,Date.now());say('Key request sent. Waiting for their approval.');refreshProfileCard();}
+    if(send('requestKeys',{level:$('request-level').value,minutes:$('request-duration').value==='indefinite'?null:Number($('request-duration').value),allowPulse:$('request-pulse').checked,allowAudio:$('request-audio').checked,allowExpressions:$('request-expressions').checked},member)){requestTimes.set(member,Date.now());say('Key request sent. Waiting for their approval.');refreshProfileCard();}
   };
   function refreshRequests() {
     $('requests-card').hidden=!keyRequests.size; $('requests-list').replaceChildren();
     const levels={visuals:'Visuals only',text:'Visuals + words',session:'Full session + control lock (can turn effects on/off and disable your normal controls and Escape)'};
     for(const [member,request] of keyRequests){
       const row=document.createElement('div');row.className='card';const name=document.createElement('p');
-      name.textContent=label(member)+' requests '+levels[request.level]+' · '+(request.minutes===null?'no time limit':request.minutes+' minutes')+' · pulse/flash changes '+(request.allowPulse?'included':'excluded')+'. Shares current settings and messages; controller-enabled head effects are visible to the room.';
-      const yes=document.createElement('button');yes.textContent='Yes';yes.disabled=!!gate.grant;yes.onclick=()=>{if(keyRequests.get(member)!==request || Date.now()-request.at>120000)return;giveKeys(member,request.level,request.minutes,request.allowPulse);};
+      name.textContent=label(member)+' requests '+levels[request.level]+' · '+(request.minutes===null?'PERMANENT: survives room changes and relog until returned or revoked':request.minutes+' minutes')+' · pulse/flash changes '+(request.allowPulse?'included':'excluded')+' · audio '+(request.allowAudio?'included':'excluded')+' · facial expressions '+(request.allowExpressions?'included':'excluded')+'. Shares current settings and messages; controller-enabled head effects are visible to the room.';
+      const yes=document.createElement('button');yes.textContent='Yes';yes.disabled=!!gate.grant;yes.onclick=()=>{if(keyRequests.get(member)!==request || Date.now()-request.at>120000)return;giveKeys(member,request.level,request.minutes,request.allowPulse,request.allowAudio,request.allowExpressions);};
       const no=document.createElement('button');no.textContent='No';no.onclick=()=>{send('declineKeys',{},member);keyRequests.delete(member);refreshRequests();};
       row.append(name,yes,no);$('requests-list').append(row);
     }
   }
 
+  const FACE_GROUPS=['Mouth','Eyes','Eyes2','Eyebrows','Blush','Tongue'];
+  function cleanFaceOptions(raw){const result={};for(const name of FACE_GROUPS){if(Array.isArray(raw?.[name]))result[name]=[...new Set(raw[name].filter(v=>v===null||(typeof v==='string'&&v.length<=50)).slice(0,80))];}return result;}
+  function faceOptions(character){const result={};for(const item of character?.Appearance||[]){const name=item.Asset?.Group?.Name;if(!FACE_GROUPS.includes(name))continue;let values=typeof window.InventoryGetItemProperty==='function'?window.InventoryGetItemProperty(item,'AllowExpression',true):item.Asset?.Group?.AllowExpression;if(Array.isArray(values)&&values.length)result[name]=[null,...values];}return cleanFaceOptions(result);}
+  function refreshFace(){
+    const remote=receivedGrants.get(Number(selected)),options=selected==='self'?faceOptions(player()):remote?.faceOptions||{};
+    const group=$('face-group').value,value=$('face-value').value,key=JSON.stringify(options);
+    if($('face-group').dataset.key!==key){$('face-group').dataset.key=key;$('face-group').replaceChildren();for(const name of Object.keys(options)){const option=document.createElement('option');option.value=name;option.textContent=name;$('face-group').append(option);}if(options[group])$('face-group').value=group;$('face-value').dataset.group='';}
+    const chosen=$('face-group').value;
+    if($('face-value').dataset.group!==chosen){$('face-value').replaceChildren();for(const expression of options[chosen]||[]){const option=document.createElement('option');option.value=expression??'';option.textContent=expression===null?'Default':expression.replace(/([a-z])([A-Z])/g,'$1 $2');$('face-value').append(option);}$('face-value').dataset.group=chosen;}
+    const available=Object.keys(options).length>0,permitted=selected==='self'?!locked:!!remote?.allowExpressions;
+    $('face-apply').disabled=$('face-group').disabled=$('face-value').disabled=!available||!permitted;
+    $('face-status').textContent=!available?'No supported expression choices found on this character.':!permitted?'Expression control is not granted, or your controls are locked.':'Choose an expression and Apply. The game may block choices due to equipped items.';
+  }
+  $('face-group').onchange=()=>{$('face-value').dataset.group='';refreshFace();};
+  function applyFace(group,value){
+    if(!FACE_GROUPS.includes(group) || !(value===null||typeof value==='string'))return {ok:false,message:'Unsupported expression.'};
+    const c=player(),options=faceOptions(c);
+    if(!options[group]?.includes(value)||typeof window.CharacterSetFacialExpression!=='function'||typeof window.CharacterIsExpressionDisallowed!=='function')return {ok:false,message:'Expression API or choice unavailable.'};
+    const groups=group==='Eyes'?['Eyes','Eyes2']:[group];
+    for(const name of groups){const item=c.Appearance.find(item=>item.Asset?.Group?.Name===name);if(!item)continue;const reason=window.CharacterIsExpressionDisallowed(c,item,value);if(reason)return {ok:false,message:'The game blocked this expression: '+String(reason)};}
+    window.CharacterSetFacialExpression(c,group,value);c.ActiveExpression?.setWithoutReload?.(group,value);return {ok:true,message:'Expression applied.'};
+  }
+  $('face-apply').onclick=()=>{const group=$('face-group').value,value=$('face-value').value||null;if(selected==='self'){if(!locked){try{say(applyFace(group,value).message);}catch{say('The game could not apply that expression.');}}return;}const grant=receivedGrants.get(Number(selected));if(!grant?.allowExpressions||Date.now()-(grant.lastSend||0)<300)return;grant.lastSend=Date.now();grant.seq++;send('expression',{token:grant.token,seq:grant.seq,group,value},Number(selected));};
   function player() { return window.Player; }
   function characters() { return Array.isArray(window.ChatRoomCharacter) ? window.ChatRoomCharacter : []; }
   function present(member) { return characters().some(c => c.MemberNumber === member); }
@@ -439,15 +580,16 @@
   }
   function send(kind, payload = {}, target = null) {
     if (!roomKey() || !socket?.connected || typeof window.ServerSend !== 'function') return false;
-    const message = { v: 2, kind, ...payload, to: target };
+    const message = { v: 2, kind, boot:BOOT, ...payload, to: target };
     if (JSON.stringify(message).length > 16000) return false;
     try { window.ServerSend('ChatRoomChat', { Content: CHANNEL, Type: 'Hidden', Target: target, Dictionary: message }); return true; }
     catch { return false; }
   }
   function revoke(reason, notify = true, keepEffects = false) {
     const old = gate.grant;
+    forgetPermanent();
     if (old && notify) send('revoke', { token: old.token }, old.sender);
-    gate.revoke(); locked = false; remoteHeadSharing = false;
+    gate.revoke(); locked = false; remoteHeadSharing = false; selfHeadAllowed=false;ownHeadVisible=false;
     if (old && !keepEffects) enabled = false;
     saveSession();
     say(reason); refreshFields(); updatePeople(); layout();
@@ -467,15 +609,16 @@
   document.addEventListener('keydown', keydown, true);
   $('dominant').onchange = () => { dominant = $('dominant').checked; send('hello', { dominant }); };
   $('discover').onclick = () => { if (Date.now() - lastHello < 3000) return; lastHello = Date.now(); send('hello', { dominant }); say('Looking for players with Hypno Reverie…'); };
-  function giveKeys(member,level,minutes,allowPulse) {
+  function giveKeys(member,level,minutes,allowPulse,allowAudio=false,allowExpressions=false) {
     if(gate.grant)return;
     const peer=peers.get(member);
     if(!peer?.dominant || !present(member) || Date.now()-peer.seen>45000){say('This controller is no longer available.');return;}
-    const grant=gate.issue(member,level,crypto.randomUUID(),Date.now(),minutes,allowPulse);
-    if(!send('grant',{token:grant.token,level:grant.level,expires:grant.expires,allowPulse:grant.allowPulse,settings,enabled,locked:false},member)){gate.revoke();say('Could not send keys.');return;}
+    const grant=gate.issue(member,level,crypto.randomUUID(),Date.now(),minutes,allowPulse,allowAudio,allowExpressions);
+    if(!send('grant',{token:grant.token,level:grant.level,expires:grant.expires,allowPulse:grant.allowPulse,allowAudio:grant.allowAudio,allowExpressions:grant.allowExpressions,faceOptions:faceOptions(player()),settings,enabled,locked:false},member)){gate.revoke();say('Could not send keys.');return;}
+    if(minutes===null){savePermanent();permanentAnnouncedToken=grant.token;}
     keyRequests.delete(member);say('Keys given to '+label(member)+'. Escape revokes them while unlocked.');updatePeople();refreshFields();
   }
-  $('grant').onclick = () => giveKeys(Number($('peer').value),$('level').value,$('duration').value==='indefinite'?null:Number($('duration').value==='custom'?$('minutes').value:$('duration').value),$('allow-pulse').checked);
+  $('grant').onclick = () => giveKeys(Number($('peer').value),$('level').value,$('duration').value==='indefinite'?null:Number($('duration').value==='custom'?$('minutes').value:$('duration').value),$('allow-pulse').checked,$('allow-audio').checked,$('allow-expressions').checked);
   $('apply').onclick = () => {
     // Commit the message editor if the user clicks Send before its blur handler runs.
     root.activeElement?.blur();
@@ -483,7 +626,7 @@
     if (!grant || !present(member) || (grant.expires !== null && grant.expires <= Date.now())) { say('These keys are no longer valid.'); return; }
     if (Date.now() - (grant.lastSend || 0) < 300) return;
     grant.lastSend = Date.now(); grant.seq++;
-    if (send('set', { token: grant.token, seq: grant.seq, settings: grant.draft, enabled: grant.enabled, locked: grant.locked }, member)) say('Changes sent; waiting for acknowledgement.');
+    if (send('set', { token: grant.token, seq: grant.seq, settings: grant.draft, enabled: grant.enabled, locked: grant.locked, allowSelfHead:grant.allowSelfHead===true }, member)) say('Changes sent; waiting for acknowledgement.');
     else say('Could not send changes.');
   };
   $('release').onclick = () => {
@@ -504,19 +647,20 @@
     if (targetValue === 'self' || targets.has(Number(targetValue))) $('target').value = targetValue;
     else { selected = 'self'; $('target').value = 'self'; refreshFields(); }
     const g = gate.grant;
-    $('grant-info').textContent = g ? `Keys: ${label(g.sender)} · ${g.level} · ${g.expires === null ? 'no time limit' : Math.max(0, Math.ceil((g.expires - Date.now()) / 60000)) + ' min remaining'}${locked ? ' · normal controls locked' : ''}` : 'No one has keys to your overlay.';
+    $('grant-info').textContent = g ? `Keys: ${label(g.sender)} · ${g.level} · ${g.expires === null ? 'permanent access' : Math.max(0, Math.ceil((g.expires - Date.now()) / 60000)) + ' min remaining'}${locked ? ' · normal controls locked' : ''}` : 'No one has keys to your overlay.';
     refreshFields(); refreshRequests();
   }
   const inboundTimes = new Map();
   function onMessage(data) {
     if (!data || data.Type !== 'Hidden' || data.Content !== CHANNEL || !Number.isSafeInteger(data.Sender) || !roomKey()) return;
     if (roomKey() !== networkRoom || player()?.MemberNumber !== networkMember) {
-      clearSession('Room changed. Remote keys cleared.'); return;
+      if(permanent && player()?.MemberNumber && permanent.owner!==player().MemberNumber){forgetPermanent();gate.revoke();locked=false;enabled=false;}
+      clearSession('Room changed. Remote keys cleared.'); networkRoom=roomKey();networkMember=player()?.MemberNumber;lastHello=0;return;
     }
     const sender = data.Sender, packet = data.Dictionary;
     if (sender === player()?.MemberNumber || !present(sender) || !packet || typeof packet !== 'object' || packet.v !== 2 ||
       (packet.to !== null && packet.to !== player()?.MemberNumber)) return;
-    if (!['hello', 'helloAck', 'grant', 'ackGrant', 'set', 'applied', 'release', 'revoke', 'head', 'requestKeys', 'declineKeys'].includes(packet.kind)) return;
+    if (!['hello', 'helloAck', 'grant', 'ackGrant', 'set', 'applied', 'release', 'revoke', 'head', 'requestKeys', 'declineKeys', 'expression', 'expressionResult'].includes(packet.kind)) return;
     // Discovery and cosmetic head state may broadcast; control always targets a member.
     if (!['hello', 'head'].includes(packet.kind) && packet.to !== player()?.MemberNumber) return;
     try { if (JSON.stringify(packet).length > 16000) return; } catch { return; }
@@ -526,7 +670,7 @@
     inboundTimes.set(rateKey, now);
     if(packet.kind === 'requestKeys'){
       if(!['visuals','text','session'].includes(packet.level) || !(packet.minutes===null || (Number.isFinite(packet.minutes) && packet.minutes>=1 && packet.minutes<=30)) || typeof packet.allowPulse!=='boolean')return;
-      peers.set(sender,{dominant:true,seen:now});keyRequests.set(sender,{at:now,level:packet.level,minutes:packet.minutes,allowPulse:packet.allowPulse});updatePeople();say(label(sender)+' requested keys. Review the request in the menu.');
+      peers.set(sender,{dominant:true,seen:now});keyRequests.set(sender,{at:now,level:packet.level,minutes:packet.minutes,allowPulse:packet.allowPulse,allowAudio:packet.allowAudio===true,allowExpressions:packet.allowExpressions===true});updatePeople();say(label(sender)+' requested keys. Review the request in the menu.');
       open();return;
     }
     if(packet.kind === 'declineKeys'){say(label(sender)+' declined your key request.');return;}
@@ -536,21 +680,28 @@
       return;
     }
     if (packet.kind === 'hello' || packet.kind === 'helloAck') {
-      peers.set(sender, { dominant: packet.dominant === true, seen: now });
+      if(permanent?.sender===sender && typeof packet.boot==='string' && packet.boot.length<=100 && peers.get(sender)?.boot!==packet.boot)rotatePermanent();
+      peers.set(sender, { dominant: packet.dominant === true, seen: now, boot:typeof packet.boot==='string'?packet.boot.slice(0,100):'' });
       if (packet.kind === 'hello') send('helloAck', { dominant }, sender);
-      updatePeople(); return;
+      sendPermanent(sender);updatePeople(); return;
     }
     if (packet.kind === 'grant') {
-      if (!dominant || !['visuals', 'text', 'session'].includes(packet.level) || typeof packet.token !== 'string' ||
+      if ((!dominant && packet.permanent!==true) || !['visuals', 'text', 'session'].includes(packet.level) || typeof packet.token !== 'string' ||
         packet.token.length < 16 || packet.token.length > 100 || (packet.expires !== null && (typeof packet.expires !== 'number' || !Number.isFinite(packet.expires) || packet.expires <= now || packet.expires > now + 31 * 60000))) return;
-      receivedGrants.set(sender, { token: packet.token, level: packet.level, allowPulse: packet.allowPulse === true,
-        expires: packet.expires, draft: normalize(packet.settings), enabled: packet.enabled === true, locked: false, seq: 0, seen: now });
+      receivedGrants.set(sender, { token: packet.token, level: packet.level, allowPulse: packet.allowPulse === true, allowAudio:packet.allowAudio===true,allowExpressions:packet.allowExpressions===true,faceOptions:cleanFaceOptions(packet.faceOptions),
+        expires: packet.expires, draft: normalize(packet.settings), enabled: packet.enabled === true, locked: packet.locked===true, seq: 0, seen: now });
       send('ackGrant', { token: packet.token }, sender);
       updatePeople(); refreshFields(); say(`${label(sender)} gave you overlay keys. Select their overlay above.`); return;
     }
     if (packet.kind === 'ackGrant' && gate.grant?.sender === sender && gate.grant.token === packet.token) {
       const peer = peers.get(sender); if (peer) peer.seen = now; say(`${label(sender)} received your keys.`); return;
     }
+    if(packet.kind==='expression'){
+      if(!gate.grant?.allowExpressions || !gate.apply(sender,{...packet,settings},settings,now,present(sender)))return;
+      let result;try{result=applyFace(packet.group,packet.value);}catch{result={ok:false,message:'The game could not apply that expression.'};}
+      send('expressionResult',{...result,token:gate.grant.token,seq:packet.seq,faceOptions:faceOptions(player())},sender);say(result.message);return;
+    }
+    if(packet.kind==='expressionResult'){const grant=receivedGrants.get(sender);if(grant?.token!==packet.token||grant.seq!==packet.seq)return;grant.faceOptions=cleanFaceOptions(packet.faceOptions);refreshFace();say(packet.ok?'Expression applied on '+label(sender)+'.':'Expression rejected by the receiver’s game.');return;}
     if (packet.kind === 'set') {
       const result = gate.apply(sender, packet, settings, now, present(sender));
       if (!result) return;
@@ -558,6 +709,7 @@
       remoteHeadSharing = ['words','forehead','eyes','halo'].some(key => settings.head[key]);
       if (result.enabled !== undefined) enabled = result.enabled;
       if (result.locked !== undefined) locked = result.locked;
+      if(result.allowSelfHead!==undefined){selfHeadAllowed=result.allowSelfHead;if(!selfHeadAllowed)ownHeadVisible=false;}
       save(); saveSession(); resetEffectClock(); refreshFields(); updatePeople(); layout(); publishHead(true);
       send('applied', { token: gate.grant.token, seq: packet.seq }, sender);
       say(`Overlay updated by ${label(sender)}${locked ? ' · normal controls locked' : ''}.`); return;
@@ -572,14 +724,15 @@
     }
   }
   function clearSession(reason) {
-    if(!resume.remember) enabled=false;
-    revoke(reason, false, resume.remember); receivedGrants.clear(); peers.clear(); publicHeads.clear(); keyRequests.clear(); requestTimes.clear(); viewedProfile=null; inboundTimes.clear(); publicWasActive = false; selected = 'self';
-    updatePeople(); refreshFields();
+    if(permanent){savePermanent();rotatePermanent();say(reason+' Permanent access retained.');}
+    else {if(!resume.remember)enabled=false;revoke(reason,false,resume.remember);}
+    receivedGrants.clear();peers.clear();publicHeads.clear();keyRequests.clear();requestTimes.clear();viewedProfile=null;inboundTimes.clear();publicWasActive=false;selected='self';ownHeadVisible=false;selfHeadAllowed=false;
+    updatePeople();refreshFields();layout();
   }
   function disconnected() { clearSession('Connection lost. All remote keys cleared.'); }
   function memberLeft(data) {
     const member = data?.SourceMemberNumber ?? data?.MemberNumber;
-    if (gate.grant?.sender === member) revoke('Controller left the room. Keys revoked.', false);
+    if(gate.grant?.sender===member){if(permanent){savePermanent();rotatePermanent();}else revoke('Controller left the room. Keys revoked.',false);}
     receivedGrants.delete(member); peers.delete(member); publicHeads.delete(member); keyRequests.delete(member); updatePeople();
   }
   function roomSync() { clearSession('Room synchronized. Remote keys cleared.'); lastHello = 0; }
@@ -596,24 +749,24 @@
     const next = window.ServerSocket;
     if (next !== socket && typeof next?.on === 'function' && typeof next?.off === 'function') { clearSession('Connected. Remote keys start cleared.'); attachSocket(next); }
     const room = roomKey(), member = player()?.MemberNumber;
-    if(resume.member && member && member!==resume.member){enabled=false;saveSession();}
+    if((permanent && member && permanent.owner!==member)||(resume.member && member && member!==resume.member)){forgetPermanent();gate.revoke();locked=false;enabled=false;saveSession();}
     if (room !== networkRoom || member !== networkMember) {
       clearSession('Room changed. Remote keys cleared.'); networkRoom = room; networkMember = member; lastHello = 0;
     }
     if (!room || !socket?.connected) { if (gate.grant || receivedGrants.size) clearSession('Not connected to a room. Keys cleared.'); return; }
     const now = Date.now();
     if (now - lastHello > 15000) { send('hello', { dominant }); lastHello = now; }
-    if (gate.grant && ((gate.grant.expires !== null && now >= gate.grant.expires) || !present(gate.grant.sender) || now - (peers.get(gate.grant.sender)?.seen || 0) > 45000)) revoke('Remote session ended. Keys revoked.');
+    if (gate.grant && !permanent && ((gate.grant.expires !== null && now >= gate.grant.expires) || !present(gate.grant.sender) || now - (peers.get(gate.grant.sender)?.seen || 0) > 45000)) revoke('Remote session ended. Keys revoked.');
     for (const [id, grant] of receivedGrants) if ((grant.expires !== null && now >= grant.expires) || !present(id) || now - (peers.get(id)?.seen || grant.seen) > 45000) receivedGrants.delete(id);
     for (const [id, peer] of peers) if (!present(id) || now - peer.seen > 45000) peers.delete(id);
     for (const [id,request] of keyRequests) if(!present(id) || now-request.at>120000)keyRequests.delete(id);
     for (const [id,state] of publicHeads) if (!present(id) || now - state.seen > 5000) publicHeads.delete(id);
     publishHead(); updatePeople();
   }
-  let pulseStart = -Infinity, nextPulse = 0, lastPulse = -Infinity, lastTextCycle = -1;
-  function resetEffectClock() { activeTime = 0; lastFrame = 0; pulseStart = -Infinity; nextPulse = 0; lastPulse = -Infinity; lastTextCycle = -1; }
+  let livePulse = newPulseState();
+  function resetEffectClock() { activeTime = 0; lastFrame = 0; livePulse = newPulseState(); }
   function makeTexture(i, s, textures = effectTextures, textureKeys = effectTextureKeys) {
-    const key = JSON.stringify([s.color, s.arms, s.curve, s.thickness]);
+    const key = JSON.stringify([s.color, s.arms, s.curve, s.thickness, s.taper]);
     if (key === textureKeys[i]) return;
     const texture = textures[i]; texture.width = texture.height = 1024;
     drawSpiralTexture(texture.getContext('2d'),s,1024);
@@ -676,20 +829,9 @@
     }
     ctx.restore();
   }
-  function drawPulse(frame, w, h) {
-    const p = settings.pulse; if (!p.enabled) return;
-    const textTrigger = settings.text.enabled && frame.cycle !== lastTextCycle && frame.message;
-    const due = p.mode === 'text' ? textTrigger : activeTime >= nextPulse;
-    if (due && activeTime - lastPulse >= Math.max(2, p.duration)) {
-      pulseStart = lastPulse = activeTime;
-      nextPulse = activeTime + (p.mode === 'random' ? p.randomMin + Math.random() * (p.randomMax - p.randomMin) : p.interval);
-    }
-    const progress = (activeTime - pulseStart) / p.duration;
-    if (progress >= 0 && progress <= 1) {
-      ctx.save(); ctx.fillStyle = p.color;
-      ctx.globalAlpha = p.opacity * (p.shape === 'soft' ? Math.sin(progress * Math.PI) ** 2 : (1 - progress) ** 2);
-      ctx.fillRect(0, 0, w, h); ctx.restore();
-    }
+  function drawPulse(frame,w,h) {
+    const alpha=pulseFrame(settings.pulse,frame,settings.text.enabled,activeTime,livePulse);
+    if(alpha>0){ctx.save();ctx.fillStyle=settings.pulse.color;ctx.globalAlpha=alpha;ctx.fillRect(0,0,w,h);ctx.restore();}
   }
   function ownHeadState() {
     return {head:settings.head,message:textFrame({...settings.text,enabled:true},activeTime).message};
@@ -752,8 +894,8 @@
       for (const {c,x,y,zoom} of characterPositions()) {
         const self = c.MemberNumber === player()?.MemberNumber;
         // Head cosmetics are for other viewers; the wearer already has the full overlay.
-        if (self) continue;
-        const state = privacy.showOthers && !hideSharedUntilEnabled ? publicHeads.get(c.MemberNumber) : null;
+        if(self && (!enabled || !ownHeadVisible || (gate.grant&&!selfHeadAllowed)))continue;
+        const state = self ? ownHeadState() : privacy.showOthers && !hideSharedUntilEnabled ? publicHeads.get(c.MemberNumber) : null;
         if (!state || (!self && Date.now()-state.seen > 5000)) continue;
         const h = state.head, ratio = num(c.HeightRatio,1,0.1,3);
         let box = [x+180*zoom,y+20*zoom,140*zoom,160*zoom];
@@ -766,31 +908,60 @@
   }
   const previewCanvas=$('preview-canvas'), previewContext=previewCanvas.getContext('2d');
   const previewTextures=[document.createElement('canvas'),document.createElement('canvas')],previewKeys=['',''];
-  let previewTime=0,previewConfig='',previewPulse=-Infinity,previewNext=0,previewLast=-Infinity,previewCycle=-1;
+  let previewTime=0,previewConfig='',previewPulseState=newPulseState();
+  function focusRadius(f,time,w,h){const end=Math.min(f.opening,f.endOpening),amount=f.tighten?Math.min(1,time/f.tightenSeconds):0;return Math.min(w,h)*(f.opening+(end-f.opening)*amount);}
+  function drawVisualLayer(c,s,time,w,h,index,textures,keys){
+    if(!s.enabled)return;
+    c.save();c.globalAlpha=s.backgroundOpacity;c.fillStyle=s.background;c.fillRect(0,0,w,h);c.globalAlpha=s.opacity;c.fillStyle=c.strokeStyle=s.color;c.translate(w/2,h/2);
+    c.filter=s.blur?'blur('+s.blur*w/700+'px)':'none';
+    const throb=1+Math.sin(time*s.throbSpeed*Math.PI*2)*s.throbStrength;
+    if(s.style==='spiral'){
+      makeTexture(index,s,textures,keys);c.rotate(time*s.spin*(s.reverse?-1:1));const side=Math.hypot(w,h)*s.zoom*throb,count=Math.ceil(Math.hypot(w,h)/side/2);
+      for(let x=-count;x<=count;x++)for(let y=-count;y<=count;y++)c.drawImage(textures[index],(x-.5)*side,(y-.5)*side,side,side);
+    }else{
+      const radius=Math.hypot(w,h)*.7,spacing=Math.max(8,Math.min(w,h)*.2*s.zoom/Math.max(1,s.arms/4)),count=Math.min(80,Math.ceil(radius/spacing)+2);
+      const phase=((time*s.spin*.25*(s.reverse?-1:1))%1+1)%1;
+      if(['polygon','star','petals'].includes(s.style))c.rotate(time*s.spin*.08);
+      for(let i=0;i<count;i++){
+        const r=(i+phase)*spacing*throb;if(r<1)continue;c.lineWidth=Math.max(.4,spacing*s.thickness*(1-s.taper*(1-Math.min(1,r/radius))));c.beginPath();
+        if(s.style==='rings')c.arc(0,0,r,0,Math.PI*2);
+        else {const steps=s.style==='polygon'?6:s.style==='star'?10:180;for(let j=0;j<=steps;j++){const a=j/steps*Math.PI*2;let x,y;
+          if(s.style==='hearts'){x=16*Math.sin(a)**3*r/17;y=-(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a))*r/17;}
+          else{const rr=s.style==='star'?r*(j%2?.5:1):s.style==='petals'?r*(1+.16*Math.cos(6*a)):r;x=Math.sin(a)*rr;y=-Math.cos(a)*rr;}
+          if(j)c.lineTo(x,y);else c.moveTo(x,y);
+        }c.closePath();}c.stroke();
+      }
+    }c.restore();
+  }
+  const focusScratch=document.createElement('canvas');
+  function drawFocus(c,config,time,w,h,beatTime=time){
+    const f=config.focus;
+    if(f.colorPulse){const rate=f.beatSource==='heartbeat'?config.audio.bpm/60:f.beatSource==='iso'?config.audio.isoRate:Math.abs(config.audio.rightHz-config.audio.leftHz);const seconds=Math.max(2,f.beats/Math.max(.01,rate)),mix=(1-Math.cos(beatTime/seconds*Math.PI*2))/2;
+      const rgb=(color)=>[1,3,5].map(i=>parseInt(color.slice(i,i+2),16)),a=rgb(f.colorA),b=rgb(f.colorB);c.save();c.globalAlpha=f.colorOpacity;c.fillStyle='rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*mix)).join(',')+')';c.fillRect(0,0,w,h);c.restore();}
+    if(f.enabled){const radius=focusRadius(f,time,w,h),outer=Math.max(radius+1,Math.min(w,h)*.65);
+      if(f.blur>0){if(focusScratch.width!==w||focusScratch.height!==h){focusScratch.width=w;focusScratch.height=h;}const sc=focusScratch.getContext('2d');sc.clearRect(0,0,w,h);sc.save();sc.filter='blur('+f.blur*w/700+'px)';sc.drawImage(c.canvas,0,0);sc.filter='none';sc.globalCompositeOperation='destination-in';const mask=sc.createRadialGradient(w/2,h/2,radius,w/2,h/2,Math.min(outer,radius+Math.min(w,h)*.12));mask.addColorStop(0,'transparent');mask.addColorStop(1,'black');sc.fillStyle=mask;sc.fillRect(0,0,w,h);sc.restore();c.drawImage(focusScratch,0,0);}
+      const gradient=c.createRadialGradient(w/2,h/2,radius,w/2,h/2,outer);gradient.addColorStop(0,'transparent');gradient.addColorStop(1,'rgba(0,0,0,'+f.darkness+')');c.fillStyle=gradient;c.fillRect(0,0,w,h);
+    }
+    if(f.fixation!=='none'){const r=Math.min(w,h)*f.size;c.save();c.translate(w/2,h/2);c.rotate(time*.3);c.strokeStyle=f.color;c.lineWidth=Math.max(1.5,r*.08);c.shadowColor=f.color;c.shadowBlur=f.glow;c.beginPath();
+      if(f.fixation==='ring'){c.ellipse(0,0,r,r*.8,0,0,Math.PI*2);c.stroke();c.beginPath();c.rect(-r*.12,r*.65,r*.24,r*.3);}
+      else for(let i=0;i<=150;i++){const a=i/150*Math.PI*6,rr=r*i/150;const x=Math.cos(a)*rr,y=Math.sin(a)*rr;if(i)c.lineTo(x,y);else c.moveTo(x,y);}c.stroke();c.restore();}
+  }
+  function updateFocusBackdrop(){const el=$('focus-blur'),r=rectangle,f=settings.focus;el.hidden=!r||!enabled||!f.enabled||f.blur<=0||document.hidden;if(el.hidden)return;const radius=focusRadius(f,activeTime,r.width,r.height);Object.assign(el.style,{left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px',backdropFilter:'blur('+f.blur+'px)',maskImage:'radial-gradient(circle at center,transparent '+radius+'px,black '+(radius+Math.min(r.width,r.height)*.12)+'px)'});}
   function renderPreview(dt) {
     if($('preview-window').hidden || document.hidden || !previewContext)return;
     if(selected !== 'self' && !receivedGrants.has(Number(selected))){showPreview(false);return;}
     const config=editState(),key=selected+JSON.stringify(config);
-    if(key!==previewConfig){previewConfig=key;previewTime=0;previewPulse=previewLast=-Infinity;previewNext=0;previewCycle=-1;}
+    if(key!==previewConfig){previewConfig=key;previewTime=0;previewPulseState=newPulseState();}
     previewTime+=dt;
     $('preview-label').textContent=(selected==='self'?'My overlay':label(Number(selected)))+' · unsent appearance preview';
     const c=previewContext,w=500,h=500;c.clearRect(0,0,w,h);c.fillStyle='#282331';c.fillRect(0,0,w,h);
     c.fillStyle='#71687f';c.beginPath();c.ellipse(250,195,38,48,0,0,Math.PI*2);c.fill();c.fillRect(210,245,80,230);
-    config.spirals.forEach((s,i)=>{
-      if(!s.enabled)return;makeTexture(i,s,previewTextures,previewKeys);
-      c.save();c.globalAlpha=s.backgroundOpacity;c.fillStyle=s.background;c.fillRect(0,0,w,h);
-      c.globalAlpha=s.opacity;c.translate(w/2,h/2);c.rotate(previewTime*s.spin*(s.reverse?-1:1));c.filter=s.blur?'blur('+s.blur*w/700+'px)':'none';
-      const side=Math.hypot(w,h)*s.zoom*(1+Math.sin(previewTime*s.throbSpeed*Math.PI*2)*s.throbStrength),count=Math.ceil(Math.hypot(w,h)/side/2);
-      for(let x=-count;x<=count;x++)for(let y=-count;y<=count;y++)c.drawImage(previewTextures[i],(x-.5)*side,(y-.5)*side,side,side);c.restore();
-    });
+    config.spirals.forEach((layer,i)=>drawVisualLayer(c,layer,previewTime,w,h,i,previewTextures,previewKeys));
+    drawFocus(c,config,previewTime,w,h);
     const frame=textFrame(config.text,previewTime),pulse=config.pulse;
-    if(pulse.enabled){
-      const due=pulse.mode==='text'?config.text.enabled&&frame.cycle!==previewCycle&&frame.message:previewTime>=previewNext;
-      if(due&&previewTime-previewLast>=Math.max(2,pulse.duration)){previewPulse=previewLast=previewTime;previewNext=previewTime+(pulse.mode==='random'?pulse.randomMin+random01(Math.floor(previewTime*100)+1)*(pulse.randomMax-pulse.randomMin):pulse.interval);}
-      const progress=(previewTime-previewPulse)/pulse.duration;
-      if(progress>=0&&progress<=1){c.save();c.fillStyle=pulse.color;c.globalAlpha=pulse.opacity*(pulse.shape==='soft'?Math.sin(progress*Math.PI)**2:(1-progress)**2);c.fillRect(0,0,w,h);c.restore();}
-    }
-    drawText(frame,w,h,config.text,c);previewCycle=frame.cycle;
+    const alpha=pulseFrame(pulse,frame,config.text.enabled,previewTime,previewPulseState);
+    if(alpha>0){c.save();c.fillStyle=pulse.color;c.globalAlpha=alpha;c.fillRect(0,0,w,h);c.restore();}
+    drawText(frame,w,h,config.text,c);
     drawHeadGlyph(c,{head:config.head,message:textFrame({...config.text,enabled:true},previewTime).message},previewTime,250+config.head.offsetX*.5,195+config.head.offsetY*.5,.5);
   }
   function render(time) {
@@ -799,30 +970,36 @@
     if (!canvas.hidden && ctx) {
       activeTime += dt;
       const w = canvas.width, h = canvas.height; ctx.clearRect(0, 0, w, h);
-      settings.spirals.forEach((s, i) => {
-        if (!s.enabled) return;
-        makeTexture(i, s); phases[i] = (phases[i] + dt * s.spin * (s.reverse ? -1 : 1)) % (Math.PI * 2);
-        ctx.save(); ctx.globalAlpha = s.backgroundOpacity; ctx.fillStyle = s.background; ctx.fillRect(0, 0, w, h);
-        ctx.globalAlpha = s.opacity; ctx.translate(w / 2, h / 2); ctx.rotate(phases[i]);
-        ctx.filter = s.blur ? `blur(${s.blur * w / rectangle.width}px)` : 'none';
-        const throb = 1 + Math.sin(activeTime * s.throbSpeed * Math.PI * 2) * s.throbStrength;
-        // Tiling preserves coverage when zoomed out, while the canvas clips at the player boundary.
-        const side = Math.hypot(w, h) * s.zoom * throb, count = Math.ceil(Math.hypot(w, h) / side / 2);
-        for (let x = -count; x <= count; x++) for (let y = -count; y <= count; y++) ctx.drawImage(effectTextures[i], (x - 0.5) * side, (y - 0.5) * side, side, side);
-        ctx.restore();
-      });
+      settings.spirals.forEach((layer,i)=>drawVisualLayer(ctx,layer,activeTime,w,h,i,effectTextures,effectTextureKeys));
+      drawFocus(ctx,settings,activeTime,w,h,audioClock(activeTime));
       const text = textFrame(settings.text, activeTime);
-      drawPulse(text, w, h); drawText(text, w, h); lastTextCycle = text.cycle;
+      drawPulse(text, w, h); drawText(text, w, h);
     }
-    drawHeads(time / 1000); renderPreview(dt);
+    updateFocusBackdrop(); drawHeads(time / 1000); renderPreview(dt);
     frameId = requestAnimationFrame(render);
   }
+  let audioContext=null,audioReady=false,audioDraft=false,audioGraph=null,audioKey='',audioMutedByError=false;
+  const retiredAudio=new Set();
+  function disposeAudio(graph,immediate=false){if(!graph)return;const now=audioContext?.currentTime||0;try{graph.bus.gain.cancelScheduledValues(now);graph.bus.gain.setTargetAtTime(0,now,.015);}catch{}const close=()=>{for(const source of graph.sources)try{source.stop();}catch{}for(const node of graph.nodes)try{node.disconnect();}catch{}};if(immediate)close();else{const id=setTimeout(()=>{retiredAudio.delete(id);close();},80);retiredAudio.add(id);}}
+  function syncAudio(){
+    if(destroyed)return;
+    const config=audioDraft?editState().audio:settings.audio,validDraft=selected==='self'||receivedGrants.has(Number(selected));
+    const play=audioReady&&audioContext?.state==='running'&&config.enabled&&(audioDraft?validDraft:enabled)&&!document.hidden;
+    const key=play?JSON.stringify(config)+(audioDraft?selected:'live'):'';
+    if(key!==audioKey){disposeAudio(audioGraph);audioGraph=null;audioKey=key;if(play){try{audioGraph=buildAudioMix(audioContext,config,audioContext.destination);}catch(error){audioKey='';audioReady=false;audioMutedByError=true;say('Audio could not start: '+error.message);}}}
+    $('audio-status').textContent=audioMutedByError?'Audio unavailable. Try Start audio again.':!audioReady?'Audio needs a local click after loading.':audioContext?.state!=='running'?'Browser paused audio. Click Start audio to resume.':play?(audioDraft?'Listening to the selected draft locally.':'Audio playing on this device.'):'Audio ready; enable the audio layer and effects to play.';
+  }
+  $('audio-start').onclick=async()=>{try{const Context=window.AudioContext||window.webkitAudioContext;if(!Context)throw Error('Web Audio is unavailable');audioContext ||= new Context();await audioContext.resume();audioReady=true;audioMutedByError=false;syncAudio();}catch(error){say('Audio could not start: '+error.message);}};
+  $('audio-mute').onclick=()=>{audioReady=false;syncAudio();};
+  $('audio-preview').onchange=()=>{audioDraft=$('audio-preview').checked;syncAudio();};
+  function audioClock(fallback){return audioGraph&&audioReady&&audioContext?.state==='running'?Math.max(0,audioContext.currentTime-audioGraph.start):fallback;}
+  const audioTimer=setInterval(syncAudio,100);
   const layoutTimer = setInterval(layout, 200), networkTimer = setInterval(networkTick, 1000);
   addEventListener('resize', layout); addEventListener('scroll', layout, true); document.addEventListener('visibilitychange', layout);
   window.HypnoReverie = { version: VERSION, open, stop,
     destroy() {
       stop(); destroyed = true; cancelAnimationFrame(frameId); clearInterval(layoutTimer); clearInterval(networkTimer);
-      windowObserver.disconnect(); attachSocket(null); document.removeEventListener('keydown', keydown, true);
+      clearInterval(audioTimer);disposeAudio(audioGraph,true);audioGraph=null;audioContext?.close().catch(()=>{});windowObserver.disconnect(); attachSocket(null); document.removeEventListener('keydown', keydown, true);
       removeEventListener('resize', layout); removeEventListener('scroll', layout, true); document.removeEventListener('visibilitychange', layout);
       profileButton?.remove(); host.remove(); delete window.HypnoReverie;
     } };

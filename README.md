@@ -1,101 +1,97 @@
 # Hypno Reverie
 
-Version **0.5.0** — a customizable hypnosis-themed visual overlay for Bondage Club, by **Jaxx-01-ai**. Effects stay within the left player area and allow game clicks through.
+Version **0.6.0**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a test release, not a FUSAM submission.
 
-## Install / update
+## Update
 
-Upload **hypnoreverie.js**, **bookmarklet.txt**, and this **README.md** to the root of Jaxx-01-ai/HypnoReverie, replacing the previous versions. Keep GitHub Pages set to main / root. Wait for deployment, then reload your game and click the bookmark. Reloading unloads the previous version. The bookmark URL is unchanged. The headset logo is embedded in the JavaScript; no separate image upload is needed.
+Upload **hypnoreverie.js**, **bookmarklet.txt** and **README.md** to the root of Jaxx-01-ai/HypnoReverie, replacing those files. Keep GitHub Pages on main/root. Wait for deployment, reload the game, and click your existing bookmark. Both players should use v0.6 for the new permissions and permanent access. Older session keys are not migrated into permanent grants; grant access again after updating.
 
-Create a Firefox bookmark named Hypno Reverie and paste this entire line into its URL field:
+The bookmark is unchanged. Its complete URL is in bookmarklet.txt. After a reload, the bookmark must still be clicked unless an addon loader is already configured. Persistence does not install an automatic loader.
 
-```javascript
-javascript:(()=>{if(window.HypnoReverie){window.HypnoReverie.open();return;}if(document.getElementById('player-spiral-addon')){alert('Reload the game, then click Hypno Reverie again to load the update.');return;}if(document.getElementById('hypnoreverie-loader'))return;const s=document.createElement('script');s.id='hypnoreverie-loader';s.crossOrigin='anonymous';s.src='https://Jaxx-01-ai.github.io/HypnoReverie/hypnoreverie.js?_='+Date.now();s.onload=()=>s.remove();s.onerror=()=>{s.remove();alert('Hypno Reverie could not load. Check the published script URL.');};document.head.appendChild(s);})();
-```
+Open the addon from the headset icon in your own or another player's profile, your bookmark, or Alt+Shift+H. Drag the title bar to move the menu; use ↔ for compact mode or drag its lower-right corner to resize. The preview window has its own draggable title bar.
 
-Open your own player profile and click the **headset/spiral icon**, or press **Alt+Shift+H**, then check **Effects on**. The menu has tabs across the top and a scrolling settings area. Drag its title bar to move it. Use the **↔** button for a compact size, or drag the bottom-right corner to resize it. The menu stays inside the screen when the browser resizes. There is no launcher on the main player screen. Clicking the bookmark again also opens the menu. Appearance settings save locally per game server. Effects start off after a reload unless the local persistence option is enabled. Previous v0.1 appearance settings are migrated on first use.
+## Spirals and patterns
 
-## Visual controls
+Both independent layers support **Spiral**, **Expanding rings**, **Heart tunnel**, **Flower tunnel**, **Polygon tunnel**, and **Star tunnel**. The **Thin towards center** control tapers strands/strokes for depth. Each layer has its own colour/background, opacity, arms/density, speed/direction, throb, zoom, thickness, blur and curve. Some spiral-specific controls, such as curve, do not affect the other geometric styles. The one-arm closing-line fix remains included.
 
-Primary and secondary spirals each have independent enable, colour, background colour/opacity, spiral opacity, arms, spin speed/direction, throb speed/strength, zoom, thickness, blur and curve. The primary tab also contains the width adjustment, limited to the left player area. The secondary spiral starts disabled.
+Ranges include arms 1–32, spin 0–12, throb speed 0–5, strength 0–0.6, zoom 0.25–6, thickness 0.01–0.99, blur 0–50 and curve 0–12. Settings persist locally; existing presets are normalized with new features initially off.
 
-### Expanded spiral ranges
+## Focus
 
-Both spiral layers now support arms 1–32, spin 0–12 radians/s, throb speed 0–5 cycles/s, throb strength 0–0.60, zoom 0.25–6, thickness 0.01–0.99, blur 0–50 px, curve 0–12, and spiral/background opacity 0–1. Existing settings and defaults are preserved. Both controller and receiver should update to 0.5.0 to use the wider ranges remotely; older receivers clamp values to their old limits.
+**Focus** provides a glowing center spiral or slowly rotating collar ring, periphery darkness and blur, and an optional tunnel that tightens over 5–300 seconds to a chosen final opening. Words render over the fixation point. The opening is a screen-relative radius, not a physically calibrated 30-degree visual cone; physical angle depends on monitor size and viewing distance. A radius around 0.3 is the starting setting.
 
-## Text
+Gentle colours interpolate between purple and pink by default. Choose heartbeat, isochronic rate, or the difference between left/right tone frequencies as the rhythm source, and choose beats per colour cycle. A colour cycle is limited to two seconds or slower. When local audio is running, the visual rhythm uses its clock; otherwise it uses the visual clock. A draft preview has an independent clock.
 
-Enable text in the Words tab. Enter one word or sentence per line in **Edit messages**. Up to 40 messages, 160 characters each. Click outside the editor to apply it. Choose centered messages, a repeating wall, repeated lines, Write/typewriter, random positions, or alternating center + periphery. Random positions are chosen once per message and remain within the player area. Colour, opacity, duration in seconds, inter-message gap, font size and line count are adjustable. Optional random order is available. The term subliminal describes the brief display mode; no claim of psychological effectiveness is made.
+Blur applies to the game behind the overlay as well as the rendered visual layers outside the opening. These optional focus effects stay out of the chat area. Browser support for backdrop-filter is required to blur the underlying game.
 
-## Pulse / flash
+## Audio
 
-Choose a soft pulse or a flash that fades out, with fixed intervals, random intervals, or synchronization to text messages. Colour, opacity and duration are adjustable. Pulses are limited to one every two seconds or slower; very fast text will not trigger a flash for every message. Pulse duration cannot overlap a new pulse. Start low; stop if the effect is uncomfortable. Pulse starts disabled.
+In **Audio**, enable the audio layer, turn Effects on, and click **Start audio on this device**. Audio starts quiet and requires a local browser gesture after each load. A controller cannot provide that browser gesture remotely. **Mute audio** is always a local device control. Sound pauses while the tab is hidden; a browser may require Start audio again after suspending its audio context.
 
-## Giving someone the keys
+Available simultaneous layers:
 
-Both players must load v0.5 in the same room.
+- Left/right sine tones: independently adjustable 40–1000 Hz frequencies, shared tone level and a master level. Use stereo headphones to keep each tone in its intended ear.
+- Isochronic pulse track: carrier frequency, 0.1–30 pulses per second, on-time fraction, and level.
+- Three original, synthesized ambient music loops: **Velvet chords**, **Slow drifting bells**, and **Rain & warm pads**. These are procedural loops, not commercial recordings or downloaded music.
+- Heartbeat: 30–180 BPM with its own level.
+- Breathing: inhale, exhale, pause durations and its own level.
 
-1. Open the other player's profile and click the **Hypno Reverie headset icon**. The tooltip and menu show whether their addon has been detected in the current room. Discovery can take up to 15 seconds; not detected does not prove that the addon is absent.
-2. Choose **Requested access**, **Duration**, and whether to include **pulse / flash changes**, then click **Request keys**. This also marks you available as a controller. The recipient sees the exact requested permissions, including whether control locking is allowed, and clicks **Yes** or **No**. Yes grants exactly the displayed terms; No gives no access. Requests never grant access automatically, expire after two minutes, and are limited to one per recipient every 30 seconds.
-3. Once keys arrive, the other player's controls open in the profile menu you already selected. Later, opening their profile's addon entry selects their controls directly. Adjust the draft, use **Preview draft**, then **Send changes**. An acknowledgement confirms it was applied.
+**Listen to selected draft locally** lets a controller hear the draft on their device without sending its settings. Start audio is still required. The visual preview remains separate. Changes to audio settings rebuild the sound mix with a short fade; no audio files, microphone input or speech are transmitted. Frequencies are configurable sound effects, without a claim of psychological or medical effectiveness.
 
-The existing **Keys** tab and **Edit** selector remain available. Controller status is self-declared; it does not use the game's dominance reputation. Both players should use v0.5 for profile requests and the updated sharing behavior.
+Audio playback readiness and draft-listening choice are never persisted. Permanent access can preserve the audio settings, but autoplay restrictions still require a local click after reload.
 
-### Permission levels
+## Words and pulse
 
-| Level | Allowed |
+Enter up to 40 messages, one per line, 160 characters each. Layouts: center, wall, lines, typewriter, random positions, or center + periphery. Duration supports 0.001–30 seconds; gap supports 0–30 seconds, both in 0.001-second steps. Actual visible timing is limited by browser rendering and screen refresh rate, so a 1 ms setting cannot guarantee a visible 1 ms flash.
+
+Pulse/flash supports fixed, random, or word-synchronized timing; duration 0.05–10 seconds; interval/random bounds 2–300 seconds; start delay 0–60 seconds; delay after a word 0–5 seconds; and every Nth message (1–20). Timing uses 0.001-second increments. Pulses remain at least two seconds apart and cannot overlap. Delayed triggers can be skipped while a previous trigger is pending.
+
+## Profile requests and permissions
+
+Open another player's profile and click the Hypno Reverie headset icon. The menu shows whether their addon is detected in the current room; discovery can take up to 15 seconds. Choose requested access, duration, and optional permissions, then **Request keys**. The receiver sees the complete terms and chooses **Yes** or **No**. Requests expire after two minutes and are rate-limited. They never grant access automatically.
+
+Access levels:
+
+| Level | Control |
 | --- | --- |
-| Visuals only | Edit both spirals and head spiral appearance |
-| Visuals + text | Edit spirals, text/messages and head effects |
-| Full session + control lock | Edit spirals, words and head effects; switch effects on/off; lock receiver controls |
+| Visuals only | Spirals, patterns, focus and head appearance |
+| Visuals + words | Also word/message settings |
+| Full session + control lock | Also effects on/off and locking normal receiver controls |
 
-Pulse/flash changes require the receiver's separate **Also allow pulse/flash changes** checkbox at grant time. Remote users cannot move the overlay into chat or change its width.
+**Pulse/flash**, **audio**, and **facial expressions** each require their separate checkbox at grant time. Colour-rhythm settings are covered by pulse permission. The wearer-view permission for head effects can be changed by a granted controller. Player-area width and local playback/view preferences are not remote controls.
 
-Granting access shares the current effect settings and message list with the selected controller, and allows controller-enabled head effects to be shared with the room. One player can hold keys to your overlay at a time. Grants last 1–30 minutes or **No time limit**, are not saved, and are cleared when the room changes, either player leaves, the receiver disconnects, or the other addon stops announcing itself (up to 45 seconds). No time limit lasts for the current room session; it does not survive reloads or disconnects. Opening your player profile preserves the grant. **Return keys** ends a controller's session.
+A grant shares the current settings/message list with its controller. Controllers edit a draft and click **Send changes**; the acknowledgement confirms application. **Preview draft** does not transmit edits. Face changes use their separate Apply expression button. The controller role is self-declared and does not derive from game reputation.
 
-**Stop / revoke** is inside the Overview tab. Stop/revoke and re-grant controls are disabled while someone holds your keys. **Escape stops and revokes only while unlocked; Escape is inactive during a control lock.** A controller can unlock or return keys. Room exit, disconnect, expiry, and reloading clear access. Alt+Shift+S toggles effects only while unlocked. This is a voluntary client-side game feature, not a restriction on closing or reloading the browser.
+Timed grants last 1–30 minutes and clear when the room session ends. **Permanent access** remembers that controller's member number, permissions, effects-on state and lock state for this account/browser. It survives room changes, disconnects and reloads; it does not rely on Keep effects on being checked. Commands still require both characters to be in the same room. After reconnecting, the addon issues fresh session tokens; tokens are not stored in local storage. Reloading the controller also triggers fresh keys when both addons discover each other.
 
-## Keep effects on across room changes and relog
+**Return keys** ends permanent access as well as timed access. Explicit revocation also clears the stored permanent grant. Normal Stop/revoke buttons are disabled while another player holds keys. Escape stops/revokes only while unlocked; it does nothing during a lock. Alt+Shift+S toggles effects only while unlocked. These are client-side game controls; they do not prevent closing or reloading the browser. Only one controller holds your keys at a time.
 
-In your own **Overview** tab, enable **Keep effects on across room changes and relog**. This remembers the effects-on state in this browser for the current account. When enabled, changing rooms or reconnecting keeps the visual overlay running; after a page reload, it resumes when Hypno Reverie loads again. With the option off, a room transition stops the overlay and reloads start off. Stopping or switching effects off is remembered even when persistence is enabled.
+## Facial expressions
 
-The bookmark loader must still be clicked after a page reload unless you already have an addon loader configured. This option does not install an automatic loader. Remote keys, locks and automatic controller head sharing remain room-scoped and are never restored after reload. The saved activation state is not restored for a different member account.
+The **Face** tab reads the character's supported game choices for mouth, eyes, eyebrows, blush and tongue where those groups are available. Select a group and expression, then **Apply expression**. A controller needs the expression permission. Unsupported options and game-disallowed expressions are rejected on the receiver, including restrictions from equipped items. Default resets the chosen group; expression changes are not continuously forced and are not restored from presets. No items are equipped or removed.
 
-## Single-arm spiral fix
+The implementation uses the game's CharacterSetFacialExpression and CharacterIsExpressionDisallowed APIs, checked against the [public game source](https://gitgud.io/BondageProjects/Bondage-College/-/blob/master/BondageClub/Scripts/Character.js). Actual available choices depend on the character and current game version.
 
-The texture renderer now joins the two spiral edges along the outer circle instead of a straight chord. This removes the unintended straight split that was especially visible with one arm. The same fix applies to both spiral layers and the draft preview.
+## Head effects
 
-## Live draft preview
+Tiny words, forehead spirals, spiral eyes, and a halo are independently configurable. They require Effects on and follow the standard character view's positions. Map/custom views omit head effects; unusual poses may need alignment sliders.
 
-**Preview draft** opens a small, draggable local preview window for the currently selected player. Changes to spiral, word, pulse and head settings appear as you edit, including while typing messages. The preview runs even if that player's effects are currently off. It does not send changes, turn on your own overlay, or alter their live settings. Click **Send changes** when ready.
+A controller's enabled head effects are automatically shared during the grant. Manual sharing remains available for local sessions. Sharing sends appearance and the currently displayed word, roughly once per second, not the complete message list. Very brief messages may not appear in perfect sync. Other viewers can hide shared head effects locally; people without the addon do not see them.
 
-The preview uses a sample figure and its own animation clock; it is not a live screen capture. Pulse timing, random positions and head placement may differ from their live game. Their actual pose and screen size can also affect the result. Close the preview with its × button.
+**Show my head effects** starts off. During a grant it is disabled unless the controller checks **Allow wearer to view head effects** and sends that change. Permission does not turn it on automatically; the wearer chooses to enable it. Revoking permission hides it again. Its on/off state is not persisted across sessions. Outside a controlled session the wearer can choose it locally. Draft previews always display a sample character's head cosmetics.
 
-## Presets
+## Presets and local persistence
 
-Use **Presets** to name and save up to 24 appearances, load one, replace one by saving with the same name, or delete it. Presets include both spirals, words, pulse and head effects. They never save grants, locks, effects-on state, or sharing/privacy switches. Loading a preset does not start effects and is disabled for a locked receiver. Controllers can load presets into a remote draft; the receiver's granted permissions still limit what applies. Presets are saved only in this browser's local storage for the current game origin.
+Up to 24 named presets save visual, word, pulse, focus, audio and head settings. They never save keys, locks, expression actions, device-audio readiness or wearer-view preferences. Loading a preset does not turn effects on, and cannot bypass granted permissions.
 
-## Head effects and room sharing
-
-The **Head** tab has independent tiny words, forehead spiral, spiral eyes, and spiral halo switches, with colour, opacity, size and alignment controls. Words can orbit or appear at changing positions. Head effects require Effects on. They are hidden on the wearer’s own character to avoid layering extra effects over their hypnosis overlay. Other addon users can see them when shared; the local draft preview still shows a sample so controllers can inspect the design. They use the configured message list and timing, even when full-screen words are disabled.
-
-For your own local settings, enable **Share my head effects with the room** to let other users see them. Manual sharing starts disabled. When a controller applies enabled head effects during a grant, room sharing activates automatically for that grant, without requiring the receiver to tick their manual sharing box. Returning/revoking keys or ending the session clears this automatic sharing. Effects still require Effects on. This sends head appearance and the currently displayed message through the game server, approximately once per second; very brief words may not appear in sync for other users. It does not broadcast your full message list. Granting control separately shares the list with that controller. Each viewer can still hide shared effects on their own screen.
-
-Viewers can turn off **Show other players' shared head effects**. An unlocked Escape also hides shared head effects locally until that viewer re-enables the option. This switch remains a local preference even while other controls are locked. Users without Hypno Reverie do not see these effects.
-
-Head positioning currently supports the standard character view, including room zoom and rows. Map/custom views omit head effects. Alignment sliders can compensate for unusual poses; live-game positioning needs testing. No equipped items or character appearance are changed.
+For sessions without permanent access, **Overview → Keep effects on across room changes and relog** remembers activation when the addon loads again. With it off, room transitions stop the local overlay. An explicit Stop or effects-off action is remembered. Permanent access separately preserves the state requested by its controller. Local data is browser/game-origin specific and is not synced between devices.
 
 ## Photosensitivity
 
-Flashes and moving patterns may trigger seizures in people with photosensitive epilepsy. Avoid these effects if they are a trigger for you; stop if you feel unwell. The pulse rate limit is not a guarantee of safety. The menu includes a short notice linking to the [Epilepsy Foundation](https://www.epilepsy.com/what-is-epilepsy/seizure-triggers/photosensitivity).
+Flashes and moving patterns may trigger seizures in people with photosensitive epilepsy. Avoid effects that are a trigger for you and stop if you feel unwell. The pulse limit does not guarantee safety. The in-menu notice links to the [Epilepsy Foundation](https://www.epilepsy.com/what-is-epilepsy/seizure-triggers/photosensitivity).
 
-## Testing status
+## Verification and limitations
 
-Automated core and isolated two-player Chromium tests cover settings limits, chat clipping, text modes, rendering, permission levels, targeted control, acknowledgements, token/sender checks, replay rejection, expiry, indefinite grants, locked/unlocked Escape, presets, profile requests with exact Yes/No approval, single-arm geometry, room/reload persistence, local draft preview, menu dragging/resizing, automatic controller sharing, shared head visibility, room change, disconnect, duplicate loading and cleanup. Live Firefox and real server two-player testing are still required.
+Isolated Chromium two-player tests cover normalization, token/sender checks, replay rejection, separate permissions, profile requests, permanent room/reload/controller-reconnect behavior, head visibility, expressions with game restrictions, presets, text/pulse timing, preview, layout and cleanup. Tests check stereo tone routing using OfflineAudioContext, generated-signal bounds, pattern rendering and the single-arm spiral geometry.
 
-Test locally first, then test with one trusted partner using visuals-only access before trying a full session. Verify that Escape does nothing while locked, returning keys stops the session, and leaving the room or disconnecting clears access. Test profile alignment and sharing with a partner. This build has not been submitted to FUSAM.
-
-## Implementation / privacy
-
-No game function replacements, character-state changes or public chat commands. Control uses targeted Hidden ChatRoomChat messages under the HypnoReverie channel; these pass through the game server. Brief addon discovery announcements and explicitly enabled cosmetic head state are sent in the current room. Settings and messages are stored in local browser storage. No analytics or third-party backend.
-
-Original code inspired by the controls at https://hypnospiral.vercel.app/; no code or assets copied from that site. Game transport and DOM identifiers were checked against the public Bondage Club source.
+Live Firefox testing with a partner is still required, particularly audio balance, expression availability and head alignment. The visual preview uses a sample figure and its own clock, not a capture of the receiver's screen. No external audio backend or analytics. Network control uses targeted Hidden game messages; discovery and enabled head cosmetics are room broadcasts.
