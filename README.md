@@ -1,6 +1,6 @@
 # Hypno Reverie
 
-Version **0.4.0** — a customizable hypnosis-themed visual overlay for Bondage Club, by **Jaxx-01-ai**. Effects stay within the left player area and allow game clicks through.
+Version **0.4.1** — a customizable hypnosis-themed visual overlay for Bondage Club, by **Jaxx-01-ai**. Effects stay within the left player area and allow game clicks through.
 
 ## Install / update
 
@@ -17,6 +17,10 @@ Open your own player profile and click the **headset/spiral icon**, or press **A
 ## Visual controls
 
 Primary and secondary spirals each have independent enable, colour, background colour/opacity, spiral opacity, arms, spin speed/direction, throb speed/strength, zoom, thickness, blur and curve. The primary tab also contains the width adjustment, limited to the left player area. The secondary spiral starts disabled.
+
+### Expanded spiral ranges (0.4.1)
+
+Both spiral layers now support arms 1–32, spin 0–12 radians/s, throb speed 0–5 cycles/s, throb strength 0–0.60, zoom 0.25–6, thickness 0.01–0.99, blur 0–50 px, curve 0–12, and spiral/background opacity 0–1. Existing settings and defaults are preserved. Both controller and receiver should update to 0.4.1 to use the wider ranges remotely; older receivers clamp values to their old limits.
 
 ## Text
 
@@ -62,7 +66,7 @@ Use **Presets** to name and save up to 24 appearances, load one, replace one by 
 
 ## Head effects and room sharing
 
-The **Head** tab has independent tiny words, forehead spiral, spiral eyes, and spiral halo switches, with colour, opacity, size and alignment controls. Words can orbit or appear at changing positions. Head effects require Effects on. They use the configured message list and timing, even when full-screen words are disabled.
+The **Head** tab has independent tiny words, forehead spiral, spiral eyes, and spiral halo switches, with colour, opacity, size and alignment controls. Words can orbit or appear at changing positions. Head effects require Effects on. They are hidden on the wearer’s own character to avoid layering extra effects over their hypnosis overlay. Other addon users can see them when shared; the local draft preview still shows a sample so controllers can inspect the design. They use the configured message list and timing, even when full-screen words are disabled.
 
 For your own local settings, enable **Share my head effects with the room** to let other users see them. Manual sharing starts disabled. When a controller applies enabled head effects during a grant, room sharing activates automatically for that grant, without requiring the receiver to tick their manual sharing box. Returning/revoking keys or ending the session clears this automatic sharing. Effects still require Effects on. This sends head appearance and the currently displayed message through the game server, approximately once per second; very brief words may not appear in sync for other users. It does not broadcast your full message list. Granting control separately shares the list with that controller. Each viewer can still hide shared effects on their own screen.
 

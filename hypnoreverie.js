@@ -1,8 +1,8 @@
-// Hypno Reverie 0.4.0 — Jaxx-01-ai
+// Hypno Reverie 0.4.1 — Jaxx-01-ai
 // Original canvas renderer and opt-in, room-scoped control protocol.
 (() => {
   'use strict';
-  const VERSION = '0.4.0', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
+  const VERSION = '0.4.1', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
   const PRESET_KEY = 'hypnoreverie-presets-v1', PRIVACY_KEY = 'hypnoreverie-head-sharing-v1';
   const clone = value => JSON.parse(JSON.stringify(value));
   const num = (v, fallback, min, max) => typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback;
@@ -25,12 +25,12 @@
     const spirals = [0, 1].map(i => {
       const d = defaults.spirals[i], s = raw.spirals?.[i] || {};
       return { enabled: bool(s.enabled, d.enabled), color: color(s.color, d.color),
-        background: color(s.background, d.background), backgroundOpacity: num(s.backgroundOpacity, d.backgroundOpacity, 0, 0.9),
-        opacity: num(s.opacity, d.opacity, 0, 0.9), arms: Math.round(num(s.arms, d.arms, 1, 16)),
-        spin: num(s.spin, d.spin, 0, 4), reverse: bool(s.reverse, d.reverse),
-        throbSpeed: num(s.throbSpeed, d.throbSpeed, 0, 2), throbStrength: num(s.throbStrength, d.throbStrength, 0, 0.35),
-        zoom: num(s.zoom, d.zoom, 0.3, 3), thickness: num(s.thickness, d.thickness, 0.05, 0.95),
-        blur: num(s.blur, d.blur, 0, 20), curve: num(s.curve, d.curve, 0, 6) };
+        background: color(s.background, d.background), backgroundOpacity: num(s.backgroundOpacity, d.backgroundOpacity, 0, 1),
+        opacity: num(s.opacity, d.opacity, 0, 1), arms: Math.round(num(s.arms, d.arms, 1, 32)),
+        spin: num(s.spin, d.spin, 0, 12), reverse: bool(s.reverse, d.reverse),
+        throbSpeed: num(s.throbSpeed, d.throbSpeed, 0, 5), throbStrength: num(s.throbStrength, d.throbStrength, 0, 0.6),
+        zoom: num(s.zoom, d.zoom, 0.25, 6), thickness: num(s.thickness, d.thickness, 0.01, 0.99),
+        blur: num(s.blur, d.blur, 0, 50), curve: num(s.curve, d.curve, 0, 12) };
     });
     const t = raw.text || {}, p = raw.pulse || {}, h = raw.head || {}, td = defaults.text, pd = defaults.pulse;
     const messages = Array.isArray(t.messages) ? t.messages.filter(x => typeof x === 'string')
@@ -184,7 +184,7 @@
       <div id="secondary" role="tabpanel" hidden><h3>Secondary spiral</h3><p class="help">Blend an independent spiral over the primary.</p><fieldset id="secondary-fields"></fieldset></div>
       <div id="text" role="tabpanel" hidden><h3>Word flashes</h3><p class="help">One word or sentence per line. Random positions stay within the player area; center + periphery alternates between the middle and edges.</p><fieldset id="text-fields"></fieldset></div>
       <div id="pulse" role="tabpanel" hidden><h3>Pulse & flash</h3><p class="help">Choose a rhythm. Flashes remain limited to one every two seconds or slower.</p><fieldset id="pulse-fields"></fieldset></div>
-      <div id="head" role="tabpanel" hidden><h3>Head effects</h3><p class="help">Combine tiny words, a forehead spiral, spiral eyes, and a halo. Effects appear only while your overlay is on. Position controls help align unusual poses.</p>
+      <div id="head" role="tabpanel" hidden><h3>Head effects</h3><p class="help">Combine tiny words, a forehead spiral, spiral eyes, and a halo. Other players see these while your overlay is on; they are hidden on your own character. Use Preview draft to inspect them. Position controls help align unusual poses.</p>
         <div class="card"><label id="broadcast-label"><input id="broadcast-head" type="checkbox"> Share my head effects with the room</label><p class="help">Shares your head-effect settings and the currently displayed words with other Hypno Reverie users. During a grant, head effects enabled by your controller are shared automatically. Each viewer can still hide shared effects.</p><label><input id="show-heads" type="checkbox"> Show other players’ shared head effects</label></div><fieldset id="head-fields"></fieldset>
       </div>
       <div id="sharing" role="tabpanel" hidden><h3>Hand over the keys</h3><p class="help">Both players need version 0.4 for all features. Dominant/controller status is self-declared; choose by name and member number.</p>
@@ -234,17 +234,17 @@
     field(parent, path('enabled'), 'Enable this spiral', 'checkbox');
     field(parent, path('color'), 'Spiral colour', 'color');
     field(parent, path('background'), 'Background colour', 'color');
-    slider(parent, path('opacity'), 'Spiral opacity', 0, 0.9);
-    slider(parent, path('backgroundOpacity'), 'Background opacity', 0, 0.9);
-    slider(parent, path('arms'), 'Arms', 1, 16, 1);
-    slider(parent, path('spin'), 'Spin speed (radians/s)', 0, 4, 0.05);
+    slider(parent, path('opacity'), 'Spiral opacity', 0, 1);
+    slider(parent, path('backgroundOpacity'), 'Background opacity', 0, 1);
+    slider(parent, path('arms'), 'Arms', 1, 32, 1);
+    slider(parent, path('spin'), 'Spin speed (radians/s)', 0, 12, 0.05);
     field(parent, path('reverse'), 'Reverse spin', 'checkbox');
-    slider(parent, path('throbSpeed'), 'Throb speed (cycles/s)', 0, 2, 0.05);
-    slider(parent, path('throbStrength'), 'Throb strength', 0, 0.35);
-    slider(parent, path('zoom'), 'Zoom', 0.3, 3, 0.05);
-    slider(parent, path('thickness'), 'Thickness', 0.05, 0.95);
-    slider(parent, path('blur'), 'Blur factor (px)', 0, 20, 0.5);
-    slider(parent, path('curve'), 'Spiral curve', 0, 6, 0.1);
+    slider(parent, path('throbSpeed'), 'Throb speed (cycles/s)', 0, 5, 0.05);
+    slider(parent, path('throbStrength'), 'Throb strength', 0, 0.6);
+    slider(parent, path('zoom'), 'Zoom', 0.25, 6, 0.05);
+    slider(parent, path('thickness'), 'Thickness', 0.01, 0.99);
+    slider(parent, path('blur'), 'Blur factor (px)', 0, 50, 0.5);
+    slider(parent, path('curve'), 'Spiral curve', 0, 12, 0.1);
   }
   slider('primary-fields', ['width'], 'Player area width (%)', 10, 50, 1);
   field('text-fields', ['text', 'enabled'], 'Enable subliminal / cycling text', 'checkbox');
@@ -736,7 +736,9 @@
     try {
       for (const {c,x,y,zoom} of characterPositions()) {
         const self = c.MemberNumber === player()?.MemberNumber;
-        const state = self ? (enabled ? ownHeadState() : null) : privacy.showOthers && !hideSharedUntilEnabled ? publicHeads.get(c.MemberNumber) : null;
+        // Head cosmetics are for other viewers; the wearer already has the full overlay.
+        if (self) continue;
+        const state = privacy.showOthers && !hideSharedUntilEnabled ? publicHeads.get(c.MemberNumber) : null;
         if (!state || (!self && Date.now()-state.seen > 5000)) continue;
         const h = state.head, ratio = num(c.HeightRatio,1,0.1,3);
         let box = [x+180*zoom,y+20*zoom,140*zoom,160*zoom];
