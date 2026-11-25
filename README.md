@@ -1,6 +1,6 @@
 # Hypno Reverie
 
-Version **0.8.3**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable test release. The existing FUSAM submission remains for v0.6.0.
+Version **0.8.4**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable and privacy test release. The existing FUSAM submission remains for v0.6.0.
 
 ## Compatibility fixes retained from 0.8.1
 
@@ -8,9 +8,23 @@ The addon registers with BC Mod SDK as **Hypno Reverie**, including its version 
 
 Incoming addon packets now use **ChatRoomRegisterMessageHandler** at priority -50, after the game's ghost-list filter (-200) and before native hidden-message processing (-1). There is no direct ChatRoomMessage socket listener. Unrelated messages pass through unchanged. If the message-handler API is unavailable, remote messaging stays disabled instead of falling back to a raw socket listener.
 
-Ghosted players cannot send accepted addon requests, control updates, expressions, or shared head effects. Ghosting an active controller revokes their keys, including permanent access, and stops their remote session on the next one-second network tick. The addon also prevents direct outgoing messages to ghosted players and drops their cached peer state. Unghosting does not restore revoked keys. Unloading removes only this addon's handler and SDK registration.
+Ghosted players (and, from 0.8.4, blacklisted players) cannot send accepted addon requests, control updates, expressions, or shared head effects. Ghosting an active controller revokes their keys, including permanent access, and stops their remote session on the next one-second network tick. The addon also prevents direct outgoing messages to ghosted players and drops their cached peer state. Unghosting does not restore revoked keys. Unloading removes only this addon's handler and SDK registration.
 
 There is no jQuery dependency. The small local DOM helper was renamed from dollar-sign notation to **byId** to make that clear.
+
+## Privacy fix (0.8.4)
+
+Blocked players are now handled the same way as ghosted ones, and more strictly. The addon checks the game's **GhostList** and **BlackList**, plus the game's own ghost-list and blacklist methods where they exist. If a permission check throws an error, the player is treated as blocked.
+
+- Incoming addon messages from blocked players are dropped, and outgoing targeted messages to them are not sent.
+- Cached peer state, head effects, key requests, received grants and selection or profile views for a blocked player are cleared on the next one-second network tick.
+- If a blocked player holds your keys, whether timed or permanent, access is revoked and the saved permanent grant is deleted.
+- A saved permanent grant from a blocked player is discarded at startup instead of being restored.
+- Unblocking someone does not restore revoked access. Grant it again.
+- Cleanup is skipped while no player is logged in (for example mid-relog), so a transient state cannot erase saved permanent access.
+- Room broadcasts (discovery and enabled head effects) cannot exclude individual recipients, so a blocked player in the same room can still receive those broadcasts. They cannot control you.
+
+Validated with isolated tests of the blocked-member check and cleanup logic (blocklists, native methods, a throwing check, no-player handling, and cache and grant cleanup). **Live game testing has not been done.** Please test: blocking a controller mid-session, blocking a permanent controller and then relogging, and unblocking afterwards.
 
 ## Wearable fixes (0.8.3)
 
@@ -52,7 +66,7 @@ Black strap and silver hardware colours in the assembled preview are approximati
 
 ### Installation
 
-Upload hypnoreverie.js, README.md, bookmarklet.txt and MOD-SDK-LICENSE.txt to the existing repository root. The artwork is embedded in the script; PNG uploads are unnecessary. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.8.3 and re-equip the named top and bottom.
+Upload hypnoreverie.js, README.md, bookmarklet.txt and MOD-SDK-LICENSE.txt to the existing repository root. The artwork is embedded in the script; PNG uploads are unnecessary. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.8.4. If you are updating from before 0.8.3, re-equip the named top and bottom.
 
 This package has not been published automatically. The FUSAM submission is unchanged. BC Mod SDK 1.2.0 supplies the hooks. Native reference artwork is loaded from the game, is not bundled in the deployed script, and retains its upstream authorship and licensing.
 

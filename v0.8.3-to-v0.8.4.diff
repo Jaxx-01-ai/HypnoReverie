@@ -1,0 +1,111 @@
+--- a/hypnoreverie.js
++++ b/hypnoreverie.js
+@@ -1,9 +1,9 @@
+-// Hypno Reverie 0.8.3 — Jaxx-01-ai
++// Hypno Reverie 0.8.4 — Jaxx-01-ai
+ // Original canvas renderer and opt-in, room-scoped control protocol.
+ (() => {
+   'use strict';
+   const BOOT = typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():String(Math.random());
+-  const VERSION = '0.8.3', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
++  const VERSION = '0.8.4', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
+   const PRESET_KEY = 'hypnoreverie-presets-v1', PRIVACY_KEY = 'hypnoreverie-head-sharing-v1';
+   const clone = value => JSON.parse(JSON.stringify(value));
+   const num = (v, fallback, min, max) => typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback;
+@@ -269,6 +269,7 @@
+   try{const value=JSON.parse(localStorage.getItem(SESSION_KEY)||'{}');resume={remember:value.remember===true,enabled:value.enabled===true,member:Number.isSafeInteger(value.member)?value.member:null};}catch{}
+   const PERMANENT_KEY='hypnoreverie-permanent-v1';let permanent=null,permanentAnnouncedToken='';
+   try{const v=JSON.parse(localStorage.getItem(PERMANENT_KEY)||'null');if(v && v.owner===window.Player?.MemberNumber && Number.isSafeInteger(v.sender) && ['visuals','text','session'].includes(v.level))permanent={owner:v.owner,sender:v.sender,level:v.level,allowPulse:v.allowPulse===true,allowAudio:v.allowAudio===true,allowExpressions:v.allowExpressions===true,enabled:v.enabled===true,locked:v.locked===true&&v.level==='session',headSharing:v.headSharing===true};}catch{}
++  if(permanent&&blockedMember(permanent.sender)){permanent=null;try{localStorage.removeItem(PERMANENT_KEY);}catch{}}
+   let remoteHeadSharing = false, selfHeadAllowed = false, ownHeadVisible = false;
+   let enabled = resume.remember && resume.enabled && resume.member===window.Player?.MemberNumber, locked = false, destroyed = false, socket = null, selected = 'self';
+   let activeTime = 0, lastFrame = 0, frameId = 0, rectangle = null, networkRoom = null, networkMember = null;
+@@ -306,7 +307,7 @@
+   </style>
+   <div id="focus-blur" hidden></div><canvas id="effect" aria-hidden="true" hidden></canvas><canvas id="heads" aria-hidden="true" hidden></canvas>
+   <div id="ui" hidden><section id="panel" role="dialog" aria-label="Hypno Reverie settings" hidden>
+-    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.8.3 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
++    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.8.4 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
+       <div class="tabs" role="tablist" aria-label="Settings categories">
+         <button data-tab="overview" role="tab" aria-selected="true">Overview</button><button data-tab="primary" role="tab" aria-selected="false">Primary</button><button data-tab="secondary" role="tab" aria-selected="false">Secondary</button>
+         <button data-tab="text" role="tab" aria-selected="false">Words</button><button data-tab="pulse" role="tab" aria-selected="false">Pulse</button><button data-tab="audio" role="tab" aria-selected="false">Audio</button><button data-tab="focus" role="tab" aria-selected="false">Focus</button><button data-tab="expressions" role="tab" aria-selected="false">Face</button><button data-tab="head" role="tab" aria-selected="false">Head</button><button data-tab="sharing" role="tab" aria-selected="false">Keys</button><button data-tab="presets" role="tab" aria-selected="false">Presets</button>
+@@ -637,14 +638,14 @@
+   byId('face-apply').onclick=()=>{const group=byId('face-group').value,value=byId('face-value').value||null;if(selected==='self'){if(!locked){try{say(applyFace(group,value).message);}catch{say('The game could not apply that expression.');}}return;}const grant=receivedGrants.get(Number(selected));if(!grant?.allowExpressions||Date.now()-(grant.lastSend||0)<300)return;grant.lastSend=Date.now();grant.seq++;send('expression',{token:grant.token,seq:grant.seq,group,value},Number(selected));};
+   function player() { return window.Player; }
+   function characters() { return Array.isArray(window.ChatRoomCharacter) ? window.ChatRoomCharacter : []; }
+-  function present(member) { return !ghosted(member)&&characters().some(c => c.MemberNumber === member); }
++  function present(member) { return !blockedMember(member)&&characters().some(c => c.MemberNumber === member); }
+   function label(member) { const c = characters().find(c => c.MemberNumber === member); return `${c?.Nickname || c?.Name || 'Player'} (#${member})`; }
+   function roomKey() {
+     if (!window.ChatRoomData || !player()?.MemberNumber || !(typeof window.ServerPlayerIsInChatRoom === 'function' ? window.ServerPlayerIsInChatRoom() : window.CurrentScreen === 'ChatRoom')) return null;
+     return JSON.stringify([window.ChatRoomData.Name, window.ChatRoomData.Space, window.ChatRoomData.Language]);
+   }
+   function send(kind, payload = {}, target = null) {
+-    if (!installMessageHandler() || !roomKey() || !socket?.connected || typeof window.ServerSend !== 'function' || (target!==null&&ghosted(target))) return false;
++    if (!installMessageHandler() || !roomKey() || !socket?.connected || typeof window.ServerSend !== 'function' || (target!==null&&blockedMember(target))) return false;
+     const message = { v: 2, kind, boot:BOOT, ...payload, to: target };
+     if (JSON.stringify(message).length > 16000) return false;
+     try { window.ServerSend('ChatRoomChat', { Content: CHANNEL, Type: 'Hidden', Target: target, Dictionary: message }); return true; }
+@@ -717,7 +718,7 @@
+   }
+   const inboundTimes = new Map();
+   function onMessage(data) {
+-    if(ghosted(data?.Sender))return;
++    if(blockedMember(data?.Sender))return;
+     if (!data || data.Type !== 'Hidden' || data.Content !== CHANNEL || !Number.isSafeInteger(data.Sender) || !roomKey()) return;
+     if (roomKey() !== networkRoom || player()?.MemberNumber !== networkMember) {
+       if(permanent && player()?.MemberNumber && permanent.owner!==player().MemberNumber){forgetPermanent();gate.revoke();locked=false;enabled=false;}
+@@ -802,19 +803,22 @@
+     receivedGrants.delete(member); peers.delete(member); publicHeads.delete(member); keyRequests.delete(member); updatePeople();
+   }
+   function roomSync() { clearSession('Room synchronized. Remote keys cleared.'); lastHello = 0; }
+-  function ghosted(member) {
+-    const p=player(),character=characters().find(c=>c.MemberNumber===member);
+-    if(!p||!Number.isSafeInteger(member))return false;
+-    if(Array.isArray(p.GhostList)&&p.GhostList.includes(member))return true;
+-    try { return typeof p.HasOnGhostlist==='function'&&p.HasOnGhostlist(character||member)===true; }
+-    catch { return true; } // If the game's permission check fails, don't accept remote control.
+-  }
+-  function clearGhostedPeers() {
+-    const controller=gate.grant?.sender??permanent?.sender;
+-    if(controller!==undefined&&ghosted(controller))revoke('Controller is ghosted. Remote access revoked.',false);
+-    for(const map of [receivedGrants,peers,publicHeads,keyRequests,requestTimes])for(const id of map.keys())if(ghosted(id))map.delete(id);
+-    if(selected!=='self'&&ghosted(Number(selected))){selected='self';refreshFields();}
+-    if(viewedProfile!==null&&ghosted(viewedProfile))viewedProfile=null;
++  function blockedMember(member) {
++    const p=player();
++    if(!p||!Number.isSafeInteger(member))return true;
++    if([p.GhostList,p.BlackList].some(list=>Array.isArray(list)&&list.includes(member)))return true;
++    try {
++      const character=characters().find(c=>c.MemberNumber===member);
++      return ['HasOnGhostlist','HasOnBlacklist'].some(method=>typeof p[method]==='function'&&p[method](character||member)===true);
++    } catch { return true; } // Permission-check failures must not permit incoming access.
++  }
++  function clearBlockedPeers() {
++    if(!player())return; // No logged-in player (e.g. mid-relog): don't wipe saved access on a transient state.
++    const controllers=[gate.grant?.sender,permanent?.sender];
++    if(controllers.some(id=>id!==undefined&&blockedMember(id)))revoke('Controller is ghosted or blacklisted. Remote access revoked.',false);
++    for(const map of [receivedGrants,peers,publicHeads,keyRequests,requestTimes])for(const id of map.keys())if(blockedMember(id))map.delete(id);
++    if(selected!=='self'&&blockedMember(Number(selected))){selected='self';refreshFields();}
++    if(viewedProfile!==null&&blockedMember(viewedProfile))viewedProfile=null;
+   }
+   const addonMessageHandler={
+     Description:'Hypno Reverie protocol',
+@@ -822,7 +826,7 @@
+     Priority:-50,
+     Callback(data,sender){
+       if(data?.Type!=='Hidden'||data.Content!==CHANNEL)return false;
+-      if(!destroyed&&sender?.MemberNumber===data.Sender&&!ghosted(data.Sender))onMessage(data);
++      if(!destroyed&&sender?.MemberNumber===data.Sender&&!blockedMember(data.Sender))onMessage(data);
+       return true;
+     }
+   };
+@@ -847,7 +851,7 @@
+       socket.on('ChatRoomSyncMemberLeave', memberLeft); socket.on('ChatRoomSync', roomSync); }
+   }
+   function networkTick() {
+-    installMessageHandler();clearGhostedPeers();
++    installMessageHandler();clearBlockedPeers();
+     const next = window.ServerSocket;
+     if (next !== socket && typeof next?.on === 'function' && typeof next?.off === 'function') { clearSession('Connected. Remote keys start cleared.'); attachSocket(next); }
+     const room = roomKey(), member = player()?.MemberNumber;
