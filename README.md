@@ -1,6 +1,6 @@
 # Hypno Reverie
 
-Version **0.8.4**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable and privacy test release. The existing FUSAM submission remains for v0.6.0.
+Version **0.8.5**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable and privacy test release. The existing FUSAM submission remains for v0.6.0.
 
 ## Compatibility fixes retained from 0.8.1
 
@@ -11,6 +11,21 @@ Incoming addon packets now use **ChatRoomRegisterMessageHandler** at priority -5
 Ghosted players (and, from 0.8.4, blacklisted players) cannot send accepted addon requests, control updates, expressions, or shared head effects. Ghosting an active controller revokes their keys, including permanent access, and stops their remote session on the next one-second network tick. The addon also prevents direct outgoing messages to ghosted players and drops their cached peer state. Unghosting does not restore revoked keys. Unloading removes only this addon's handler and SDK registration.
 
 There is no jQuery dependency. The small local DOM helper was renamed from dollar-sign notation to **byId** to make that clear.
+
+## Hood update (0.8.5)
+
+The Hypno Reverie Latex Hood is now a skin-tight hood that follows the head. It is built on the native **Custom Latex Hood**, which supplies its position, settings and effects. The artwork is all new.
+
+- **Shape:** a smooth egg-shaped outline traced from a straight-on reference photo of a tight latex hood and scaled to the game head. It is widest around the temples and stays full past the cheeks, then tapers to a narrow rounded chin about 8 px below the game chin, so the chin sits a little further under the mouth. It covers the whole head and ears, with 1–2 px of latex thickness. Original and EchoV2 each have their own outline. It no longer uses the native hood outline.
+- **Face and surface:** the artwork comes from the author's own edited EchoV2 hood, recovered at full sprite resolution and fitted onto the Original head with a smooth warp. It is cleaned up with light edge-preserving denoising and sharpened (fine and mid-scale), with slightly deeper blacks. The sprite matches the game's own character resolution, which is the most detail the game can draw.
+- **Mouth edge:** the latex meets the lips directly, with no rolled rim. The opening is trimmed about half a pixel wider than the measured lips.
+- **Mouth opening:** lip-shaped, about 29 × 22 game pixels, just below the nose, at the lips' measured position. The reference's nose and face line is moved over it. It was measured from an in-game screenshot of the Big Lips Gag, so a lips item or the character's own mouth shows through it. The Big Lips Gag is not a base-game item, so its exact art was not available. Its size and position come from that screenshot.
+- **Buy the native base:** you need the **Custom Latex Hood** (ItemHood), not the Latex Hood. The picker entry appears only if you own it.
+- **Re-equip it.** A hood already worn from the old Latex Hood base is not migrated.
+- **Default settings:** mouth Shaped, eyes Round, opaque head, **hair hidden** (front and back), no zipper. It does not block vision by default. The artwork always shows covered eyes. To block vision, pick an eyes option such as "No Eyes" in the item's native settings. The native hair setting can show the hair again, but loose hair drawn over a tight hood will look odd.
+- **Ears:** the hood encloses the ears and the native item blocks the ears slot. The old local ear masks are gone.
+- **Colours:** the material uses fixed black tones. Native colour controls do not affect it.
+- The included hood-fit.png is an isolated rendering check, **not a live game screenshot**. Lip alignment with real mouth items, eye types, hair accessories, other head attributes and every pose still need in-game testing.
 
 ## Privacy fix (0.8.4)
 
@@ -33,7 +48,7 @@ The clothing picker previously displayed the custom name but dropped its craftin
 | Picker | Item | Native base to own |
 | --- | --- | --- |
 | Blindfold / eyes (ItemHead) | Hypno Reverie Headset | Interactive VR Headset |
-| Hood (ItemHood) | Hypno Reverie Latex Hood | Latex Hood |
+| Hood (ItemHood) | Hypno Reverie Latex Hood | Custom Latex Hood |
 | Arm restraints (ItemArms) | Hypno Reverie Latex Bolero | Bolero Straitjacket |
 | Upper suit (Suit) | Hypno Reverie Latex Top | Latex Catsuit |
 | Lower suit (SuitLower) | Hypno Reverie Latex Bottom | Latex Catsuit |
@@ -44,7 +59,7 @@ These items appear in the normal native pickers, not in the addon menu. They con
 
 ### Artwork and fitting
 
-The headset is unchanged. The hood retains the smooth covered-eye artwork, with a smaller, lower mouth opening and slightly lowered facial contours. It ends just below the chin and has separate placement for Original and EchoV2. The custom hood applies the native Latex Hood ear-mask rectangles to the head layer, avoiding bulky side covers. Those masks are local rendering changes; they do not alter the character's stored appearance or native settings, and are removed with the hood or on addon unload.
+The headset is unchanged. The hood is described in **Hood update (0.8.5)** above.
 
 The bolero uses the native collar, shoulders and size-specific breast cutouts. The surface art is clipped to those silhouettes. Its upper shoulder texture is now fitted column by column to the native shoulder edge, correcting the lower inner outline caused by the taller concept-art collar. A three-pixel extension at the upper shoulder edge closes the measured collar-to-shoulder gaps, especially on EchoV2; the chest openings remain unchanged. The collar uses a shallow rounded upper edge with its lower edge anchored to the shoulders; the previous pointed jaw-shaped extension was removed. Native belts and hardware render in their own layers. The bolero retains its normal BackElbowTouch pose, locks and restraint behavior.
 
@@ -58,7 +73,7 @@ The material uses fixed black and silver-gray tones. Native color controls affec
 
 - 112 native garment layers checked across Original and EchoV2, all four sizes and the downloaded upper/lower pose variants. Native alpha is preserved except for the fitted collar and explicitly tested shoulder extension; draw options are preserved.
 - Shoulder diagnostics include the posed BodyUpper, ArmsLeft and ArmsRight layers without a catsuit hiding gaps, with their outlines drawn over the jacket for direct comparison. The assembled clothing preview also applies the native bolero masks to the underlying suit. No exposed cyan pixels remain in the tested upper-shoulder region on either body across all four sizes.
-- Head previews verify placement and native ear masking on both styles, with ordinary-head isolation and unload cleanup.
+- Hood previews verify placement on both body styles through the real draw hooks, with unrelated-item isolation and unload cleanup.
 - A regression test first reproduces the craft-loss bug using the game's actual AppearanceClick and AppearancePreviewBuild functions, then verifies custom equip, separate previews, permissions, locks and cleanup.
 - Existing overlay, audio, session, SDK, native message-bus and ghost-list regression checks passed in isolated Chromium fixtures.
 
@@ -66,7 +81,7 @@ Black strap and silver hardware colours in the assembled preview are approximati
 
 ### Installation
 
-Upload hypnoreverie.js, README.md, bookmarklet.txt and MOD-SDK-LICENSE.txt to the existing repository root. The artwork is embedded in the script; PNG uploads are unnecessary. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.8.4. If you are updating from before 0.8.3, re-equip the named top and bottom.
+Upload hypnoreverie.js, README.md, bookmarklet.txt and MOD-SDK-LICENSE.txt to the existing repository root. The artwork is embedded in the script; PNG uploads are unnecessary. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.8.5. Re-equip the hood from the Custom Latex Hood base. If you are updating from before 0.8.3, also re-equip the named top and bottom.
 
 This package has not been published automatically. The FUSAM submission is unchanged. BC Mod SDK 1.2.0 supplies the hooks. Native reference artwork is loaded from the game, is not bundled in the deployed script, and retains its upstream authorship and licensing.
 
