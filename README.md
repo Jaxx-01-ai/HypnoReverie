@@ -1,6 +1,6 @@
 # Hypno Reverie
 
-Version **0.8.5**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable and privacy test release. The existing FUSAM submission remains for v0.6.0.
+Version **0.8.6**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable and privacy test release. The existing FUSAM submission remains for v0.6.0.
 
 ## Compatibility fixes retained from 0.8.1
 
@@ -11,6 +11,20 @@ Incoming addon packets now use **ChatRoomRegisterMessageHandler** at priority -5
 Ghosted players (and, from 0.8.4, blacklisted players) cannot send accepted addon requests, control updates, expressions, or shared head effects. Ghosting an active controller revokes their keys, including permanent access, and stops their remote session on the next one-second network tick. The addon also prevents direct outgoing messages to ghosted players and drops their cached peer state. Unghosting does not restore revoked keys. Unloading removes only this addon's handler and SDK registration.
 
 There is no jQuery dependency. The small local DOM helper was renamed from dollar-sign notation to **byId** to make that clear.
+
+## Catsuit artwork (0.8.6)
+
+The Hypno Reverie Latex Top and Bottom now draw a rendered high-gloss latex surface: deep black with long cool-white highlights along the limbs and torso. Seven pose renders were made with Higgsfield from guides traced from the game's own Latex Catsuit shapes, then fitted back onto those shapes. The game's layer still supplies the exact outline, so every breast size and both Original and EchoV2 keep their native silhouettes.
+
+Poses with dedicated artwork: standing, arms over the head, arms behind (elbow touch and back cuffs), box tie, yoked, all fours (upper) and hogtied (upper); legs standing, closed, spread, kneeling and kneeling spread. Other combinations (for example the lower body in hogtied or all fours) keep the 0.8.5 glossy restyle. The native Shine layer is replaced by the artwork's own highlights. Where the Top and Bottom come from different renders, a faint line can show at the waist. Body parts no render covered, such as the outstretched arm in back cuffs, fall back to plain deep black latex.
+
+## Straitjacket fit (0.8.6)
+
+The Hypno Reverie Latex Bolero now uses pre-fitted artwork for each breast size: a cleaned latex outline plus its own strap set (collar O-ring, buckle, centre strap, under-bust O-ring and strap, arm buckle, tail). The native metal layer is replaced. The crossed arms keep the same sideways position at every size and sit just under that size's breasts. The chest opening follows a smooth neckline above the breasts, with the arms and under-bust piece wrapping the bottom and sides. On XLarge, small points can show at the outer top corners of the opening.
+
+## Hood artwork (0.8.6)
+
+The hood's surface was re-rendered with Higgsfield and fitted to the same Custom Latex Hood outline on both Original and EchoV2. The mouth opening is 25×18 game pixels, about 2 pixels inside the Big Lips Gag's lips on every side, so the latex slightly overlaps the gag's lips. It is centred where the 0.8.5 opening was. The hood's code and settings are unchanged from 0.8.5.
 
 ## Hood update (0.8.5)
 
@@ -81,7 +95,7 @@ Black strap and silver hardware colours in the assembled preview are approximati
 
 ### Installation
 
-Upload hypnoreverie.js, README.md, bookmarklet.txt and MOD-SDK-LICENSE.txt to the existing repository root. The artwork is embedded in the script; PNG uploads are unnecessary. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.8.5. Re-equip the hood from the Custom Latex Hood base. If you are updating from before 0.8.3, also re-equip the named top and bottom.
+Upload hypnoreverie.js, README.md, bookmarklet.txt and MOD-SDK-LICENSE.txt to the existing repository root. The artwork is embedded in the script; PNG uploads are unnecessary. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.8.6. Re-equip the hood from the Custom Latex Hood base. If you are updating from before 0.8.3, also re-equip the named top and bottom.
 
 This package has not been published automatically. The FUSAM submission is unchanged. BC Mod SDK 1.2.0 supplies the hooks. Native reference artwork is loaded from the game, is not bundled in the deployed script, and retains its upstream authorship and licensing.
 
