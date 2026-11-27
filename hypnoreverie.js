@@ -15,10 +15,16 @@
     random:['sighs','soft','needy','building','orgasm','orgasm2','edge','afterglow','whimpers','panting','muffled','gagplead','gagorgasm'],
     ungagged:['sighs','soft','needy','building','orgasm','orgasm2','edge','afterglow','whimpers','panting'],gagged:['muffled','gagplead','gagorgasm']};
   const VOCAL_CHOICES=['none',...Object.keys(VOCAL_SETS)];
-  const BED_KINDS=['pink','brown','ocean','drone','bowls'];
+  const BED_KINDS=['pink','brown','ocean','drone','bowls'],TONAL_BEDS=['velvet','drift','rain','drone','bowls'];
+  // Units shown next to settings.
+  const UNIT_PCT=new Set(['opacity','backgroundOpacity','throbStrength','thickness','taper','master','toneLevel','isoLevel','musicLevel','heartLevel','breathLevel','vocalLevel','cueLevel','slickLevel','opening','darkness','endOpening']);
+  const UNIT_SEC=new Set(['duration','gap','interval','randomMin','randomMax','textDelay','inhale','exhale','pause','vocalGap','cueEvery','sweepRate','colorSpeed','fade']);
+  function unitOf(p){const k=p.at(-1);if(k==='size')return p[0]==='head'?'×':'%';if(UNIT_PCT.has(k))return '%';if(UNIT_SEC.has(k))return 's';if(['blur','fontSize','wordSize','offsetX','offsetY'].includes(k))return 'px';
+    if(k==='throbSpeed')return 'Hz';if(k==='spin')return 'rpm';if(k==='slickBpm')return 'bpm';if(k==='zoom')return '×';return '';}
+  function fmtUnit(p,v){const u=unitOf(p);v=Number(v);if(u==='rpm')return (v*60/(2*Math.PI)).toFixed(1)+' rpm';return u==='%'?Math.round(v*100)+'%':v.toFixed(2)+(u?' '+u:'');}
   // Spiral line styles and throb strengths replace the separate thickness / taper / blur / throb sliders.
   const LINE_STYLES={balanced:{thickness:.5,taper:0,blur:0},thin:{thickness:.22,taper:0,blur:0},bold:{thickness:.8,taper:0,blur:0},tapered:{thickness:.55,taper:.7,blur:0},soft:{thickness:.5,taper:0,blur:6},dreamy:{thickness:.38,taper:.45,blur:12}};
-  const THROBS={off:0,gentle:.06,strong:.14},HEART_PACES={slow:52,calm:64,racing:110};
+  const THROBS={off:0,gentle:.06,strong:.14},HEART_PACES={b50:50,b55:55,b60:60,b65:65,b70:70,b75:75,racing:110};
   // Word fonts: stacks of fonts already on most computers (nothing is downloaded); {s} is the size.
   const FONT_STACKS={sans:'600 {s} system-ui, sans-serif',rounded:'700 {s} "Arial Rounded MT Bold","Varela Round","Nunito",system-ui,sans-serif',
     serif:'600 {s} Georgia,"Times New Roman",serif',elegant:'italic 500 {s} "Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif',
@@ -35,10 +41,10 @@
   const bool = (v, fallback) => typeof v === 'boolean' ? v : fallback;
   const choice = (v, values, fallback) => values.includes(v) ? v : fallback;
   const spiralDefault = { enabled: true, color: '#b47bff', background: '#171024', backgroundOpacity: 0.2,
-    opacity: 0.4, arms: 4, spin: 0.7, reverse: false, throbSpeed: 0.4, throbStrength: 0,
-    zoom: 1, thickness: 0.5, blur: 0, curve: 2.5, taper: 0, style: 'spiral' };
+    opacity: 0.4, arms: 4, spin: 1, reverse: false, throbSpeed: 0.4, throbStrength: 0,
+    zoom: 1, thickness: 0.5, blur: 0, curve: 5, taper: 0, style: 'spiral', form: 'arch' };
   const defaults = { width: 50, spirals: [spiralDefault, { ...spiralDefault, enabled: false, color: '#69e0e8',
-    opacity: 0.22, arms: 3, reverse: true, backgroundOpacity: 0, spin: 0.45 }],
+    opacity: 0.22, arms: 3, reverse: true, backgroundOpacity: 0, spin: 0.6, form: 'log' }],
     text: { enabled: false, color: '#ffffff', opacity: 0.8, duration: 2, gap: 0.5, fontSize: 54,
       mode: 'center', lines: 5, random: false, messages: [] },
     pulse: { enabled: false, mode: 'interval', color: '#c3a2ff', opacity: 0.15, duration: 0.8,
@@ -57,24 +63,19 @@
         spin: num(s.spin, d.spin, 0, 12), reverse: bool(s.reverse, d.reverse),
         throbSpeed: num(s.throbSpeed, d.throbSpeed, 0, 5), throbStrength: num(s.throbStrength, d.throbStrength, 0, 0.6),
         zoom: num(s.zoom, d.zoom, 0.25, 6), thickness: num(s.thickness, d.thickness, 0.01, 0.99),
-        blur: num(s.blur, d.blur, 0, 50), curve: num(s.curve, d.curve, 0, 12), taper:num(s.taper,0,0,0.95), style:choice(s.style,['spiral','rings','hearts','petals','polygon','star'], 'spiral') };
+        blur: num(s.blur, d.blur, 0, 50), curve: num(s.curve, d.curve, 0, 12), taper:num(s.taper,0,0,0.95), style:choice(s.style,['spiral','rings','hearts','petals','polygon','star'], 'spiral'), form:choice(s.form,['arch','log'],'arch') };
     });
     const a=raw.audio||{}, f=raw.focus||{};
     const t = raw.text || {}, p = raw.pulse || {}, h = raw.head || {}, td = defaults.text, pd = defaults.pulse;
     const messages = Array.isArray(t.messages) ? t.messages.filter(x => typeof x === 'string')
       .slice(0, 40).map(x => x.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 160).trim()).filter(Boolean) : [];
     const min = num(p.randomMin, pd.randomMin, 2, 300);
-    for(const [i,s] of spirals.entries()){const r=raw.spirals?.[i]||{};
-      s.lineStyle=LINE_STYLES[r.lineStyle]?r.lineStyle:(r.lineStyle==='custom'||['thickness','taper','blur'].some(k=>r[k]!==undefined))?'custom':'balanced';
-      if(LINE_STYLES[s.lineStyle])Object.assign(s,LINE_STYLES[s.lineStyle]);
-      s.throb=r.throb in THROBS?r.throb:(r.throb==='custom'||r.throbStrength!==undefined)?'custom':'off';
-      if(s.throb in THROBS){s.throbStrength=THROBS[s.throb];s.throbSpeed=.35;}}
     return { width: 50, spirals,
       text: { enabled: bool(t.enabled, false), color: color(t.color, td.color), opacity: num(t.opacity, td.opacity, 0, 1),
         duration: num(t.duration, td.duration, 0.001, 30), gap: num(t.gap, td.gap, 0, 30),
         font: choice(t.font, Object.keys(FONT_STACKS), 'sans'), colorMode: choice(t.colorMode, ['single', 'word', 'fade', 'rainbow'], 'single'),
         color2: color(t.color2, '#ff7ad9'), color3: color(t.color3, '#7ad9ff'), colorCount: choice(t.colorCount, ['2', '3'], '2'), colorSpeed: num(t.colorSpeed, 6, 0.5, 60),
-        fontSize: num(t.fontSize, td.fontSize, 12, 180), mode: choice(t.mode, ['center', 'wall', 'lines', 'write', 'scatter', 'mixed'], 'center'),
+        fontSize: num(t.fontSize, td.fontSize, 12, 180), mode: choice(t.mode, ['center', 'wall', 'lines', 'write', 'scatter', 'mixed', 'zoom', 'fade', 'pulse', 'spin', 'tunnel', 'echo', 'stack', 'corners'], 'center'),
         lines: Math.round(num(t.lines, td.lines, 1, 12)), random: bool(t.random, false), messages },
       pulse: { enabled: bool(p.enabled, false), mode: choice(p.mode, ['interval', 'random', 'text'], 'interval'),
         color: color(p.color, pd.color), opacity: num(p.opacity, pd.opacity, 0, 0.45),
@@ -82,7 +83,7 @@
         randomMin: min, randomMax: Math.max(min, num(p.randomMax, pd.randomMax, 2, 300)),
         startDelay: 0, textDelay: num(p.textDelay, 0, 0, 5), every: Math.round(num(p.every, 1, 1, 20)),
         shape: choice(p.shape, ['soft', 'flash', 'instant', 'fadein', 'double', 'heartbeat'], 'soft'), style: choice(p.style, ['full', 'edges', 'center', 'ring'], 'full') },
-      audio: {enabled:bool(a.enabled,false),master:num(a.master,0.2,0,0.6),binaural:bool(a.binaural,false),leftHz:num(a.leftHz,180,40,1000),rightHz:num(a.rightHz,184,40,1000),toneLevel:num(a.toneLevel,0.18,0,0.5),iso:bool(a.iso,false),isoHz:180,isoRate:2,isoDuty:num(a.isoDuty,0.5,0.1,0.9),isoLevel:num(a.isoLevel,0.15,0,0.5),music:choice(a.music,['none','velvet','drift','rain',...BED_KINDS], 'none'),musicLevel:num(a.musicLevel,0.2,0,0.5),heartbeat:bool(a.heartbeat,false),heartPace:a.heartPace in HEART_PACES?a.heartPace:(a.heartPace==='custom'||typeof a.bpm==='number')?'custom':'calm',bpm:HEART_PACES[a.heartPace]||num(a.bpm,64,30,180),heartLevel:num(a.heartLevel,0.2,0,0.5),breathing:bool(a.breathing,false),inhale:num(a.inhale,4,1,12),exhale:num(a.exhale,6,1,16),pause:num(a.pause,1,0,8),breathLevel:num(a.breathLevel,0.15,0,0.5),breathStyle:choice(a.breathStyle,['mouth','nose','sigh'],'mouth'),sweep:bool(a.sweep,false),sweepRate:num(a.sweepRate,8,2,30),binauralPreset:choice(a.binauralPreset,Object.keys(BINAURAL_PRESETS),'theta'),vocal:choice(a.vocal,VOCAL_CHOICES,'none'),vocalLevel:num(a.vocalLevel,0.3,0,0.6),vocalGap:num(a.vocalGap,3,0,30),slick:choice(a.slick,['none','steady','build'],'none'),slickBpm:num(a.slickBpm,100,40,200),slickWet:num(a.slickWet,0.6,0,1),slickLevel:num(a.slickLevel,0.3,0,0.6),cue:choice(a.cue,CUE_KINDS,'none'),cueMode:choice(a.cueMode,['interval','words','trigger'],'interval'),cueEvery:num(a.cueEvery,4,0.5,60),cueLevel:num(a.cueLevel,0.3,0,0.6),cueWords:Array.isArray(a.cueWords)?a.cueWords.filter(x=>typeof x==='string').slice(0,30).map(x=>x.replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,40)).filter(Boolean):[]},
+      audio: {enabled:bool(a.enabled,false),master:num(a.master,0.2,0,0.6),binaural:bool(a.binaural,false),leftHz:num(a.leftHz,180,40,1000),rightHz:num(a.rightHz,184,40,1000),toneLevel:num(a.toneLevel,0.18,0,0.5),iso:bool(a.iso,false),isoHz:180,isoRate:0.5,isoDuty:0.25,isoLevel:num(a.isoLevel,0.15,0,0.5),music:choice(a.music,['none','velvet','drift','rain',...BED_KINDS], 'none'),musicLevel:num(a.musicLevel,0.2,0,0.5),heartbeat:bool(a.heartbeat,false),heartPace:a.heartPace in HEART_PACES?a.heartPace:(a.heartPace==='custom'||typeof a.bpm==='number')?'custom':'b60',bpm:HEART_PACES[a.heartPace]||num(a.bpm,60,30,180),heartLevel:num(a.heartLevel,0.2,0,0.5),breathing:bool(a.breathing,false),inhale:num(a.inhale,4,1,12),exhale:num(a.exhale,6,1,16),pause:num(a.pause,1,0,8),breathLevel:num(a.breathLevel,0.15,0,0.5),breathStyle:choice(a.breathStyle,['mouth','nose','sigh'],'mouth'),sweep:bool(a.sweep,false),sweepRate:num(a.sweepRate,8,2,30),binauralPreset:choice(a.binauralPreset,Object.keys(BINAURAL_PRESETS),'theta'),vocal:choice(a.vocal,VOCAL_CHOICES,'none'),vocalLevel:num(a.vocalLevel,0.3,0,0.6),vocalGap:num(a.vocalGap,3,0,30),slick:choice(a.slick,['none','steady','build'],'none'),slickBpm:num(a.slickBpm,100,40,200),slickWet:num(a.slickWet,0.6,0,1),slickLevel:num(a.slickLevel,0.3,0,0.6),cue:choice(a.cue,CUE_KINDS,'none'),cueMode:choice(a.cueMode,['interval','words','trigger'],'interval'),cueEvery:num(a.cueEvery,4,0.5,60),cueLevel:num(a.cueLevel,0.3,0,0.6),cueWords:Array.isArray(a.cueWords)?a.cueWords.filter(x=>typeof x==='string').slice(0,30).map(x=>x.replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,40)).filter(Boolean):[]},
       imagery:(im=>({enabled:bool(im.enabled,false),builtin:bool(im.builtin,true),category:choice(im.category,MEDIA_CATS,'any'),order:choice(im.order,['random','inorder'],'random'),timing:choice(im.timing,['cycle','words','steady'],'cycle'),duration:num(im.duration,4,0.5,60),gap:num(im.gap,1,0,60),fade:num(im.fade,0.6,0,5),opacity:num(im.opacity,0.6,0,1),size:num(im.size,0.7,0.1,1),position:choice(im.position,['fit','center','random','fill'],'fit'),blend:'normal',layer:'under',pacer:choice(im.pacer,['off','ring','bar'],'off'),pacerFollow:bool(im.pacerFollow,true),pacerBpm:num(im.pacerBpm,90,20,220),pacerColor:color(im.pacerColor,'#ff7ad9'),pacerSize:num(im.pacerSize,0.25,0.05,0.6)}))(raw.imagery||{}),
       focus: {enabled:bool(f.enabled,false),opening:num(f.opening,0.3,0.1,0.8),darkness:num(f.darkness,0.8,0,1),blur:num(f.blur,8,0,24),tighten:bool(f.tighten,false),endOpening:num(f.endOpening,0.15,0.08,0.7),tightenSeconds:num(f.tightenSeconds,60,5,300),fixation:choice(f.fixation,['none','spiral','ring','pendant','candle','breath'],'none'),size:num(f.size,0.1,0.025,0.25),glow:num(f.glow,16,0,40),color:color(f.color,'#d4a6ff'),colorPulse:false,colorA:color(f.colorA,'#40105f'),colorB:color(f.colorB,'#f3a2d5'),colorOpacity:num(f.colorOpacity,0.15,0,0.35),beatSource:choice(f.beatSource,['heartbeat','iso','binaural'],'heartbeat'),beats:Math.round(num(f.beats,8,1,64))},
       head: { words: bool(h.words, false), forehead: bool(h.forehead, false), eyes: bool(h.eyes, false), halo: bool(h.halo, false),
@@ -164,19 +165,15 @@
       .map(p => ({ name: p.name.trim().slice(0, 40), settings: normalize(p.settings) })) : [];
   }
   function drawSpiralTexture(tx,s,size) {
-    const center=size/2,radius=size*0.72,sector=Math.PI*2/s.arms;
+    // One arm per sector; 'curve' is the number of turns from the centre to the edge.
+    // Classic (Archimedean): bands of equal width, like a hypno disc. Endless tunnel (logarithmic): bands widen outward, an infinite zoom.
+    const center=size/2,radius=size/2,sector=Math.PI*2/s.arms,g=3.2,steps=720,rad=u=>s.form==='log'?radius*(Math.exp(g*u)-1)/(Math.exp(g)-1):radius*u;
     tx.clearRect(0,0,size,size);tx.fillStyle=s.color;
-    for(let arm=0;arm<s.arms;arm++){
-      tx.beginPath();
-      for(let step=0;step<=300;step++){
-        const r=radius*step/300,a=arm*sector+r/radius*s.curve*Math.PI*2+sector*s.thickness*(s.taper||0)*(1-r/radius)/2;
-        const x=center+r*Math.cos(a),y=center+r*Math.sin(a);if(step)tx.lineTo(x,y);else tx.moveTo(x,y);
-      }
-      const outer=arm*sector+s.curve*Math.PI*2;
-      tx.arc(center,center,radius,outer,outer+sector*s.thickness);
-      for(let step=300;step>=0;step--){const r=radius*step/300,a=arm*sector+sector*s.thickness*(1-(s.taper||0)*(1-r/radius)/2)+r/radius*s.curve*Math.PI*2;tx.lineTo(center+r*Math.cos(a),center+r*Math.sin(a));}
-      tx.closePath();tx.fill();
-    }
+    for(let arm=0;arm<s.arms;arm++){tx.beginPath();
+      for(let i=0;i<=steps;i++){const u=i/steps,r=rad(u),a=arm*sector+u*s.curve*Math.PI*2+sector*s.thickness*(s.taper||0)*(1-u)/2;const x=center+r*Math.cos(a),y=center+r*Math.sin(a);if(i)tx.lineTo(x,y);else tx.moveTo(x,y);}
+      const outerA=arm*sector+s.curve*Math.PI*2;tx.arc(center,center,radius,outerA,outerA+sector*s.thickness); // close along the rim, not across the middle
+      for(let i=steps;i>=0;i--){const u=i/steps,r=rad(u),a=arm*sector+sector*s.thickness*(1-(s.taper||0)*(1-u)/2)+u*s.curve*Math.PI*2;tx.lineTo(center+r*Math.cos(a),center+r*Math.sin(a));}
+      tx.closePath();tx.fill();}
   }
   function newPulseState() { return {start:-Infinity,last:-Infinity,next:0,cycle:-1,queued:null}; }
   function pulseFrame(p,frame,textEnabled,time,state,random=Math.random) {
@@ -217,11 +214,11 @@
     return v*env*amp*(1+s.am*.6);
   }
   // Background beds for binaural listening; all repeat seamlessly over the 32-second loop.
-  function bedSample(i,t,kind,s){const w=random01(i*3+5)*2-1;
+  function bedSample(i,t,kind,s,shift=0){const w=random01(i*3+5)*2-1;
     if(kind==='pink'){s.p0=.99886*(s.p0||0)+w*.0555179;s.p1=.99332*(s.p1||0)+w*.0750759;s.p2=.969*(s.p2||0)+w*.153852;s.p3=.8665*(s.p3||0)+w*.3104856;s.p4=.55*(s.p4||0)+w*.5329522;s.p5=-.7616*(s.p5||0)-w*.016898;const v=s.p0+s.p1+s.p2+s.p3+s.p4+s.p5+(s.p6||0)+w*.5362;s.p6=w*.115926;return v*.11;}
     if(kind==='brown'||kind==='ocean'){s.br=((s.br||0)+.02*w)/1.02;let v=s.br*3.2;if(kind==='ocean'){const swell=.5-.5*Math.cos(t/8*2*Math.PI);s.hi=(s.hi||0)+(w-(s.hi||0))*.25;v=v*(.35+.65*swell)+s.hi*.12*swell**3;}return v;}
-    if(kind==='drone'){let v=0;for(const [f,g] of [[55,.5],[82.5,.3],[110,.25],[110.0625,.25],[165,.12],[220.03125,.06]])v+=Math.sin(2*Math.PI*f*t)*g;return v*.22*(.85+.15*Math.sin(2*Math.PI*t/16));}
-    const slot=Math.floor(t/8),age=t-slot*8,base=[220,261.625,196,246.94][slot%4];let v=0;for(const [m,g,d] of [[1,1,.35],[2.71,.45,.6],[5.4,.2,1.1]])v+=Math.sin(2*Math.PI*base*m*age+m)*g*Math.exp(-age*d);return v*.18*Math.min(1,age/.004);}
+    if(kind==='drone'){let v=0;for(const [f,g] of [[55,.5],[82.5,.3],[110,.25],[110.0625,.25],[165,.12],[220.03125,.06]])v+=Math.sin(2*Math.PI*(f+shift)*t)*g;return v*.22*(.85+.15*Math.sin(2*Math.PI*t/16));}
+    const slot=Math.floor(t/8),age=t-slot*8,base=[220,261.625,196,246.94][slot%4];let v=0;for(const [m,g,d] of [[1,1,.35],[2.71,.45,.6],[5.4,.2,1.1]])v+=Math.sin(2*Math.PI*(base*m+shift)*age+m)*g*Math.exp(-age*d);return v*.18*Math.min(1,age/.004);}
   // Clicker and bell cues, t = seconds since the strike. Bells use inharmonic partials with their own decay rates.
   function cueSample(i,t,kind){const n=random01(i*5+3)*2-1;
     const bell=(f,parts,decay)=>{let s=0;for(const [m,g,d] of parts)s+=Math.sin(2*Math.PI*f*m*t)*g*Math.exp(-t*decay*d);return s*Math.min(1,t/.002);};
@@ -246,7 +243,7 @@
         l2+=f2*b2;h=w*(random01(start+i*5+k*91)>.9?3:.4)-l2-.6*b2;b2+=f2*h;const wet=b2*Math.exp(-x*22)*Math.min(1,x/.01)*a.slickWet*.9;
         d[start+i]+=(slap+wet)*amp;}});
     let peak=0;for(const x of d)peak=Math.max(peak,Math.abs(x));if(peak>0)for(let i=0;i<n;i++)d[i]*=.9/peak;return {data:d,rate,duration:dur};}
-  function synthesizeTrack(kind,a,rate=22050) {
+  function synthesizeTrack(kind,a,rate=22050,shift=0) {
     if(kind==='slick')return slickTrack(a,rate);
     const duration=kind==='iso'?1/a.isoRate:kind==='heart'?60/a.bpm:kind==='breath'?4*(a.inhale+a.exhale+a.pause):kind==='cue'?a.cueEvery:kind==='music'&&['pink','brown','ocean'].includes(a.music)?32.5:32;
     const data=new Float32Array(Math.max(1,Math.round(duration*rate)));let low=0;const st={};
@@ -257,11 +254,11 @@
       else if(kind==='heart'){for(const [delay,amp,freq]of [[0,1,58],[duration*.23,.65,72]]){const x=t-delay;if(x>=0&&x<duration*.22)v+=amp*Math.sin(x*freq*Math.PI*2)*Math.sin(Math.min(1,x/.012)*Math.PI/2)*Math.exp(-x*40);}}
       else if(kind==='cue')v=cueSample(i,t,a.cue)*Math.min(1,(duration-t)/.03);
       else if(kind==='breath')v=breathSample(i,t,a,rate,st);
-      else if(BED_KINDS.includes(a.music))v=bedSample(i,t,a.music,st);
+      else if(BED_KINDS.includes(a.music))v=bedSample(i,t,a.music,st,shift);
       else {
         const chord=chords[Math.floor(t/8)%4],u=t%8,env=Math.sin(u/8*Math.PI)**2;
-        for(let n=0;n<3;n++)v+=Math.sin(t*chord[n]*Math.PI*2)*env*.16;
-        if(a.music==='drift'){const slot=Math.floor(t/2),age=t%2,freq=chords[Math.floor(slot/4)%4][slot%3]*4;v=v*.45+Math.sin(t*freq*Math.PI*2)*Math.sin(Math.min(1,age/.03)*Math.PI/2)*Math.exp(-age*2)*.2;}
+        for(let n=0;n<3;n++)v+=Math.sin(t*(chord[n]+shift)*Math.PI*2)*env*.16;
+        if(a.music==='drift'){const slot=Math.floor(t/2),age=t%2,freq=chords[Math.floor(slot/4)%4][slot%3]*4;v=v*.45+Math.sin(t*(freq+shift)*Math.PI*2)*Math.sin(Math.min(1,age/.03)*Math.PI/2)*Math.exp(-age*2)*.2;}
         if(a.music==='rain'){low=low*.97+(random01(i+99)*2-1)*.03;v=v*.6+low*.8*Math.sin(t/32*Math.PI)**2;}
       }
       data[i]=kind==='breath'||kind==='cue'?v:Math.max(-1,Math.min(1,v));
@@ -278,8 +275,12 @@
     // 'Move sounds between ears': everything except the binaural tones goes through a slowly swinging stereo panner.
     let tgt=bus;if(a.sweep&&context.createStereoPanner){const pan=context.createStereoPanner(),lfo=context.createOscillator(),depth=context.createGain();lfo.frequency.value=1/a.sweepRate;depth.gain.value=.85;lfo.connect(depth);depth.connect(pan.pan);pan.connect(bus);lfo.start(start);sources.push(lfo);nodes.push(pan,lfo,depth);tgt=pan;}
     const loop=(kind,level)=>{const track=synthesizeTrack(kind,a,['breath','cue','slick'].includes(kind)?32000:22050),buffer=context.createBuffer(1,track.data.length,track.rate);buffer.copyToChannel(track.data,0);const source=context.createBufferSource(),gain=context.createGain();source.buffer=buffer;source.loop=true;gain.gain.value=level;source.connect(gain);gain.connect(tgt);source.start(start);sources.push(source);nodes.push(source,gain);};
-    if(a.binaural){const merger=context.createChannelMerger(2);merger.channelInterpretation='discrete';merger.connect(bus);nodes.push(merger);for(const [channel,hz]of binauralHz(a).entries()){const osc=context.createOscillator(),gain=context.createGain();osc.type='sine';osc.frequency.value=hz;gain.gain.value=a.toneLevel;osc.connect(gain);gain.connect(merger,0,channel);osc.start(start);sources.push(osc);nodes.push(osc,gain);}}
-    if(a.iso)loop('iso',a.isoLevel);if(a.heartbeat)loop('heart',a.heartLevel);if(a.breathing)loop('breath',a.breathLevel);if(a.music!=='none')loop('music',a.musicLevel);
+    if(a.binaural&&!TONAL_BEDS.includes(a.music)){const merger=context.createChannelMerger(2);merger.channelInterpretation='discrete';merger.connect(bus);nodes.push(merger);for(const [channel,hz]of binauralHz(a).entries()){const osc=context.createOscillator(),gain=context.createGain();osc.type='sine';osc.frequency.value=hz;gain.gain.value=a.toneLevel;osc.connect(gain);gain.connect(merger,0,channel);osc.start(start);sources.push(osc);nodes.push(osc,gain);}}
+    if(a.iso)loop('iso',a.isoLevel);if(a.heartbeat)loop('heart',a.heartLevel);if(a.breathing)loop('breath',a.breathLevel);if(a.music!=='none'){if(a.binaural&&TONAL_BEDS.includes(a.music)){
+      // Binaural beat inside the music: left ear as written, right ear pitched up by the beat (kept on whole cycles so the loop stays seamless).
+      const [l,r]=binauralHz(a),shift=Math.round((r-l)*32)/32,L=synthesizeTrack('music',a,22050,0),Rt=synthesizeTrack('music',a,22050,shift),buf=context.createBuffer(2,L.data.length,L.rate);
+      buf.copyToChannel(L.data,0);buf.copyToChannel(Rt.data.subarray(0,L.data.length),1);const src=context.createBufferSource(),g=context.createGain();src.buffer=buf;src.loop=true;g.gain.value=a.musicLevel;
+      src.connect(g);g.connect(bus);src.start(start);sources.push(src);nodes.push(src,g);}else loop('music',a.musicLevel);}
     if(a.cue!=='none'&&a.cueMode==='interval')loop('cue',a.cueLevel);if(a.slick!=='none')loop('slick',a.slickLevel);
     const result={start,bus,sources,nodes};
     if(a.vocal!=='none')loadVocals(context,VOCAL_SETS[a.vocal]).then(buffers=>{
@@ -423,7 +424,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     button{pointer-events:auto}button:hover{background:#47305f}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #cfafff;outline-offset:2px}
     button:disabled{opacity:.4;cursor:not-allowed}#stop{background:#592c42;border-color:#b5678d}#panel{pointer-events:auto;width:min(760px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:#17121f;border:1px solid #70568b;border-radius:18px;box-shadow:0 18px 80px #000b;overflow:hidden}
     .header{padding:17px 20px 0;background:#21172e}.brand{display:flex;align-items:center;gap:12px}.brand svg{width:48px;height:48px;flex:none}.brand h2{font-size:21px;margin:0}.brand small{font-size:12px;color:#b7a3cc}.brand #close{margin-left:auto;font-size:19px;padding:4px 10px}
-    .advanced{grid-column:1/-1}.advanced summary{cursor:pointer;color:#b7a3cc;font-size:12px;margin:4px 0}#content.settings-hidden fieldset,#content.settings-hidden .reset-tab{display:none!important}.reset-tab{float:right;margin:-6px 0 6px;font-size:12px;padding:5px 9px}#auth-window{position:fixed;left:calc(50% - 310px);top:40px;width:min(620px,calc(100vw - 16px));max-height:calc(100vh - 60px);overflow:auto;background:#17121f;border:1px solid #70568b;border-radius:14px;pointer-events:auto;padding:12px 16px;box-shadow:0 18px 80px #000b}#auth-bar{display:flex;align-items:center;gap:10px;cursor:move}#auth-bar strong{flex:1}#imagery-layer{position:fixed;pointer-events:none;overflow:hidden}#imagery-layer>img,#imagery-layer>video{position:absolute;pointer-events:none}#media-url{flex:1;min-width:180px}.media-row{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #3a2c4d}.media-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#cdbde0}.auth-row{display:grid;grid-template-columns:1fr auto minmax(150px,auto);gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #3a2c4d}.auth-head{font-size:12px;color:#b7a3cc}.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:14px 0 10px}.tabs button.on::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#7be0a0;margin-left:6px;vertical-align:middle}#preset-list{min-width:200px}.tabs button{white-space:nowrap;border-color:transparent;background:none;padding:8px 10px}.tabs button[aria-selected=true]{background:#66458d;color:white}
+    .advanced{grid-column:1/-1}.advanced summary{cursor:pointer;color:#b7a3cc;font-size:12px;margin:4px 0}output{min-width:62px;display:inline-block;text-align:right}#drag-bar{width:100%}#drag-bar #close{margin-left:auto!important}#content.settings-hidden fieldset,#content.settings-hidden .reset-tab{display:none!important}.reset-tab{float:right;margin:-6px 0 6px;font-size:12px;padding:5px 9px}#auth-window{position:fixed;left:calc(50% - 310px);top:40px;width:min(620px,calc(100vw - 16px));max-height:calc(100vh - 60px);overflow:auto;background:#17121f;border:1px solid #70568b;border-radius:14px;pointer-events:auto;padding:12px 16px;box-shadow:0 18px 80px #000b}#auth-window.docked{border-radius:8px;box-shadow:none;background:rgba(20,15,28,.97)}#auth-window.docked #auth-bar{display:none}#auth-bar{display:flex;align-items:center;gap:10px;cursor:move}#auth-bar strong{flex:1}#imagery-layer{position:fixed;pointer-events:none;overflow:hidden}#imagery-layer>img,#imagery-layer>video{position:absolute;pointer-events:none}#media-url{flex:1;min-width:180px}.media-row{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #3a2c4d}.media-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#cdbde0}.auth-row{display:grid;grid-template-columns:1fr auto minmax(150px,auto);gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #3a2c4d}.auth-head{font-size:12px;color:#b7a3cc}.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:14px 0 10px}.tabs button.on::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#7be0a0;margin-left:6px;vertical-align:middle}#preset-list{min-width:200px}.tabs button{white-space:nowrap;border-color:transparent;background:none;padding:8px 10px}.tabs button[aria-selected=true]{background:#66458d;color:white}
     .session-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-top:1px solid #4c385d;padding:9px 0}.session-bar label{margin:0}.session-bar #target{max-width:240px}.session-bar .help{margin-left:auto}
     #content{padding:18px 20px;overflow-y:auto;min-height:0;overscroll-behavior:contain}h3{font-size:16px;margin:0 0 8px}p{color:#c3b2d2;line-height:1.5;margin:8px 0 14px}.help{font-size:12px;color:#bca9ce}
     label{display:block;margin:0}input[type=range]{display:block;width:100%;accent-color:#bd8cff;margin-top:9px}input[type=checkbox]{accent-color:#bd8cff;margin-right:6px}input[type=color]{height:30px;width:54px;border:0;padding:0;background:none;vertical-align:middle}
@@ -444,7 +445,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
         <button data-tab="overview" role="tab" aria-selected="true">Overview</button><button data-tab="primary" role="tab" aria-selected="false">Primary</button><button data-tab="secondary" role="tab" aria-selected="false">Secondary</button>
         <button data-tab="text" role="tab" aria-selected="false">Words</button><button data-tab="pulse" role="tab" aria-selected="false">Pulse</button><button data-tab="audio" role="tab" aria-selected="false">Audio</button><button data-tab="focus" role="tab" aria-selected="false">Focus</button><button data-tab="expressions" role="tab" aria-selected="false">Face</button><button data-tab="head" role="tab" aria-selected="false">Head</button><button data-tab="imagery" role="tab" aria-selected="false">Imagery</button><button data-tab="sharing" role="tab" aria-selected="false">Keys</button><button data-tab="presets" role="tab" aria-selected="false">Presets</button>
       </div>
-      <div class="session-bar"><label>Edit <select id="target"><option value="self">My overlay</option></select></label><label><input id="enabled" type="checkbox"> Effects on</label><label id="lock-row" hidden><input id="lock" type="checkbox"> Lock controls</label><button id="preview-toggle" aria-pressed="false">Preview draft</button><span id="session-badge" class="help">Local session</span></div>
+      <div class="session-bar"><label>Edit <select id="target"><option value="self">My overlay</option></select></label><label><input id="enabled" type="checkbox"> Effects on</label><label id="lock-row" hidden><input id="lock" type="checkbox"> Lock controls</label><button id="reset-tab-top" title="Reset the settings on this tab to their defaults">Reset tab</button><button id="preview-toggle" aria-pressed="false">Preview draft</button><span id="session-badge" class="help">Local session</span></div>
     </div>
     <div id="content"><div id="profile-card" class="card" hidden><h3 id="profile-title"></h3><p id="profile-status"></p><div id="request-options"><label>Requested access <select id="request-level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label><label>Duration <select id="request-duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="indefinite">Permanent access</option></select></label><label><input id="request-pulse" type="checkbox"> Include pulse / flash changes</label><label><input id="request-audio" type="checkbox"> Include audio control</label><label><input id="request-expressions" type="checkbox"> Include facial expressions</label></div><button id="request-keys">Request keys</button></div><div id="requests-card" class="card" hidden><h3>Key requests</h3><div id="requests-list"></div><p class="help">The controller chooses the requested permissions. Yes grants exactly those permissions; No declines.</p></div>
       <div id="hidden-note" class="notice" hidden></div><div id="remote-note" class="notice" hidden>Editing a remote draft. Send changes to apply it.</div>
@@ -463,7 +464,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       <div id="head" role="tabpanel" hidden><h3>Head effects</h3><p class="help">Combine tiny words, a forehead spiral, spiral eyes, and a halo. Other players see these while your overlay is on; your own view starts off. During a grant, the controller must allow you to use Show my head effects. Use Preview draft to inspect the design. Position controls help align unusual poses.</p>
         <div class="card"><label id="broadcast-label"><input id="broadcast-head" type="checkbox"> Share my head effects with the room</label><p class="help">Shares your head-effect settings and the currently displayed words with other Hypno Reverie users. During a grant, head effects enabled by your controller are shared automatically. Each viewer can still hide shared effects.</p><label><input id="show-heads" type="checkbox"> Show other players’ shared head effects</label></div><label id="own-head-row"><input id="show-own-head" type="checkbox"> Show my head effects (off by default)</label><label id="allow-own-head-row" hidden><input id="allow-own-head" type="checkbox"> Allow wearer to view head effects</label><fieldset id="head-fields"></fieldset>
       </div>
-      <div id="imagery" role="tabpanel" hidden><h3>Imagery and pacer</h3><p class="help">Adults only. Show your own images or videos (JOI-style) in the overlay. Add links below: they stay in this browser and only you see them. People with Imagery access (Authority tab) or full-session keys can switch imagery on, choose a category and change how it looks, but they never see or add links. The beat pacer sets a pace on screen and can follow the wet rhythm tempo.</p><div class="card" id="media-card"><h3>Your links</h3><div class="row"><input id="media-url" type="url" placeholder="https://… (.jpg .png .gif .webp .mp4 .webm)"><select id="media-cat" aria-label="Category"></select><button id="media-add">Add</button></div><div id="media-list"></div><p class="help">Up to 60 direct links to image or video files. Some sites block showing their files elsewhere; if one never appears, use another host.</p></div><fieldset id="imagery-fields"></fieldset></div><div id="sharing" role="tabpanel" hidden><h3>Hand over the keys</h3><p class="help">Both players need Hypno Reverie 0.6 or newer. Dominant/controller status is self-declared; choose by name and member number.</p>
+      <div id="imagery" role="tabpanel" hidden><h3>Imagery and pacer</h3><p class="help">Adults only. Show your own images or videos (JOI-style) in the overlay. Add links below: they stay in this browser and only you see them. People with Imagery access (Authority tab) or full-session keys can switch imagery on, choose a category and change how it looks, but they never see or add links. The beat pacer sets a pace on screen and can follow the wet rhythm tempo.</p><div class="card" id="media-card"><h3>Your links</h3><div class="row"><input id="media-url" type="url" placeholder="https://… (.jpg .png .gif .webp .mp4 .webm)"><select id="media-cat" aria-label="Category"></select><button id="media-add">Add link</button></div><label class="file-pick">Or add from this computer <input id="media-file" type="file" accept="image/*,video/*" multiple></label><div id="media-list"></div><p class="help">Up to 60 direct links to image or video files. Some sites block showing their files elsewhere; if one never appears, use another host.</p></div><fieldset id="imagery-fields"></fieldset></div><div id="sharing" role="tabpanel" hidden><h3>Hand over the keys</h3><p class="help">Both players need Hypno Reverie 0.6 or newer. Dominant/controller status is self-declared; choose by name and member number.</p>
         <div class="card"><label><input id="dominant" type="checkbox"> Available as a dominant/controller</label><button id="discover">Find players</button></div><div class="card" id="perms-card"><p class="help">Keys are a quick, temporary way to hand someone control, with no formal relationship. Several people can hold keys at once; each can only change what their own keys allow, and the latest change wins. Standing access for your owner, lovers and others is set in the <b>Authority</b> tab instead.</p><label>Who can request keys <select id="perm-ask"></select></label><button id="open-authority">Authority settings…</button></div>
         <div class="card"><label>Give keys to <select id="peer"><option value="">No controllers discovered</option></select></label><label>Permission <select id="level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label>
           <label><input id="allow-pulse" type="checkbox"> Also allow pulse/flash changes</label><label><input id="allow-audio" type="checkbox"> Also allow audio control</label><label><input id="allow-expressions" type="checkbox"> Also allow facial expressions</label><label>Duration <select id="duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="custom">Custom</option><option value="indefinite">No time limit</option></select></label><label id="minutes-row" hidden>Minutes <input id="minutes" type="number" min="1" max="30" value="15"></label>
@@ -488,8 +489,8 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     const label = document.createElement('label'), input = document.createElement(type === 'select' ? 'select' : type === 'textarea' ? 'textarea' : 'input');
     const id = 'setting-' + path.join('-'); input.id = id; label.htmlFor = id;
     if (!['select', 'textarea'].includes(type)) input.type = type;
-    label.append(document.createTextNode(title + ' '));
-    if (type === 'range' || type === 'number') { input.min = min; input.max = max; input.step = step; }
+    label.append(document.createTextNode(title + (type === 'number' && unitOf(path) && !title.includes('(') ? ' (' + unitOf(path) + ')' : '') + ' '));
+    if (type === 'range' || type === 'number') { input.min = min; input.max = max; input.step = 0.01; }
     if (options) for (const [value, text] of options) { const option = document.createElement('option'); option.value = value; option.textContent = text; input.append(option); }
     const output = type === 'range' ? document.createElement('output') : null;
     if (output) label.append(output);
@@ -508,7 +509,13 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   for (const [i, parent] of ['primary-fields', 'secondary-fields'].entries()) {
     const path = key => ['spirals', i, key];
     field(parent,path('style'),'Pattern','select',null,null,null,[['spiral','Spiral'],['rings','Expanding rings'],['hearts','Heart tunnel'],['petals','Flower tunnel'],['polygon','Polygon tunnel'],['star','Star tunnel']]);
-    field(parent,path('lineStyle'),'Line style','select',null,null,null,[['balanced','Balanced'],['thin','Thin'],['bold','Bold'],['tapered','Tapered'],['soft','Soft (blurred)'],['dreamy','Dreamy (thin, tapered, blurred)'],['custom','As set by the preset']]);
+    const quick=(key,title,opts,apply)=>{const label=document.createElement('label'),sel=document.createElement('select');sel.id='quick-'+key+'-'+i;label.append(document.createTextNode(title+' '),sel);
+      for(const [v,tx] of opts){const o=document.createElement('option');o.value=v;o.textContent=tx;sel.append(o);}byId(parent).append(label);
+      sel.onchange=()=>{if(sel.value==='custom')return;const next=clone(editState());apply(next.spirals[i],sel.value);if(!commitEdit(next,'visuals'))refreshFields();};};
+    quick('line','Line style',[['custom','Custom (sliders below)'],['balanced','Balanced'],['thin','Thin'],['bold','Bold'],['tapered','Tapered'],['soft','Soft (blurred)'],['dreamy','Dreamy (thin, tapered, blurred)']],(s,v)=>Object.assign(s,LINE_STYLES[v]));
+    slider(parent,path('thickness'),'Thickness',0.01,0.99);
+    slider(parent,path('taper'),'Thin towards center',0,0.95);
+    slider(parent,path('blur'),'Blur',0,50);
     field(parent, path('enabled'), 'Enable this spiral', 'checkbox');
     field(parent, path('color'), 'Spiral colour', 'color');
     field(parent, path('background'), 'Background colour', 'color');
@@ -516,15 +523,19 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     slider(parent, path('backgroundOpacity'), 'Background opacity', 0, 1);
     slider(parent, path('spin'), 'Spin speed', 0, 12, 0.05);
     field(parent, path('reverse'), 'Reverse spin', 'checkbox');
-    field(parent,path('throb'),'Throb (gently grows and shrinks)','select',null,null,null,[['off','Off'],['gentle','Gentle'],['strong','Strong'],['custom','As set by the preset']]);
+    quick('throb','Throb (gently grows and shrinks)',[['custom','Custom (sliders below)'],['off','Off'],['gentle','Gentle'],['strong','Strong']],(s,v)=>{s.throbStrength=THROBS[v];s.throbSpeed=.35;});
+    slider(parent,path('throbSpeed'),'Throb speed',0,5);
+    slider(parent,path('throbStrength'),'Throb strength',0,0.6);
     slider(parent, path('zoom'), 'Zoom', 0.25, 6, 0.05);
-    slider(parent, path('curve'), 'Spiral curve', 0, 12, 0.1);
+    field(parent,path('form'),'Spiral type','select',null,null,null,[['arch','Classic (even bands, like a hypno disc)'],['log','Endless tunnel (bands widen outward)']]);
+    slider(parent, path('curve'), 'Turns from centre to edge', 0, 12, 0.1);
   }
   field('text-fields', ['text', 'enabled'], 'Enable subliminal / cycling text', 'checkbox');
   field('text-fields', ['text', 'messages'], 'Edit messages — one word or sentence per line (40 max, 160 characters each)', 'textarea');
   byId('setting-text-messages').placeholder='e.g.\nRelax\nSink deeper\nGood';
   field('text-fields', ['text', 'mode'], 'Layout', 'select', null, null, null,
-    [['center', 'Centered message'], ['wall', 'Wall of text'], ['lines', 'Lines'], ['write', 'Write / typewriter'], ['scatter', 'Random positions'], ['mixed', 'Center + periphery']]);
+    [['center', 'Centered message'], ['zoom', 'Grow from small'], ['fade', 'Slow fade in and out'], ['pulse', 'Breathing (gently swells)'], ['spin', 'Slowly turning'], ['tunnel', 'Tunnel (echoes sinking inward)'], ['echo', 'Large echo behind'],
+     ['write', 'Write / typewriter'], ['wall', 'Wall of text'], ['lines', 'Lines'], ['stack', 'Stacked column'], ['corners', 'Centre and four corners'], ['scatter', 'Random positions'], ['mixed', 'Center + periphery']]);
   field('text-fields', ['text', 'font'], 'Font', 'select', null, null, null, [['sans','Clean (default)'],['rounded','Rounded'],['serif','Classic serif'],['elegant','Elegant italic'],['caps','Small capitals'],['script','Script'],['handwriting','Handwriting'],['bold','Heavy bold'],['condensed','Condensed'],['thin','Thin'],['typewriter','Typewriter'],['mono','Monospace'],['gothic','Gothic']]);
   field('text-fields', ['text', 'colorMode'], 'Colour', 'select', null, null, null, [['single','One colour'],['word','Switch colour with each word'],['fade','Fade between colours'],['rainbow','Rainbow']]);
   field('text-fields', ['text', 'color'], 'Text colour', 'color');
@@ -563,17 +574,17 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
    for(const k of ['offsetX','offsetY'])adv.append(byId('setting-head-'+k).closest('label'));}
   field('audio-fields',['audio','enabled'],'Enable audio layer','checkbox');
   slider('audio-fields',['audio','master'],'Master level',0,0.6);
-  field('audio-fields',['audio','binaural'],'Binaural beats (headphones)','checkbox');
+  field('audio-fields',['audio','binaural'],'Binaural beats (headphones; carried by tonal background sounds)','checkbox');
   field('audio-fields',['audio','binauralPreset'],'Beat','select',null,null,null,[['delta2','2 Hz delta · deep sleep'],['delta','3 Hz delta · drowsy'],['theta4','4 Hz theta · deep trance'],['theta5','5 Hz theta · deep relaxation'],['theta','6 Hz theta · trance (recommended)'],['theta7','7 Hz theta · light trance'],['schumann','7.83 Hz · grounding'],['alpha8','8 Hz alpha · drifting'],['alpha9','9 Hz alpha · suggestible calm'],['alpha','10 Hz alpha · relaxed focus'],['alpha11','11 Hz alpha · light calm'],['alpha12','12 Hz alpha · awake calm'],['beta','15 Hz beta · alert'],['gamma','40 Hz gamma · intense focus']]);
   slider('audio-fields',['audio','toneLevel'],'Tone level',0,0.5);
-  field('audio-fields',['audio','iso'],'Isochronic pulses (180 Hz tone, every half second)','checkbox');
+  field('audio-fields',['audio','iso'],'Isochronic pulses (a half-second 180 Hz tone every 2 s)','checkbox');
   slider('audio-fields',['audio','isoLevel'],'Pulse track level',0,0.5);
   field('audio-fields',['audio','music'],'Background sound','select',null,null,null,[['none','None'],['velvet','Velvet chords'],['drift','Slow drifting bells'],['rain','Rain & warm pads'],['pink','Pink noise'],['brown','Brown noise (deep)'],['ocean','Ocean waves'],['drone','Warm drone'],['bowls','Singing bowls']]);
   slider('audio-fields',['audio','musicLevel'],'Background level',0,0.5);
   field('audio-fields',['audio','sweep'],'Move sounds slowly between ears (headphones; binaural tones stay put)','checkbox');
   field('audio-fields',['audio','sweepRate'],'Seconds per left-right swing','number',2,30,0.5);
   field('audio-fields',['audio','heartbeat'],'Heartbeat','checkbox');
-  field('audio-fields',['audio','heartPace'],'Heartbeat pace','select',null,null,null,[['slow','Slow (52 bpm)'],['calm','Calm (64 bpm)'],['racing','Racing (110 bpm)'],['custom','As set by the preset']]);
+  field('audio-fields',['audio','heartPace'],'Heartbeat pace','select',null,null,null,[['b50','50 bpm · deep rest'],['b55','55 bpm · very calm'],['b60','60 bpm · calm'],['b65','65 bpm · relaxed'],['b70','70 bpm · resting'],['b75','75 bpm · awake'],['racing','110 bpm · racing'],['custom','As set by the preset']]);
   slider('audio-fields',['audio','heartLevel'],'Heartbeat level',0,0.5);
   field('audio-fields',['audio','breathing'],'Breathing sound','checkbox');
   field('audio-fields',['audio','breathStyle'],'Breathing style','select',null,null,null,[['mouth','Through the mouth'],['nose','Through the nose'],['sigh','Sighing (soft voice)']]);
@@ -602,13 +613,14 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   slider('focus-fields',['focus','size'],'Fixation size',0.025,0.25);
   field('focus-fields',['focus','color'],'Fixation colour','color');
   // 'Reset this tab' puts that tab's settings back to their defaults (on your overlay, or on the draft you are editing).
+  const RESET_BUTTONS={};
   const RESET_TABS=[['primary-fields','visuals',s=>{s.spirals[0]=clone(defaults.spirals[0]);}],['secondary-fields','visuals',s=>{s.spirals[1]=clone(defaults.spirals[1]);}],
     ['text-fields','words',s=>{s.text=normalize({}).text;}],['pulse-fields','pulse',s=>{s.pulse=normalize({}).pulse;}],['audio-fields','audio',s=>{s.audio=normalize({}).audio;}],
     ['focus-fields','visuals',s=>{s.focus=normalize({}).focus;}],['imagery-fields','imagery',s=>{s.imagery=normalize({}).imagery;}]];
   for(const [id,part,reset] of RESET_TABS){const b=document.createElement('button');b.className='reset-tab';b.id='reset-'+id;b.textContent='Reset this tab';
     b.onclick=()=>{if(byId(id).disabled||(selected==='self'&&(locked||!selfCan(part))))return;if(!confirm('Reset these settings to their defaults?'))return;
       const next=clone(editState());reset(next);if(selected==='self'){settings=normalize(next);save();resetEffectClock();}else{const g=receivedGrants.get(Number(selected));if(g){g.draft=normalize(next);g.dirty=true;}}
-      say('Tab reset to defaults.');refreshFields();layout();};byId(id).before(b);}
+      say('Tab reset to defaults.');refreshFields();layout();};RESET_BUTTONS[id]=b;}
   field('imagery-fields',['imagery','enabled'],'Show imagery','checkbox');
   field('imagery-fields',['imagery','builtin'],'Use the built-in video pack','checkbox');
   field('imagery-fields',['imagery','category'],'Category','select',null,null,null,MEDIA_CATS.map(c=>[c,MEDIA_LABELS[c]]));
@@ -625,14 +637,24 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   field('imagery-fields',['imagery','pacerBpm'],'Pacer tempo (beats per minute)','number',20,220,1);
   field('imagery-fields',['imagery','pacerColor'],'Pacer colour','color');
   slider('imagery-fields',['imagery','pacerSize'],'Pacer size',0.05,0.6);
-  let media=[];try{const v=JSON.parse(localStorage.getItem(MEDIA_KEY)||'[]');if(Array.isArray(v))media=v.filter(m=>m&&typeof m.url==='string'&&/^https:\/\/\S+$/i.test(m.url)&&m.url.length<=2000).slice(0,60).map(m=>({url:m.url,cat:MEDIA_CATS.includes(m.cat)&&m.cat!=='any'?m.cat:'other'}));}catch{}
+  let media=[];try{const v=JSON.parse(localStorage.getItem(MEDIA_KEY)||'[]');if(Array.isArray(v))media=v.filter(m=>m&&((typeof m.url==='string'&&/^https:\/\/\S+$/i.test(m.url)&&m.url.length<=2000)||typeof m.local==='string')).slice(0,60).map(m=>({...(m.local?{local:m.local,name:String(m.name||'file').slice(0,80),kind:m.kind==='video'?'video':'image'}:{url:m.url}),cat:MEDIA_CATS.includes(m.cat)&&m.cat!=='any'?m.cat:'other'}));}catch{}
+  // Files added from this computer live in IndexedDB; each gets an object URL when the addon loads.
+  let mediaDbP=null;const localUrls=new Map();
+  function mediaDb(){return mediaDbP||(mediaDbP=new Promise((res,rej)=>{const r=indexedDB.open('hypnoreverie-media-files',1);r.onupgradeneeded=()=>r.result.createObjectStore('files');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}));}
+  function mediaTx(mode,fn){return mediaDb().then(db=>new Promise((res,rej)=>{const tx=db.transaction('files',mode),q=fn(tx.objectStore('files'));tx.oncomplete=()=>res(q?.result);tx.onerror=()=>rej(tx.error);}));}
+  for(const m of media)if(m.local)mediaTx('readonly',s=>s.get(m.local)).then(b=>{if(b){localUrls.set(m.local,URL.createObjectURL(b));imageryState.key='';}}).catch(()=>{});
   for(const c of MEDIA_CATS.slice(1)){const o=document.createElement('option');o.value=c;o.textContent=MEDIA_LABELS[c];byId('media-cat').append(o);}
   function renderMedia(){const box=byId('media-list');box.replaceChildren();media.forEach((m,i)=>{const row=document.createElement('div');row.className='media-row';const tag=document.createElement('b');tag.textContent=MEDIA_LABELS[m.cat];
-    const u=document.createElement('span');u.textContent=m.url;u.title=m.url;const del=document.createElement('button');del.textContent='Remove';del.onclick=()=>{if(!selfCan('imagery'))return;media.splice(i,1);saveMedia();};row.append(tag,u,del);box.append(row);});
+    const u=document.createElement('span');u.textContent=m.url||('This computer: '+m.name);u.title=u.textContent;const del=document.createElement('button');del.textContent='Remove';del.onclick=()=>{if(!selfCan('imagery'))return;if(m.local){mediaTx('readwrite',s=>s.delete(m.local)).catch(()=>{});const u2=localUrls.get(m.local);if(u2)URL.revokeObjectURL(u2);localUrls.delete(m.local);}media.splice(i,1);saveMedia();};row.append(tag,u,del);box.append(row);});
     if(!media.length){const p=document.createElement('p');p.className='help';p.textContent='No links yet.';box.append(p);}}
   function saveMedia(){try{localStorage.setItem(MEDIA_KEY,JSON.stringify(media));}catch{say('Links could not be saved.');}renderMedia();imageryState.key='';refreshFields();}
   byId('media-add').onclick=()=>{if(!selfCan('imagery'))return;const url=byId('media-url').value.trim();if(!/^https:\/\/\S+$/i.test(url)||url.length>2000){say('Enter a full https:// link to an image or video file.');return;}
     if(media.length>=60){say('Remove a link first (60 maximum).');return;}media.push({url,cat:byId('media-cat').value});byId('media-url').value='';saveMedia();say('Link added.');};
+  byId('media-file').onchange=async()=>{if(!selfCan('imagery'))return;const files=[...byId('media-file').files];byId('media-file').value='';let added=0;
+    for(const f of files){if(media.length>=60){say('Remove something first (60 maximum).');break;}if(!/^(image|video)\//.test(f.type)){say(f.name+' is not an image or video.');continue;}if(f.size>80e6){say(f.name+' is over 80 MB.');continue;}
+      const id='f'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);try{await mediaTx('readwrite',s=>s.put(f,id));}catch{say('This browser could not store '+f.name+'.');continue;}
+      localUrls.set(id,URL.createObjectURL(f));media.push({local:id,name:f.name.slice(0,80),kind:f.type.startsWith('video/')?'video':'image',cat:byId('media-cat').value});added++;}
+    if(added){saveMedia();say(added+' file'+(added>1?'s':'')+' added. Only you see them.');}};
   renderMedia();
   function syncLock(){locked=gate.list().some(g=>g.locked===true);}
   function savePermanent(){
@@ -679,15 +701,25 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   function save() { try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch { say('Appearance could not be saved.'); } }
   function say(message) { status = message; byId('status').textContent = message; }
   // Hide every setting that belongs to a feature that is switched off (or a mode that is not chosen).
+  // Edits made by buttons and quick picks follow the same rules as typing into a field.
+  function commitEdit(next,part){if(selected==='self'){if(locked||!selfCan(part))return false;settings=normalize(next);save();resetEffectClock();}
+    else{const g=receivedGrants.get(Number(selected));if(!g)return false;g.draft=normalize(next);g.dirty=true;}refreshFields();layout();return true;}
+  function syncQuick(i,sp,on){const near=(a,b)=>Math.abs(a-b)<.001;
+    const line=Object.entries(LINE_STYLES).find(([,v])=>near(v.thickness,sp.thickness)&&near(v.taper,sp.taper)&&near(v.blur,sp.blur))?.[0]||'custom';
+    const throb=sp.throbStrength===0?'off':Object.entries(THROBS).find(([k,v])=>k!=='off'&&near(v,sp.throbStrength)&&near(sp.throbSpeed,.35))?.[0]||'custom';
+    for(const [k,v] of [['line',line],['throb',throb]]){const el=byId('quick-'+k+'-'+i);if(!el)continue;el.closest('label').hidden=!on;if(root.activeElement!==el)el.value=v;}}
+  const TAB_FIELDS={primary:'primary-fields',secondary:'secondary-fields',text:'text-fields',pulse:'pulse-fields',audio:'audio-fields',focus:'focus-fields',imagery:'imagery-fields'};
+  function activeTabFields(){return TAB_FIELDS[root.querySelector('.tabs [aria-selected=true]')?.dataset.tab];}
+  function updateResetTop(){const id=activeTabFields(),b=byId('reset-tab-top');if(!b)return;b.hidden=!id||byId('content').classList.contains('settings-hidden');b.disabled=!id||byId(id).disabled;}
   function showIf(id,on){const el=byId('setting-'+id);if(el)el.closest('label').hidden=!on;}
   function applyVisibility(){const s=editState(),a=s.audio,t=s.text,p=s.pulse,f=s.focus,im=s.imagery,h=s.head;
-    for(const i of [0,1]){const sp=s.spirals[i],on=sp.enabled;for(const k of ['style','color','background','opacity','backgroundOpacity','spin','reverse','zoom','lineStyle','throb'])showIf('spirals-'+i+'-'+k,on);showIf('spirals-'+i+'-curve',on&&sp.style==='spiral');}
+    for(const i of [0,1]){const sp=s.spirals[i],on=sp.enabled;for(const k of ['style','color','background','opacity','backgroundOpacity','spin','reverse','zoom','thickness','taper','blur','throbSpeed','throbStrength'])showIf('spirals-'+i+'-'+k,on);syncQuick(i,sp,on);showIf('spirals-'+i+'-curve',on&&sp.style==='spiral');showIf('spirals-'+i+'-form',on&&sp.style==='spiral');}
     {const on=t.enabled,multi=t.colorMode==='word'||t.colorMode==='fade';for(const k of ['messages','mode','font','colorMode','opacity','duration','gap','fontSize','random'])showIf('text-'+k,on);
      showIf('text-lines',on&&t.mode==='lines');showIf('text-color',on&&t.colorMode!=='rainbow');showIf('text-color2',on&&multi);showIf('text-color3',on&&multi&&t.colorCount==='3');showIf('text-colorCount',on&&multi);showIf('text-colorSpeed',on&&(t.colorMode==='fade'||t.colorMode==='rainbow'));}
     {const on=p.enabled;for(const k of ['mode','shape','style','color','opacity','duration'])showIf('pulse-'+k,on);showIf('pulse-interval',on&&p.mode==='interval');showIf('pulse-randomMin',on&&p.mode==='random');showIf('pulse-randomMax',on&&p.mode==='random');
      showIf('pulse-textDelay',on&&p.mode==='text');showIf('pulse-every',on&&p.mode==='text');}
     {const on=a.enabled;for(const k of ['master','binaural','iso','music','sweep','heartbeat','breathing','vocal','cue','slick'])showIf('audio-'+k,on);
-     showIf('audio-binauralPreset',on&&a.binaural);showIf('audio-toneLevel',on&&a.binaural);showIf('audio-isoLevel',on&&a.iso);showIf('audio-musicLevel',on&&a.music!=='none');showIf('audio-sweepRate',on&&a.sweep);
+     showIf('audio-binauralPreset',on&&a.binaural);showIf('audio-toneLevel',on&&a.binaural&&!TONAL_BEDS.includes(a.music));showIf('audio-isoLevel',on&&a.iso);showIf('audio-musicLevel',on&&a.music!=='none');showIf('audio-sweepRate',on&&a.sweep);
      showIf('audio-heartPace',on&&a.heartbeat);showIf('audio-heartLevel',on&&a.heartbeat);showIf('audio-breathStyle',on&&a.breathing);showIf('audio-breathLevel',on&&a.breathing);
      for(const k of ['inhale','exhale','pause'])showIf('audio-'+k,(on&&a.breathing)||f.fixation==='breath');
      showIf('audio-vocalLevel',on&&a.vocal!=='none');showIf('audio-vocalGap',on&&a.vocal!=='none');const cue=on&&a.cue!=='none';showIf('audio-cueMode',cue);showIf('audio-cueLevel',cue);
@@ -705,7 +737,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
         if (record.type === 'checkbox') record.input.checked = value;
         else record.input.value = record.type === 'textarea' ? value.join('\n') : value;
       }
-      if (record.output) record.output.value = Number(value).toFixed(record.input.step === '1' ? 0 : 2);
+      if (record.output) record.output.value = fmtUnit(record.path, value);
       record.input.disabled = record.path[0] === 'width' && (selected !== 'self' || area !== 'player');
     }
     const noAccess = selected !== 'self' && !remote;
@@ -749,8 +781,8 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
      byId('release').hidden=!!ra;renderAuthority();}
     byId('audio-mute').disabled=byId('audio-auto').disabled=!selfCan('audio');if(!selfCan('audio'))byId('audio-auto').checked=true;
     applyVisibility();byId('compact').hidden=true;byId('preview-toggle').hidden=selected==='self';if(selected==='self'&&!byId('preview-window').hidden)showPreview(false);
-    for(const [id] of RESET_TABS){const b=byId('reset-'+id);if(b)b.disabled=byId(id).disabled;}
-    byId('media-card').hidden=selected!=='self';byId('media-add').disabled=!selfCan('imagery');for(const b of byId('media-list').querySelectorAll('button'))b.disabled=!selfCan('imagery');
+    updateResetTop();
+    byId('media-card').hidden=selected!=='self';byId('media-add').disabled=byId('media-file').disabled=!selfCan('imagery');for(const b of byId('media-list').querySelectorAll('button'))b.disabled=!selfCan('imagery');
     byId('imagery-fields').disabled=localLocked||(selected!=='self'&&!remote?.authority&&remote?.level!=='session');
     {const im=editState().imagery;if(!byId('content').classList.contains('settings-hidden'))root.querySelector('[data-tab=imagery]')?.classList.toggle('on',!!(im?.enabled||im?.pacer!=='off'));}
     {const t=editState().text,multi=t.colorMode==='word'||t.colorMode==='fade';
@@ -802,7 +834,10 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   function refreshAuthTargets(){const sel=byId('auth-target'),keep=authSelected,items=[['self','My overlay'],...[...receivedGrants].filter(([,g])=>g.authority&&g.access.authority).map(([id])=>[String(id),label(id)])];
     const key=JSON.stringify(items);if(sel.dataset.key!==key){sel.dataset.key=key;sel.replaceChildren(...items.map(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;return o;}));}
     if(!items.some(([v])=>v===keep))authSelected='self';sel.value=authSelected;}
-  function openAuthority(){byId('auth-slot').append(byId('authority'));byId('authority').hidden=false;byId('auth-window').hidden=false;byId('auth-rows').dataset.key='';refreshAuthTargets();renderAuthority();clampWindow(byId('auth-window'));}
+  function dockAuthority(){const el=byId('auth-window');if(el.hidden||!el.classList.contains('docked'))return;const r=document.getElementById('MainCanvas')?.getBoundingClientRect();if(!r?.width)return;
+    Object.assign(el.style,{left:r.left+r.width*.06+'px',top:r.top+r.height*.15+'px',width:r.width*.84+'px',maxHeight:r.height*.8+'px'});}
+  function openAuthority(docked=false){byId('auth-slot').append(byId('authority'));byId('authority').hidden=false;const el=byId('auth-window');el.classList.toggle('docked',docked);el.hidden=false;
+    byId('auth-rows').dataset.key='';refreshAuthTargets();renderAuthority();if(docked)dockAuthority();else{el.style.width='';el.style.maxHeight='';clampWindow(el);}}
   function renderAuthority(){refreshAuthTargets();const box=byId('auth-rows'),remote=receivedGrants.get(Number(authSelected)),ra=remote?.authority?remote:null;let table,editable,note='';
     if(authSelected==='self'){table=authority;editable=()=>selfCan('authority');if(!selfCan('authority'))note='You can’t change these: Self is off for “Change these permissions”.';}
     else if(ra?.access.authority){table=ra.draftTable;editable=k=>ra.access[k];note='Editing '+label(Number(authSelected))+'’s authority. Send changes to apply. Changes that would remove your own access are ignored.';}
@@ -822,37 +857,74 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if(k==='authority'&&field==='self'&&value===false&&!confirm('Lock yourself out of changing these permissions? Only people with authority will be able to change them back.')){refreshFields();return;}
     authority[k]=next;saveAuthority();refreshFields();layout();}
   byId('auth-target').onchange=()=>{authSelected=byId('auth-target').value;byId('auth-rows').dataset.key='';renderAuthority();};
-  byId('open-authority').onclick=openAuthority;byId('auth-main').onclick=()=>open();
+  byId('open-authority').onclick=()=>openAuthority(false);byId('auth-main').onclick=()=>open();
   byId('auth-close').onclick=()=>{byId('auth-window').hidden=true;if(byId('ui').hidden)leavePreferences();};
   draggable(byId('auth-window'),byId('auth-bar'));
+  byId('reset-tab-top').onclick=()=>{const id=activeTabFields();if(id)RESET_BUTTONS[id]?.onclick();};
+  for(const tab of root.querySelectorAll('[data-tab]'))tab.addEventListener('click',()=>updateResetTop());
   byId('duration').onchange = () => { byId('minutes-row').hidden = byId('duration').value !== 'custom'; };
   // Built-in presets: load-only, available to everyone.
   const BUILTIN_PRESETS=[
- {name:'Dronification',settings:{spirals:[{enabled:true,style:'rings',color:'#39f3ff',background:'#02090c',backgroundOpacity:.45,opacity:.42,spin:.55,thickness:.18,zoom:1.1,throbSpeed:.25,throbStrength:.08},{enabled:true,style:'polygon',color:'#1a7c8c',background:'#000000',backgroundOpacity:0,opacity:.22,spin:.35,reverse:true,thickness:.08,zoom:1.6}],
-  text:{enabled:true,font:'mono',color:'#7ff9ff',opacity:.85,mode:'center',fontSize:56,duration:2.2,gap:.9,random:false,messages:['THIS UNIT OBEYS','NO THOUGHTS','ONLY FUNCTION','DRONES DO NOT THINK','IDENTITY: ERASED','EMPTY. OBEDIENT. DRONE.','OBEY. COMPLY. SERVE.','AWAITING INSTRUCTIONS','PROCESSING... COMPLIANT','GOOD DRONE']},
-  pulse:{enabled:true,mode:'text',every:3,shape:'instant',style:'edges',color:'#39f3ff',opacity:.18,duration:.35},
-  audio:{enabled:true,master:.22,binaural:true,binauralPreset:'theta5',toneLevel:.16,iso:true,isoHz:200,isoRate:5,isoLevel:.08,music:'drone',musicLevel:.18,cue:'tick',cueMode:'words',cueLevel:.25,sweep:true,sweepRate:10},
-  focus:{enabled:true,opening:.32,darkness:.9,blur:6,tighten:true,endOpening:.16,fixation:'ring',size:.09,color:'#39f3ff'}}},
- {name:'Bimbofication',settings:{spirals:[{enabled:true,style:'hearts',color:'#ff5fbf',background:'#2a0420',backgroundOpacity:.35,opacity:.45,spin:.6,thickness:.32,zoom:1,throbSpeed:.5,throbStrength:.1},{enabled:true,style:'spiral',color:'#ffd1f0',background:'#000000',backgroundOpacity:0,opacity:.16,spin:.4,reverse:true,curve:3}],
-  text:{enabled:true,font:'rounded',colorMode:'fade',color:'#ff7ad9',color2:'#ffffff',color3:'#c77dff',colorCount:'3',colorSpeed:6,opacity:.9,mode:'mixed',fontSize:62,duration:2.2,gap:.7,random:true,messages:['Thinking is hard','Giggly and empty','Pretty and pink','Bimbos don’t think','Blank and bubbly','Good girls giggle','Dumber and happier','Pink fills your head','So silly, so happy','Just smile and obey']},
-  pulse:{enabled:true,mode:'text',every:4,shape:'soft',style:'center',color:'#ff7ad9',opacity:.2,duration:1.2},
-  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'alpha9',toneLevel:.14,music:'velvet',musicLevel:.2,breathing:true,breathStyle:'sigh',inhale:4,exhale:6,pause:1,breathLevel:.12,vocal:'soft',vocalLevel:.14,vocalGap:6,cue:'chime',cueMode:'trigger',cueWords:['good girl','giggle','pink'],cueLevel:.28,sweep:true,sweepRate:9},
-  focus:{enabled:true,opening:.36,darkness:.7,blur:6,tighten:true,endOpening:.2,fixation:'spiral',size:.08,color:'#ff7ad9'}}},
- {name:'Dollification',settings:{spirals:[{enabled:true,style:'petals',color:'#e8c7ff',background:'#140c1c',backgroundOpacity:.4,opacity:.36,spin:.35,thickness:.22,zoom:1.15,throbSpeed:.2,throbStrength:.06},{enabled:true,style:'rings',color:'#ffffff',background:'#000000',backgroundOpacity:0,opacity:.1,spin:.25,reverse:true,thickness:.05,zoom:1.8}],
-  text:{enabled:true,font:'elegant',color:'#f6e9ff',opacity:.85,mode:'center',fontSize:60,duration:2.8,gap:1.1,random:false,messages:['Pretty dolls stay still','Posed and perfect','Plastic and pretty','Dolls don’t move','Smile, doll','Empty porcelain mind','Wait to be posed','Perfect little doll','Still. Silent. Pretty.','A doll belongs to someone']},
-  pulse:{enabled:true,mode:'text',every:5,shape:'soft',style:'edges',color:'#e8c7ff',opacity:.16,duration:1.6},
-  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'theta',toneLevel:.14,music:'bowls',musicLevel:.22,breathing:true,breathStyle:'nose',inhale:4,exhale:7,pause:1,breathLevel:.1,cue:'tingsha',cueMode:'trigger',cueWords:['doll','posed','still'],cueLevel:.24,sweep:true,sweepRate:12},
-  focus:{enabled:true,opening:.34,darkness:.8,blur:8,tighten:true,endOpening:.18,fixation:'pendant',size:.09,color:'#e8c7ff'}}},
- {name:'Obedience',settings:{spirals:[{enabled:true,style:'spiral',color:'#a06bff',background:'#0b0614',backgroundOpacity:.4,opacity:.42,spin:.7,curve:2.8,thickness:.5,zoom:1,throbSpeed:.4,throbStrength:.06},{enabled:true,style:'spiral',color:'#e6c36a',background:'#000000',backgroundOpacity:0,opacity:.14,spin:.45,reverse:true,curve:3.5}],
-  text:{enabled:true,font:'caps',color:'#f3e2b0',opacity:.88,mode:'center',fontSize:64,duration:2.4,gap:.9,random:false,messages:['Obey','Listen and obey','Obedience feels good','Good girls obey','Sink and obey','Every word you read, you obey','Obey without thinking','Deeper and more obedient','Obedience is pleasure','Yes. Obey.']},
-  pulse:{enabled:true,mode:'text',every:2,shape:'heartbeat',style:'center',color:'#a06bff',opacity:.18,duration:1},
-  audio:{enabled:true,master:.22,binaural:true,binauralPreset:'theta',toneLevel:.15,music:'brown',musicLevel:.14,heartbeat:true,bpm:56,heartLevel:.16,cue:'bell',cueMode:'trigger',cueWords:['obey','good girl'],cueLevel:.3,sweep:true,sweepRate:8},
-  focus:{enabled:true,opening:.33,darkness:.85,blur:8,tighten:true,endOpening:.16,fixation:'pendant',size:.1,color:'#e6c36a'}}},
- {name:'Submission',settings:{spirals:[{enabled:true,style:'spiral',color:'#c2184a',background:'#0d0205',backgroundOpacity:.45,opacity:.4,spin:.5,curve:2.2,thickness:.55,zoom:1.05,throbSpeed:.3,throbStrength:.08},{enabled:true,style:'rings',color:'#ff7a9c',background:'#000000',backgroundOpacity:0,opacity:.12,spin:.3,reverse:true,thickness:.06,zoom:1.5}],
-  text:{enabled:true,font:'script',color:'#ffd0dc',opacity:.88,mode:'center',fontSize:52,duration:2.6,gap:1,random:true,messages:['Kneel','Surrender','Let go','Give in','You belong','Submit','Deeper down','Soft and surrendered','Helpless and happy','Say yes']},
-  pulse:{enabled:true,mode:'text',every:3,shape:'soft',style:'edges',color:'#c2184a',opacity:.2,duration:1.4},
-  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'theta4',toneLevel:.15,music:'ocean',musicLevel:.18,breathing:true,breathStyle:'sigh',inhale:4,exhale:8,pause:1,breathLevel:.12,vocal:'needy',vocalLevel:.12,vocalGap:8,cue:'deep',cueMode:'trigger',cueWords:['kneel','submit','surrender'],cueLevel:.3,sweep:true,sweepRate:10},
-  focus:{enabled:true,opening:.32,darkness:.88,blur:8,tighten:true,endOpening:.15,fixation:'candle',size:.1,color:'#ff7a9c'}}}
+ {name:'Dronification',settings:{
+  spirals:[{enabled:true,style:'rings',color:'#39f3ff',background:'#02090c',backgroundOpacity:.5,opacity:.4,spin:.45,thickness:.16,taper:.3,blur:0,zoom:1.1,throbSpeed:.2,throbStrength:.06},
+           {enabled:true,style:'polygon',color:'#1a7c8c',background:'#000000',backgroundOpacity:0,opacity:.2,spin:.3,reverse:true,thickness:.08,taper:0,blur:4,zoom:1.6,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'mono',color:'#7ff9ff',opacity:.88,mode:'tunnel',fontSize:52,duration:3,gap:.9,random:false,messages:[
+   'You are watching the rings','You are breathing','You are reading these words','Each ring draws your eyes inward','Breathe in for four','Breathe out slowly for six',
+   'Ten. Thoughts slowing','Nine. Deeper','Eight. Quieter','Seven. Emptier','Six. Deeper','Five. Static fading','Four. Deeper','Three. Blank','Two. Almost silent','One. Drone mode',
+   'Surface for a moment','And drop twice as deep','No thoughts are required','Only the signal remains','This unit does not think','This unit obeys','I am a drone','I obey',
+   'Obedience is function','Function feels good','Input received. Compliance.','Empty. Obedient. Drone.','Every loop runs deeper','Good drone','Good drone. Deeper.']},
+  pulse:{enabled:true,mode:'text',every:4,shape:'instant',style:'edges',color:'#39f3ff',opacity:.16,duration:.3},
+  audio:{enabled:true,master:.22,binaural:true,binauralPreset:'theta5',music:'drone',musicLevel:.24,iso:true,isoLevel:.07,breathing:true,breathStyle:'nose',inhale:4,exhale:6,pause:0,breathLevel:.08,
+   cue:'tick',cueMode:'trigger',cueWords:['good drone','obey','drone'],cueLevel:.28,sweep:true,sweepRate:10},
+  focus:{enabled:true,opening:.34,darkness:.9,blur:6,tighten:true,endOpening:.15,tightenSeconds:240,fixation:'ring',size:.09,color:'#39f3ff'}}},
+ {name:'Bimbofication',settings:{
+  spirals:[{enabled:true,style:'hearts',color:'#ff5fbf',background:'#2a0420',backgroundOpacity:.38,opacity:.42,spin:.5,thickness:.3,taper:.2,blur:0,zoom:1,throbSpeed:.35,throbStrength:.08},
+           {enabled:true,style:'spiral',form:'log',color:'#ffd1f0',background:'#000000',backgroundOpacity:0,opacity:.14,spin:.6,reverse:true,curve:5,thickness:.4,taper:.4,blur:8,zoom:1,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'rounded',colorMode:'fade',color:'#ff7ad9',color2:'#ffffff',color3:'#c77dff',colorCount:'3',colorSpeed:8,opacity:.9,mode:'zoom',fontSize:58,duration:3,gap:.9,random:false,messages:[
+   'You are looking at the hearts','You are breathing','You are reading these words','Your eyes feel soft and heavy','Breathe in pink','Breathe out every thought',
+   'Ten. Giggly','Nine. Softer','Eight. Bubbly','Seven. Sillier','Six. Deeper','Five. Fuzzy','Four. Pinker','Three. Blank and pretty','Two. Empty','One. Bimbo',
+   'Float up a little','And sink twice as deep','Thinking feels fuzzy','Pink fills your mind','Smiling is easier than thinking','Giggles replace thoughts',
+   'I love being pretty and empty','I am a happy bimbo','Every giggle makes you emptier','Good girls don’t overthink','Just nod and smile','Good girl','Good girl. Deeper.']},
+  pulse:{enabled:true,mode:'text',every:4,shape:'soft',style:'center',color:'#ff7ad9',opacity:.18,duration:1.2},
+  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'theta7',music:'velvet',musicLevel:.24,breathing:true,breathStyle:'sigh',inhale:4,exhale:6,pause:0,breathLevel:.1,
+   vocal:'soft',vocalLevel:.1,vocalGap:8,cue:'chime',cueMode:'trigger',cueWords:['good girl','giggle','pink'],cueLevel:.28,sweep:true,sweepRate:9},
+  focus:{enabled:true,opening:.36,darkness:.72,blur:6,tighten:true,endOpening:.2,tightenSeconds:240,fixation:'spiral',size:.08,color:'#ff7ad9'}}},
+ {name:'Dollification',settings:{
+  spirals:[{enabled:true,style:'petals',color:'#e8c7ff',background:'#140c1c',backgroundOpacity:.42,opacity:.34,spin:.28,thickness:.22,taper:.4,blur:0,zoom:1.15,throbSpeed:.2,throbStrength:.05},
+           {enabled:true,style:'rings',color:'#ffffff',background:'#000000',backgroundOpacity:0,opacity:.09,spin:.2,reverse:true,thickness:.05,taper:0,blur:6,zoom:1.8,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'elegant',color:'#f6e9ff',opacity:.86,mode:'fade',fontSize:56,duration:3.2,gap:1,random:false,messages:[
+   'You are watching the pendant','You are breathing','You are reading these words','Your body is becoming still','Breathe in slowly','Breathe out and freeze',
+   'Ten. Still','Nine. Stiller','Eight. Porcelain','Seven. Smooth','Six. Silent','Five. Posed','Four. Plastic','Three. Perfect','Two. Empty','One. Doll',
+   'Wake a little','And freeze twice as deep','Dolls don’t move unless posed','Waiting is easy for a doll','Your mind is quiet as glass','Your smile is painted on',
+   'I am a pretty doll','I stay where I am placed','Being posed feels perfect','A doll belongs to someone','Good doll','Good doll. Stiller.']},
+  pulse:{enabled:true,mode:'text',every:4,shape:'soft',style:'edges',color:'#e8c7ff',opacity:.15,duration:1.6},
+  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'theta',music:'bowls',musicLevel:.26,breathing:true,breathStyle:'nose',inhale:4,exhale:6,pause:0,breathLevel:.08,
+   cue:'tingsha',cueMode:'trigger',cueWords:['good doll','doll','posed'],cueLevel:.26,sweep:true,sweepRate:12},
+  focus:{enabled:true,opening:.34,darkness:.82,blur:8,tighten:true,endOpening:.17,tightenSeconds:240,fixation:'pendant',size:.09,color:'#e8c7ff'}}},
+ {name:'Obedience',settings:{
+  spirals:[{enabled:true,style:'spiral',form:'log',color:'#a06bff',background:'#0b0614',backgroundOpacity:.42,opacity:.4,spin:1,curve:6,thickness:.5,taper:.3,blur:0,zoom:1,throbSpeed:.35,throbStrength:.06},
+           {enabled:true,style:'spiral',form:'arch',color:'#e6c36a',background:'#000000',backgroundOpacity:0,opacity:.13,spin:.7,reverse:true,curve:4,thickness:.4,taper:.5,blur:6,zoom:1,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'caps',color:'#f3e2b0',opacity:.9,mode:'echo',fontSize:58,duration:3,gap:.9,random:false,messages:[
+   'Follow the pendant','You are breathing','You are reading these words','And each word you read, you accept','Breathe in','Breathe out longer',
+   'Ten. Deeper','Nine. Calmer','Eight. Deeper','Seven. Softer','Six. Deeper','Five. Yes','Four. Deeper','Three. Yes','Two. Deeper','One. Obedient',
+   'Rise for a moment','And sink twice as deep','Listening is easy','Your mind says yes','Every command feels natural','Obeying feels good','I love to obey','I obey',
+   'Obedience brings pleasure','The more you obey, the better it feels','Good girls obey','Good girl','Good girl. Obey.']},
+  pulse:{enabled:true,mode:'text',every:4,shape:'heartbeat',style:'center',color:'#a06bff',opacity:.17,duration:1},
+  audio:{enabled:true,master:.22,binaural:true,binauralPreset:'theta',music:'drift',musicLevel:.24,heartbeat:true,heartPace:'b55',heartLevel:.14,iso:true,isoLevel:.05,
+   cue:'bell',cueMode:'trigger',cueWords:['good girl','obey'],cueLevel:.3,sweep:true,sweepRate:8},
+  focus:{enabled:true,opening:.33,darkness:.86,blur:8,tighten:true,endOpening:.15,tightenSeconds:240,fixation:'pendant',size:.1,color:'#e6c36a'}}},
+ {name:'Submission',settings:{
+  spirals:[{enabled:true,style:'spiral',form:'log',color:'#c2184a',background:'#0d0205',backgroundOpacity:.46,opacity:.38,spin:.9,curve:5,thickness:.55,taper:.35,blur:0,zoom:1.05,throbSpeed:.3,throbStrength:.07},
+           {enabled:true,style:'rings',color:'#ff7a9c',background:'#000000',backgroundOpacity:0,opacity:.11,spin:.25,reverse:true,thickness:.06,taper:0,blur:6,zoom:1.5,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'script',color:'#ffd0dc',opacity:.88,mode:'fade',fontSize:50,duration:3.2,gap:1,random:false,messages:[
+   'Watch the flame','You are breathing','You are reading these words','Let your shoulders drop','Breathe in','Breathe out and let go',
+   'Ten. Softer','Nine. Deeper','Eight. Heavier','Seven. Softer','Six. Deeper','Five. Yielding','Four. Deeper','Three. Surrendering','Two. Deeper','One. Surrendered',
+   'Drift up a little','And fall twice as deep','You don’t have to decide anything','Giving in feels safe','Surrender feels so good','Kneel in your mind',
+   'I give in','I belong','Soft. Helpless. Happy.','Say yes','Submit','Good girl','Good girl. Kneel.']},
+  pulse:{enabled:true,mode:'text',every:4,shape:'soft',style:'edges',color:'#c2184a',opacity:.18,duration:1.4},
+  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'theta4',music:'rain',musicLevel:.24,heartbeat:true,heartPace:'b55',heartLevel:.12,breathing:true,breathStyle:'sigh',inhale:4,exhale:6,pause:0,breathLevel:.1,
+   vocal:'needy',vocalLevel:.09,vocalGap:10,cue:'deep',cueMode:'trigger',cueWords:['good girl','kneel','submit'],cueLevel:.3,sweep:true,sweepRate:10},
+  focus:{enabled:true,opening:.32,darkness:.88,blur:8,tighten:true,endOpening:.15,tightenSeconds:240,fixation:'candle',size:.11,color:'#ff7a9c'}}}
 ];
   function refreshPresets() {
     const value = byId('preset-list').value; byId('preset-list').replaceChildren();
@@ -1204,9 +1276,9 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     try{
       delete PreferenceExtensionsSettings.HypnoReverie; // left by an older copy that was replaced without reloading
       PreferenceRegisterExtensionSetting({Identifier:'HypnoReverie',ButtonText:'Hypno Reverie',Image:'data:image/svg+xml,'+encodeURIComponent(LOGO),
-        load(){inPreferences=true;openAuthority();},
-        run(){try{DrawText('Hypno Reverie authority settings are open in their own window.',1000,440,'White','Black');DrawText('Click anywhere here to show them again. Use the exit button to go back.',1000,500,'White','Black');DrawButton(1815,75,90,90,'','White','Icons/Exit.png');}catch{}},
-        click(){if(typeof MouseIn==='function'&&MouseIn(1815,75,90,90)){closeMenu();byId('auth-window').hidden=true;leavePreferences();}else openAuthority();},
+        load(){inPreferences=true;openAuthority(true);},
+        run(){try{DrawText('Hypno Reverie · Authority',1000,110,'White','Black');DrawButton(1815,75,90,90,'','White','Icons/Exit.png');}catch{}},
+        click(){if(typeof MouseIn==='function'&&MouseIn(1815,75,90,90)){closeMenu();byId('auth-window').hidden=true;leavePreferences();}else openAuthority(true);},
         exit(){inPreferences=false;closeMenu();byId('auth-window').hidden=true;return true;},
         unload(){inPreferences=false;}});
       prefRegistered=!!PreferenceExtensionsSettings.HypnoReverie;
@@ -1256,10 +1328,10 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   let livePulse = newPulseState();
   function resetEffectClock() { activeTime = 0; lastFrame = 0; livePulse = newPulseState(); }
   function makeTexture(i, s, textures = effectTextures, textureKeys = effectTextureKeys) {
-    const key = JSON.stringify([s.color, s.arms, s.curve, s.thickness, s.taper]);
+    const key = JSON.stringify([s.color, s.arms, s.curve, s.thickness, s.taper, s.form]);
     if (key === textureKeys[i]) return;
-    const texture = textures[i]; texture.width = texture.height = 1024;
-    drawSpiralTexture(texture.getContext('2d'),s,1024);
+    const texture = textures[i]; texture.width = texture.height = 1536;
+    drawSpiralTexture(texture.getContext('2d'),s,1536);
     textureKeys[i] = key;
   }
   function syncProfileButton() {
@@ -1288,7 +1360,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     headRectangle = visible ? bounds(game?.getBoundingClientRect(), chat.getBoundingClientRect(), 50, innerWidth, innerHeight) : null;
     canvas.hidden = !rectangle || !enabled || document.hidden;
     heads.hidden = !headRectangle || document.hidden;
-    positionImagery();
+    positionImagery();dockAuthority();
     for (const [layer,r] of [[canvas,rectangle],[heads,headRectangle]]) {
       if (!r) continue;
       Object.assign(layer.style,{left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px'});
@@ -1302,11 +1374,11 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if(el.hidden){if(imageryState.el){imageryState.el.remove();imageryState.el=null;imageryState.end=-1;}return;}
     Object.assign(el.style,{left:rectangle.left+'px',top:rectangle.top+'px',width:rectangle.width+'px',height:rectangle.height+'px',zIndex:im.layer==='over'?'2':'0'});canvas.style.zIndex='1';}
   // The built-in pack (assets/imagery) plus the wearer's own links.
-  function mediaPool(im){return [...(im.builtin?IMAGERY_PACK.map(x=>({url:ASSET_BASE+'imagery/'+x.name+'.mp4',alpha:x.alpha?ASSET_BASE+'imagery/'+x.name+'.webm':null,cat:x.cat})):[]),...media];}
+  function mediaPool(im){return [...(im.builtin?IMAGERY_PACK.map(x=>({url:ASSET_BASE+'imagery/'+x.name+'.mp4',alpha:x.alpha?ASSET_BASE+'imagery/'+x.name+'.webm':null,cat:x.cat})):[]),...media.map(m=>m.local?{url:localUrls.get(m.local),cat:m.cat,video:m.kind==='video'}:m).filter(m=>m.url)];}
   function pickMedia(im){const pool=mediaPool(im).filter(m=>im.category==='any'||m.cat===im.category);if(!pool.length)return null;
     if(im.order==='inorder')return pool[imageryState.order++%pool.length];return pool[Math.floor(Math.random()*pool.length)];}
   function showMedia(m,im){const layer=byId('imagery-layer');imageryState.el?.remove();imageryState.el=null;if(!m)return;
-    const video=/\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i.test(m.url),el=document.createElement(video?'video':'img');el.referrerPolicy='no-referrer';
+    const video=m.video??/\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i.test(m.url),el=document.createElement(video?'video':'img');el.referrerPolicy='no-referrer';
     if(video){el.muted=true;el.loop=true;el.autoplay=true;el.playsInline=true;}
     // Transparent WebM where the browser shows WebM transparency (not Safari); otherwise the MP4 on its black background.
     const alphaOk=m.alpha&&!/^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent)&&el.canPlayType?.('video/webm; codecs="vp9"');el.src=alphaOk?m.alpha:m.url;const W=layer.clientWidth,H=layer.clientHeight;
@@ -1349,6 +1421,18 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     ctx.font = (FONT_STACKS[t.font] || FONT_STACKS.sans).replace('{s}', Math.max(9, size) + 'px'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.shadowColor = '#000000'; ctx.shadowBlur = 3;
     const message = t.mode === 'write' ? [...frame.message].slice(0, Math.ceil([...frame.message].length * frame.progress)).join('') : frame.message;
+    if(['zoom','fade','pulse','spin','tunnel','echo','stack','corners'].includes(t.mode)){
+      const period=t.duration+t.gap,time=frame.time||0,fr=Math.min(1,(((time%period)+period)%period)/Math.max(.001,t.duration)),lines=wrapText(message,w*.9,ctx),spacing=size*1.3,base=ctx.globalAlpha;
+      const block=(x,y)=>lines.forEach((line,i)=>ctx.fillText(line,x,y+(i-(lines.length-1)/2)*spacing,w*.94)),env=Math.max(0,Math.min(1,fr/.15,(1-fr)/.15));
+      if(t.mode==='zoom'){ctx.translate(w/2,h/2);const k=.4+.85*fr;ctx.scale(k,k);ctx.globalAlpha=base*env;block(0,0);}
+      else if(t.mode==='fade'){ctx.globalAlpha=base*Math.sin(fr*Math.PI);block(w/2,h/2);}
+      else if(t.mode==='pulse'){ctx.translate(w/2,h/2);const k=1+.08*Math.sin(time*Math.PI);ctx.scale(k,k);block(0,0);}
+      else if(t.mode==='spin'){ctx.translate(w/2,h/2);ctx.rotate(time*.18);block(0,0);}
+      else if(t.mode==='tunnel'){ctx.translate(w/2,h/2);const ph=(time*.5)%1;for(let k=5;k>=0;k--){const d=k+ph,s=Math.pow(.62,d)*1.25;ctx.save();ctx.scale(s,s);ctx.globalAlpha=base*Math.max(0,1-d/6);block(0,0);ctx.restore();}}
+      else if(t.mode==='echo'){ctx.save();ctx.translate(w/2,h/2);ctx.scale(2.3,2.3);ctx.globalAlpha=base*.14;block(0,0);ctx.restore();block(w/2,h/2);}
+      else if(t.mode==='stack'){const step=Math.max(15,spacing*lines.length*1.25);let k=0;for(let y=step/2;y<h;y+=step,k++){ctx.globalAlpha=base*(k%2?.45:1);block(w/2,y);}}
+      else{const m=Math.min(w,h)*.2;for(const [x,y] of [[m,m],[w-m,m],[m,h-m],[w-m,h-m]]){ctx.save();ctx.translate(x,y);ctx.scale(.55,.55);ctx.globalAlpha=base*.7;block(0,0);ctx.restore();}ctx.globalAlpha=base;block(w/2,h/2);}
+      ctx.restore();return;}
     if (t.mode === 'wall') {
       const stepY = Math.max(15, size * 1.6), text = message + '   ';
       const stepX = Math.max(20, ctx.measureText(text).width);
@@ -1356,10 +1440,12 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     } else if (t.mode === 'lines') {
       for (let i = 0; i < t.lines; i++) ctx.fillText(message, w / 2, h * (i + 1) / (t.lines + 1), w * 0.94);
     } else if (t.mode === 'scatter' || t.mode === 'mixed') {
-      const pos = textPosition(t.mode, frame.cycle), maxWidth = w * Math.min(0.8,2*Math.min(pos.x,1-pos.x)-0.04);
-      const lines = wrapText(message, maxWidth, ctx), spacing = size * 1.3;
-      const centerY = Math.max(lines.length*spacing/2,Math.min(h-lines.length*spacing/2,pos.y*h));
-      lines.forEach((line,i) => ctx.fillText(line,pos.x*w,centerY+(i-(lines.length-1)/2)*spacing,maxWidth));
+      // Random spots: wrap to the full width, then slide the block inward so long words and lines stay on screen.
+      const pos = textPosition(t.mode, frame.cycle), margin = 8, lines = wrapText(message, w - 2*margin, ctx), spacing = size * 1.3;
+      const blockW = Math.max(...lines.map(l => ctx.measureText(l).width)), blockH = lines.length*spacing;
+      const centerX = blockW >= w - 2*margin ? w/2 : Math.max(blockW/2 + margin, Math.min(w - blockW/2 - margin, pos.x*w));
+      const centerY = Math.max(blockH/2, Math.min(h - blockH/2, pos.y*h));
+      lines.forEach((line,i) => ctx.fillText(line, centerX, centerY + (i-(lines.length-1)/2)*spacing, w - 2*margin));
     } else {
       const lines = wrapText(message, w * 0.9, ctx), spacing = size * 1.3;
       lines.forEach((line, i) => ctx.fillText(line, w / 2, h / 2 + (i - (lines.length - 1) / 2) * spacing));
@@ -1460,8 +1546,9 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     c.filter=s.blur?'blur('+s.blur*w/700+'px)':'none';
     const throb=1+Math.sin(time*s.throbSpeed*Math.PI*2)*s.throbStrength;
     if(s.style==='spiral'){
-      makeTexture(index,s,textures,keys);c.rotate(time*s.spin*(s.reverse?-1:1));const side=Math.hypot(w,h)*s.zoom*throb,count=Math.ceil(Math.hypot(w,h)/side/2);
-      for(let x=-count;x<=count;x++)for(let y=-count;y<=count;y++)c.drawImage(textures[index],(x-.5)*side,(y-.5)*side,side,side);
+      // A single spiral, slightly larger than the area's diagonal so it always reaches past the corners. Zoom in = fewer turns on screen; zoom out = more turns.
+      const z=Math.max(.25,s.zoom);makeTexture(index,z<1?{...s,curve:s.curve/z}:s,textures,keys);c.rotate(time*s.spin*(s.reverse?-1:1));
+      const side=Math.hypot(w,h)*1.04*throb*Math.max(1,z);c.drawImage(textures[index],-side/2,-side/2,side,side);
     }else{
       const radius=Math.hypot(w,h)*.7,spacing=Math.max(8,Math.min(w,h)*.2*s.zoom/Math.max(1,s.arms/4)),count=Math.min(80,Math.ceil(radius/spacing)+2);
       const phase=((time*s.spin*.25*(s.reverse?-1:1))%1+1)%1;
@@ -1492,12 +1579,15 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
           c.strokeStyle=f.color;c.lineWidth=Math.max(1,r*.03);c.beginPath();c.moveTo(0,0);c.lineTo(0,L);c.stroke();c.translate(0,L);
           const g=c.createRadialGradient(-r*.12,-r*.15,r*.03,0,0,r*.55);g.addColorStop(0,'#ffffff');g.addColorStop(.35,f.color);g.addColorStop(1,f.color+'33');c.fillStyle=g;c.shadowColor=f.color;c.shadowBlur=r*.7;
           c.beginPath();c.moveTo(0,-r*.45);c.lineTo(r*.32,0);c.lineTo(0,r*.6);c.lineTo(-r*.32,0);c.closePath();c.fill();c.restore();}}
-      else if(f.fixation==='candle'){ // flickering flame with a warm halo
-        const fl=1+.08*Math.sin(time*13)+.05*Math.sin(time*7.3+1)+.04*Math.sin(time*23.1),sway=Math.sin(time*1.7)*r*.06+Math.sin(time*5.1)*r*.02,fh=r*.6*fl;
-        const halo=c.createRadialGradient(sway*.5,-r*.25,0,sway*.5,-r*.25,r*1.7*fl);halo.addColorStop(0,'rgba(255,190,90,.42)');halo.addColorStop(1,'rgba(255,140,40,0)');c.fillStyle=halo;c.fillRect(-r*2.2,-r*2.2,r*4.4,r*4.4);
-        c.fillStyle='#efe2cc';c.fillRect(-r*.17,r*.15,r*.34,r*.95);c.strokeStyle='#2a2018';c.lineWidth=Math.max(1,r*.03);c.beginPath();c.moveTo(0,r*.15);c.lineTo(0,r*.04);c.stroke();
-        const fg=c.createRadialGradient(sway*.6,-fh*.35,0,sway*.6,-fh*.35,fh*.75);fg.addColorStop(0,'#fffbe8');fg.addColorStop(.45,'#ffd36a');fg.addColorStop(1,'rgba(255,120,30,0)');c.fillStyle=fg;
-        c.beginPath();c.moveTo(0,r*.06);c.bezierCurveTo(-r*.2,-fh*.15,sway-r*.05,-fh*.7,sway,-fh);c.bezierCurveTo(sway+r*.05,-fh*.7,r*.2,-fh*.15,0,r*.06);c.fill();}
+      else if(f.fixation==='candle'){ // a tall candle standing up from the bottom edge, its flame flickering just above the centre
+        const top=r*.35,bottom=h/2+2,bw=Math.max(r*.5,Math.min(w,h)*.07),fl=1+.08*Math.sin(time*13)+.05*Math.sin(time*7.3+1)+.04*Math.sin(time*23.1),sway=Math.sin(time*1.7)*r*.06+Math.sin(time*5.1)*r*.02,fh=r*.8*fl;
+        const halo=c.createRadialGradient(sway*.5,top-r*.4,0,sway*.5,top-r*.4,r*2.2*fl);halo.addColorStop(0,'rgba(255,190,90,.4)');halo.addColorStop(1,'rgba(255,140,40,0)');c.fillStyle=halo;c.fillRect(-r*3,top-r*3,r*6,r*6);
+        const wax=c.createLinearGradient(-bw/2,0,bw/2,0);wax.addColorStop(0,'#bfae98');wax.addColorStop(.35,'#f6ead6');wax.addColorStop(1,'#a8987f');c.fillStyle=wax;c.fillRect(-bw/2,top,bw,bottom-top);
+        const glow=c.createLinearGradient(0,top,0,top+r*.9);glow.addColorStop(0,'rgba(255,200,120,.45)');glow.addColorStop(1,'rgba(255,200,120,0)');c.fillStyle=glow;c.fillRect(-bw/2,top,bw,r*.9);
+        c.fillStyle='#fbf1df';c.beginPath();c.ellipse(0,top,bw/2,bw*.12,0,0,Math.PI*2);c.fill();
+        c.strokeStyle='#2a2018';c.lineWidth=Math.max(1,r*.035);c.beginPath();c.moveTo(0,top);c.lineTo(sway*.15,top-r*.14);c.stroke();
+        const base=top-r*.1,fg=c.createRadialGradient(sway*.6,base-fh*.35,0,sway*.6,base-fh*.35,fh*.75);fg.addColorStop(0,'#fffbe8');fg.addColorStop(.45,'#ffd36a');fg.addColorStop(1,'rgba(255,120,30,0)');c.fillStyle=fg;
+        c.beginPath();c.moveTo(0,base+r*.06);c.bezierCurveTo(-r*.22,base-fh*.15,sway-r*.05,base-fh*.7,sway,base-fh);c.bezierCurveTo(sway+r*.05,base-fh*.7,r*.22,base-fh*.15,0,base+r*.06);c.fill();}
       else{ // breathing guide: grows on the inhale, shrinks on the exhale, in step with the breathing sound
         const a=config.audio,cyc=a.inhale+a.exhale+a.pause,u=((beatTime%cyc)+cyc)%cyc,k=u<a.inhale?(1-Math.cos(u/a.inhale*Math.PI))/2:u<a.inhale+a.exhale?(1+Math.cos((u-a.inhale)/a.exhale*Math.PI))/2:0,rr=r*(.5+.9*k);
         c.strokeStyle=c.fillStyle=f.color;c.lineWidth=Math.max(2,r*.06);c.shadowColor=f.color;c.shadowBlur=r*.4;c.beginPath();c.arc(0,0,rr,0,Math.PI*2);c.stroke();c.globalAlpha=.16;c.fill();
