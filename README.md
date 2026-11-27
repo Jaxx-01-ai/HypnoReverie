@@ -1,6 +1,6 @@
 ﻿# Hypno Reverie
 
-Version **0.8.9**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable and privacy test release. The existing FUSAM submission remains for v0.6.0.
+Version **0.9.0**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable and privacy test release. The existing FUSAM submission remains for v0.6.0.
 
 ## Compatibility fixes retained from 0.8.1
 
@@ -11,6 +11,17 @@ Incoming addon packets now use **ChatRoomRegisterMessageHandler** at priority -5
 Ghosted players (and, from 0.8.4, blacklisted players) cannot send accepted addon requests, control updates, expressions, or shared head effects. Ghosting an active controller revokes their keys, including permanent access, and stops their remote session on the next one-second network tick. The addon also prevents direct outgoing messages to ghosted players and drops their cached peer state. Unghosting does not restore revoked keys. Unloading removes only this addon's handler and SDK registration.
 
 There is no jQuery dependency. The small local DOM helper was renamed from dollar-sign notation to **byId** to make that clear.
+
+## Permissions, several controllers, Preferences menu and smaller download (0.9.0)
+
+- **Preferences > Extensions**: Hypno Reverie now has its own button there. It opens the usual menu; closing the menu (or the exit button) returns to the Extensions list.
+- **Permissions** (Keys tab), modelled on BCX roles. Roles come from your game lists: Owner, Lovers, Whitelist, Friends, Anyone. *Who can request keys* blocks requests from anyone below the chosen role (they are told the request was declined).
+- **Direct access, no request needed**: for each part (visuals, visuals + words, full session + lock, pulse/flash, audio, facial expressions, permanent access) you pick the lowest role that gets it directly. Those players see **Take control** on your profile, already filled in with everything they are allowed, and get in with one click, without you approving. If they want more than you allow, it comes to you as a normal request. Allowing a level also allows the lower levels. If you tighten the settings, anyone who took control through direct access and no longer qualifies loses their keys within a second; other controllers keep theirs. Defaults: nothing is direct, so behaviour is unchanged until you set it. Ghosted and blacklisted players are always blocked. Both players need 0.9.0 for Take control; older versions still use requests.
+- **Several controllers at once**: more than one person can hold keys to your overlay. Each controller has their own keys (level, extras, time limit, permanent or not) and can only change what their own keys allow; if two change the same setting, the latest change wins. Your controls stay locked while anyone with full-session keys has them locked, and each controller can only lift their own lock. When one controller returns their keys, leaves, runs out of time or is ghosted, only their keys end. The menu lists every key holder. Permanent keys are saved for each controller who has them (existing saved permanent access is migrated automatically). You can give keys to more people while your controls are unlocked.
+- **Holding several keys**: a controller can also hold keys to several players at once and switch between them with **Edit** at the top of the menu.
+- **Owner lock**: optional. When on, your permission settings are locked while your owner holds full-session keys with your controls locked.
+- **Fix: permanent access and "Keep effects on" now survive a reload when the addon loads before login** (as FUSAM does). Before, loading on the login screen erased the saved keys and lock. They are now kept until you log in and then restored for that account.
+- **Artwork moved out of the script**: the script is now about 160 KB instead of 3 MB. The 68 images live in the **assets/** folder next to it (PNG converted to lossless WebP with identical pixels; total about 1.4 MB). File names include a content hash, so browsers can cache them and updates never show stale art. Images load with CORS enabled so the game's canvases stay readable.
 
 ## Menu and spiral placement (0.8.9)
 
@@ -105,17 +116,17 @@ Black strap and silver hardware colours in the assembled preview are approximati
 
 ### Installation
 
-Upload hypnoreverie.js, README.md, bookmarklet.txt and MOD-SDK-LICENSE.txt to the existing repository root. The artwork is embedded in the script; PNG uploads are unnecessary. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.8.9. Re-equip the hood from the Custom Latex Hood base. If you are updating from before 0.8.3, also re-equip the named top and bottom.
+Upload hypnoreverie.js, README.md, bookmarklet.txt, MOD-SDK-LICENSE.txt **and the whole assets folder** to the existing repository root. From 0.9.0 the artwork is not embedded in the script: without assets/ the wearables and catsuit fall back to plain textures. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.9.0. Re-equip the hood from the Custom Latex Hood base. If you are updating from before 0.8.3, also re-equip the named top and bottom.
 
 This package has not been published automatically. The FUSAM submission is unchanged. BC Mod SDK 1.2.0 supplies the hooks. Native reference artwork is loaded from the game, is not bundled in the deployed script, and retains its upstream authorship and licensing.
 
 ## Update
 
-Upload **hypnoreverie.js**, **bookmarklet.txt** and **README.md** to the root of Jaxx-01-ai/HypnoReverie, replacing those files. Keep GitHub Pages on main/root. Wait for deployment, reload the game, and click your existing bookmark. Both players should use v0.8 to see the new wearable appearances. Older session keys are not migrated into permanent grants; grant access again after updating.
+Upload **hypnoreverie.js**, **bookmarklet.txt**, **README.md** and the **assets** folder to the root of Jaxx-01-ai/HypnoReverie, replacing those files. Keep GitHub Pages on main/root. Wait for deployment, reload the game, and click your existing bookmark. Both players should use v0.8 to see the new wearable appearances. Older session keys are not migrated into permanent grants; grant access again after updating.
 
 The bookmark is unchanged. Its complete URL is in bookmarklet.txt. After a reload, the bookmark must still be clicked unless an addon loader is already configured. Persistence does not install an automatic loader.
 
-Open the addon from the headset icon in your own or another player's profile, your bookmark, or Alt+Shift+H. Drag the title bar to move the menu; use ↔ for compact mode or drag its lower-right corner to resize. The preview window has its own draggable title bar.
+Open the addon from Preferences > Extensions, the headset icon in your own or another player's profile, your bookmark, or Alt+Shift+H. Drag the title bar to move the menu; use ↔ for compact mode or drag its lower-right corner to resize. The preview window has its own draggable title bar.
 
 ## Spirals and patterns
 
