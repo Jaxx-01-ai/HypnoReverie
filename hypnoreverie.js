@@ -6,6 +6,20 @@
   const VERSION = '0.9.0', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
   const PRESET_KEY = 'hypnoreverie-presets-v1', PRIVACY_KEY = 'hypnoreverie-head-sharing-v1';
   const clone = value => JSON.parse(JSON.stringify(value));
+  // Binaural presets: [left Hz, right Hz]; the difference is the beat.
+  const BINAURAL_PRESETS={custom:null,delta:[100,102.5],theta:[180,186],schumann:[150,157.83],alpha:[200,210],beta:[220,235],gamma:[240,280]};
+  const binauralHz=a=>BINAURAL_PRESETS[a.binauralPreset]||[a.leftHz,a.rightHz];
+  // Vocal clips (assets/vocals/<name>.mp3) and the sets the menu offers; sets with several clips play shuffled.
+  const VOCAL_SETS={sighs:['sighs'],soft:['soft'],needy:['needy'],building:['building'],orgasm:['orgasm','orgasm2'],edge:['edge'],afterglow:['afterglow'],whimpers:['whimpers'],panting:['panting'],
+    muffled:['muffled'],gagplead:['gagplead'],gagorgasm:['gagorgasm'],
+    random:['sighs','soft','needy','building','orgasm','orgasm2','edge','afterglow','whimpers','panting','muffled','gagplead','gagorgasm'],
+    ungagged:['sighs','soft','needy','building','orgasm','orgasm2','edge','afterglow','whimpers','panting'],gagged:['muffled','gagplead','gagorgasm']};
+  const VOCAL_CHOICES=['none',...Object.keys(VOCAL_SETS)];
+  const BED_KINDS=['pink','brown','ocean','drone','bowls'];
+  // Imagery: the wearer's own links, tagged by category. The list stays in this browser; settings only name a category.
+  const MEDIA_CATS=['any','mouth','chest','rear','feet','body','other'],MEDIA_LABELS={any:'Any',mouth:'Mouth',chest:'Chest',rear:'Rear',feet:'Feet',body:'Body',other:'Other'},MEDIA_KEY='hypnoreverie-media-v1',IMAGERY_PACK=[{file:'bound-wrists.mp4',cat:'body'},{file:'catsuit-body.mp4',cat:'body'},{file:'gag-drool.mp4',cat:'mouth'},{file:'heels-feet.mp4',cat:'feet'},{file:'lace-chest.mp4',cat:'chest'},{file:'lace-rear.mp4',cat:'rear'},{file:'latex-chest.mp4',cat:'chest'},{file:'latex-rear.mp4',cat:'rear'},{file:'lip-bite.mp4',cat:'mouth'},{file:'spiral-eyes.mp4',cat:'body'},{file:'stocking-feet.mp4',cat:'feet'}];
+  // Clicker / bell cues and how long each one rings (seconds).
+  const CUE_LEN={clicker:.4,double:.6,tick:.2,bell:3,chime:3,tingsha:5,deep:6,gong:8},CUE_KINDS=['none',...Object.keys(CUE_LEN)];
   const num = (v, fallback, min, max) => typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(max, v)) : fallback;
   const color = (v, fallback) => typeof v === 'string' && /^#[\da-f]{6}$/i.test(v) ? v : fallback;
   const bool = (v, fallback) => typeof v === 'boolean' ? v : fallback;
@@ -19,7 +33,7 @@
       mode: 'center', lines: 5, random: false, messages: [] },
     pulse: { enabled: false, mode: 'interval', color: '#c3a2ff', opacity: 0.15, duration: 0.8,
       interval: 5, randomMin: 4, randomMax: 10, startDelay: 0, textDelay: 0, every: 1, shape: 'soft' },
-    audio: {enabled:false,master:0.2,binaural:false,leftHz:180,rightHz:184,toneLevel:0.18,iso:false,isoHz:180,isoRate:4,isoDuty:0.5,isoLevel:0.15,music:'none',musicLevel:0.2,heartbeat:false,bpm:60,heartLevel:0.2,breathing:false,inhale:4,exhale:6,pause:1,breathLevel:0.15},
+    audio: {enabled:false,master:0.2,binaural:false,leftHz:180,rightHz:184,toneLevel:0.18,iso:false,isoHz:180,isoRate:4,isoDuty:0.5,isoLevel:0.15,music:'none',musicLevel:0.2,heartbeat:false,bpm:60,heartLevel:0.2,breathing:false,inhale:4,exhale:6,pause:1,breathLevel:0.15,breathStyle:'mouth',binauralPreset:'custom',vocal:'none',vocalLevel:0.3,vocalGap:3,slick:'none',slickBpm:100,slickWet:0.6,slickLevel:0.3,cue:'none',cueMode:'interval',cueEvery:4,cueLevel:0.3,cueWords:[]},
     focus: {enabled:false,opening:0.3,darkness:0.8,blur:8,tighten:false,endOpening:0.15,tightenSeconds:60,fixation:'none',size:0.1,glow:16,color:'#d4a6ff',colorPulse:false,colorA:'#40105f',colorB:'#f3a2d5',colorOpacity:0.15,beatSource:'heartbeat',beats:8},
     head: { words: false, forehead: false, eyes: false, halo: false, color: '#bf93ff', opacity: 0.7,
       size: 1, wordSize: 14, offsetX: 0, offsetY: 0, wordMode: 'orbit' } };
@@ -51,7 +65,8 @@
         randomMin: min, randomMax: Math.max(min, num(p.randomMax, pd.randomMax, 2, 300)),
         startDelay: num(p.startDelay, 0, 0, 60), textDelay: num(p.textDelay, 0, 0, 5), every: Math.round(num(p.every, 1, 1, 20)),
         shape: choice(p.shape, ['soft', 'flash'], 'soft') },
-      audio: {enabled:bool(a.enabled,false),master:num(a.master,0.2,0,0.6),binaural:bool(a.binaural,false),leftHz:num(a.leftHz,180,40,1000),rightHz:num(a.rightHz,184,40,1000),toneLevel:num(a.toneLevel,0.18,0,0.5),iso:bool(a.iso,false),isoHz:num(a.isoHz,180,40,1000),isoRate:num(a.isoRate,4,0.1,30),isoDuty:num(a.isoDuty,0.5,0.1,0.9),isoLevel:num(a.isoLevel,0.15,0,0.5),music:choice(a.music,['none','velvet','drift','rain'], 'none'),musicLevel:num(a.musicLevel,0.2,0,0.5),heartbeat:bool(a.heartbeat,false),bpm:num(a.bpm,60,30,180),heartLevel:num(a.heartLevel,0.2,0,0.5),breathing:bool(a.breathing,false),inhale:num(a.inhale,4,1,12),exhale:num(a.exhale,6,1,16),pause:num(a.pause,1,0,8),breathLevel:num(a.breathLevel,0.15,0,0.5)},
+      audio: {enabled:bool(a.enabled,false),master:num(a.master,0.2,0,0.6),binaural:bool(a.binaural,false),leftHz:num(a.leftHz,180,40,1000),rightHz:num(a.rightHz,184,40,1000),toneLevel:num(a.toneLevel,0.18,0,0.5),iso:bool(a.iso,false),isoHz:num(a.isoHz,180,40,1000),isoRate:num(a.isoRate,4,0.1,30),isoDuty:num(a.isoDuty,0.5,0.1,0.9),isoLevel:num(a.isoLevel,0.15,0,0.5),music:choice(a.music,['none','velvet','drift','rain',...BED_KINDS], 'none'),musicLevel:num(a.musicLevel,0.2,0,0.5),heartbeat:bool(a.heartbeat,false),bpm:num(a.bpm,60,30,180),heartLevel:num(a.heartLevel,0.2,0,0.5),breathing:bool(a.breathing,false),inhale:num(a.inhale,4,1,12),exhale:num(a.exhale,6,1,16),pause:num(a.pause,1,0,8),breathLevel:num(a.breathLevel,0.15,0,0.5),breathStyle:choice(a.breathStyle,['mouth','nose','sigh'],'mouth'),binauralPreset:choice(a.binauralPreset,Object.keys(BINAURAL_PRESETS),'custom'),vocal:choice(a.vocal,VOCAL_CHOICES,'none'),vocalLevel:num(a.vocalLevel,0.3,0,0.6),vocalGap:num(a.vocalGap,3,0,30),slick:choice(a.slick,['none','steady','build'],'none'),slickBpm:num(a.slickBpm,100,40,200),slickWet:num(a.slickWet,0.6,0,1),slickLevel:num(a.slickLevel,0.3,0,0.6),cue:choice(a.cue,CUE_KINDS,'none'),cueMode:choice(a.cueMode,['interval','words','trigger'],'interval'),cueEvery:num(a.cueEvery,4,0.5,60),cueLevel:num(a.cueLevel,0.3,0,0.6),cueWords:Array.isArray(a.cueWords)?a.cueWords.filter(x=>typeof x==='string').slice(0,30).map(x=>x.replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,40)).filter(Boolean):[]},
+      imagery:(im=>({enabled:bool(im.enabled,false),builtin:bool(im.builtin,true),category:choice(im.category,MEDIA_CATS,'any'),order:choice(im.order,['random','inorder'],'random'),timing:choice(im.timing,['cycle','words','steady'],'cycle'),duration:num(im.duration,4,0.5,60),gap:num(im.gap,1,0,60),fade:num(im.fade,0.6,0,5),opacity:num(im.opacity,0.6,0,1),size:num(im.size,0.7,0.1,1),position:choice(im.position,['center','random','fill'],'center'),blend:choice(im.blend,['normal','screen','overlay','soft-light','multiply'],'normal'),layer:choice(im.layer,['under','over'],'under'),pacer:choice(im.pacer,['off','ring','bar'],'off'),pacerFollow:bool(im.pacerFollow,true),pacerBpm:num(im.pacerBpm,90,20,220),pacerColor:color(im.pacerColor,'#ff7ad9'),pacerSize:num(im.pacerSize,0.25,0.05,0.6)}))(raw.imagery||{}),
       focus: {enabled:bool(f.enabled,false),opening:num(f.opening,0.3,0.1,0.8),darkness:num(f.darkness,0.8,0,1),blur:num(f.blur,8,0,24),tighten:bool(f.tighten,false),endOpening:num(f.endOpening,0.15,0.08,0.7),tightenSeconds:num(f.tightenSeconds,60,5,300),fixation:choice(f.fixation,['none','spiral','ring'],'none'),size:num(f.size,0.1,0.025,0.25),glow:num(f.glow,16,0,40),color:color(f.color,'#d4a6ff'),colorPulse:bool(f.colorPulse,false),colorA:color(f.colorA,'#40105f'),colorB:color(f.colorB,'#f3a2d5'),colorOpacity:num(f.colorOpacity,0.15,0,0.35),beatSource:choice(f.beatSource,['heartbeat','iso','binaural'],'heartbeat'),beats:Math.round(num(f.beats,8,1,64))},
       head: { words: bool(h.words, false), forehead: bool(h.forehead, false), eyes: bool(h.eyes, false), halo: bool(h.halo, false),
         color: color(h.color, '#bf93ff'), opacity: num(h.opacity, 0.7, 0, 0.9), size: num(h.size, 1, 0.4, 2),
@@ -88,6 +103,7 @@
       if(g.allowAudio)next.audio=incoming.audio;
       if (g.level === 'visuals') { next.head.words = current.head.words; next.head.wordMode = current.head.wordMode; }
       if (g.level !== 'visuals') next.text = incoming.text;
+      if (g.level === 'session') next.imagery = incoming.imagery;
       if (g.allowPulse) next.pulse = incoming.pulse;
       this.lastSequence = packet.seq; this.lastCommand = now;
       return { settings: normalize(next), enabled: g.level === 'session' && typeof packet.enabled === 'boolean' ? packet.enabled : undefined,
@@ -161,34 +177,108 @@
     const progress=(time-state.start)/p.duration;
     return progress>=0&&progress<=1?p.opacity*(p.shape==='soft'?Math.sin(progress*Math.PI)**2:(1-progress)**2):0;
   }
+  // State-variable band-pass, one sample at a time (state lives in s.l<k>/s.b<k>).
+  function svf(s,k,x,fc,q,rate){const f=2*Math.sin(Math.PI*Math.min(fc,rate/6)/rate);s['l'+k]=(s['l'+k]||0)+f*(s['b'+k]||0);const h=x-s['l'+k]-q*(s['b'+k]||0);s['b'+k]=(s['b'+k]||0)+f*h;return s['b'+k];}
+  // Breath: turbulent noise through moving nose/mouth resonances. Inhale is brighter and quicker; exhale is warmer with a slow release.
+  // Every breath in the loop varies slightly so it never sounds mechanical; 'sigh' adds a soft falling voice on the exhale.
+  function breathSample(i,t,a,rate,s){
+    const cycle=a.inhale+a.exhale+a.pause,n=Math.floor(t/cycle),u=t-n*cycle,vary=1+(random01(n*31+7)-.5)*.16,amp=.85+random01(n*17+3)*.3,style=a.breathStyle;
+    const white=random01(i*2+11)*2-1;s.am=(s.am||0)+((random01(Math.floor(t*9)+n*97)-.5)-(s.am||0))*.002;
+    let env=0,fc1=0,fc2=0,mix2=0,tilt=0;
+    if(u<a.inhale){const x=u/a.inhale;env=Math.min(1,x/.3)**1.6*Math.min(1,(1-x)/.22)**1.2;fc1=(style==='nose'?1500:1100)*vary*(1+.25*x);fc2=(style==='nose'?3800:2600)*vary;mix2=style==='nose'?.9:.55;tilt=.35;}
+    else if(u<a.inhale+a.exhale){const x=(u-a.inhale)/a.exhale;env=.82*Math.min(1,x/.08)*(1-x)**1.35;fc1=(style==='nose'?1200:style==='sigh'?650:780)*vary*(1-.2*x);fc2=(style==='nose'?3000:1700)*vary;mix2=style==='nose'?.6:.35;tilt=.6;}
+    // Two band-passes in series per resonance give real breath's soft, mid-heavy colour instead of hiss.
+    s.lp=(s.lp||0)+(white-(s.lp||0))*.06;const b1=svf(s,4,svf(s,1,white,fc1||800,.6,rate),fc1||800,.6,rate),b2=svf(s,5,svf(s,2,white,fc2||2000,.8,rate),fc2||2000,.8,rate);
+    const inhaling=u<a.inhale;let v=b1+b2*mix2*.6+s.lp*tilt*1.4;s.o=(s.o||0)+(v-(s.o||0))*(inhaling?.5:.35);v=s.o;
+    if(!env)return 0;
+    if(!inhaling)v*=1.7;
+    if(style==='sigh'&&u>=a.inhale&&u<a.inhale+a.exhale*.6){const x=(u-a.inhale)/(a.exhale*.6),f0=(210-60*x)*vary;s.ph=(s.ph||0)+f0/rate;const voice=Math.sin(s.ph*2*Math.PI)+.45*Math.sin(s.ph*4*Math.PI)+.2*Math.sin(s.ph*6*Math.PI);v+=svf(s,3,voice,700,.9,rate)*.35*Math.sin(Math.min(1,x)*Math.PI);}
+    return v*env*amp*(1+s.am*.6);
+  }
+  // Background beds for binaural listening; all repeat seamlessly over the 32-second loop.
+  function bedSample(i,t,kind,s){const w=random01(i*3+5)*2-1;
+    if(kind==='pink'){s.p0=.99886*(s.p0||0)+w*.0555179;s.p1=.99332*(s.p1||0)+w*.0750759;s.p2=.969*(s.p2||0)+w*.153852;s.p3=.8665*(s.p3||0)+w*.3104856;s.p4=.55*(s.p4||0)+w*.5329522;s.p5=-.7616*(s.p5||0)-w*.016898;const v=s.p0+s.p1+s.p2+s.p3+s.p4+s.p5+(s.p6||0)+w*.5362;s.p6=w*.115926;return v*.11;}
+    if(kind==='brown'||kind==='ocean'){s.br=((s.br||0)+.02*w)/1.02;let v=s.br*3.2;if(kind==='ocean'){const swell=.5-.5*Math.cos(t/8*2*Math.PI);s.hi=(s.hi||0)+(w-(s.hi||0))*.25;v=v*(.35+.65*swell)+s.hi*.12*swell**3;}return v;}
+    if(kind==='drone'){let v=0;for(const [f,g] of [[55,.5],[82.5,.3],[110,.25],[110.0625,.25],[165,.12],[220.03125,.06]])v+=Math.sin(2*Math.PI*f*t)*g;return v*.22*(.85+.15*Math.sin(2*Math.PI*t/16));}
+    const slot=Math.floor(t/8),age=t-slot*8,base=[220,261.625,196,246.94][slot%4];let v=0;for(const [m,g,d] of [[1,1,.35],[2.71,.45,.6],[5.4,.2,1.1]])v+=Math.sin(2*Math.PI*base*m*age+m)*g*Math.exp(-age*d);return v*.18*Math.min(1,age/.004);}
+  // Clicker and bell cues, t = seconds since the strike. Bells use inharmonic partials with their own decay rates.
+  function cueSample(i,t,kind){const n=random01(i*5+3)*2-1;
+    const bell=(f,parts,decay)=>{let s=0;for(const [m,g,d] of parts)s+=Math.sin(2*Math.PI*f*m*t)*g*Math.exp(-t*decay*d);return s*Math.min(1,t/.002);};
+    const click=x=>x>=0&&x<.03?(Math.sin(2*Math.PI*2300*x)*.8+n*.5)*Math.exp(-x*180):0;
+    if(kind==='clicker')return click(t)+.55*click(t-.07);
+    if(kind==='double')return click(t)+.55*click(t-.07)+click(t-.25)+.55*click(t-.32);
+    if(kind==='tick')return t<.05?(Math.sin(2*Math.PI*1800*t)*.9+n*.3)*Math.exp(-t*120):0;
+    if(kind==='bell')return bell(880,[[1,1,1],[2,.5,1.6],[2.76,.35,2.2],[5.4,.2,3.5],[8.93,.1,5]],1.6)*.6;
+    if(kind==='deep')return bell(220,[[1,1,1],[.5,.6,.7],[2,.5,1.4],[2.4,.3,1.8],[3,.25,2.4],[4.2,.15,3]],.45)*.6;
+    if(kind==='tingsha')return (Math.sin(2*Math.PI*2450*t)+Math.sin(2*Math.PI*2457*t)+.4*Math.sin(2*Math.PI*6620*t)*Math.exp(-t*2))*Math.exp(-t*.9)*Math.min(1,t/.001)*.3;
+    if(kind==='chime'){let v=0;for(const [d,f] of [[0,1318.5],[.18,1568],[.36,1975.5]]){const x=t-d;if(x>=0)v+=Math.sin(2*Math.PI*f*x)*Math.exp(-x*2.5)*(1+.5*Math.sin(2*Math.PI*f*2.4*x)*Math.exp(-x*6))*Math.min(1,x/.002);}return v*.25;}
+    if(kind==='gong'){const bloom=Math.min(1,t/.35);return (Math.sin(2*Math.PI*98*t+2*Math.sin(2*Math.PI*.7*t))*.8+Math.sin(2*Math.PI*147.3*t)*.4*bloom+Math.sin(2*Math.PI*233*t)*.3*bloom+n*.15*Math.exp(-t*8))*Math.exp(-t*.5)*.45*Math.min(1,t/.004);}
+    return 0;}
+  // Wet rhythm: each hit is a skin slap (fast broadband burst + low body thump) plus a wet, crackling tail.
+  // Hits are humanised (timing, strength, alternating strong/weak). 'build' speeds up over 64 seconds, then starts again.
+  function slickTrack(a,rate){const build=a.slick==='build',dur=build?64:16*60/a.slickBpm,n=Math.round(dur*rate),d=new Float32Array(n),times=[];
+    if(build){let t=0;while(t<dur-.2){times.push(t);t+=60/(a.slickBpm*(1+.9*(t/dur)**1.5));}}else for(let k=0;k<16;k++)times.push(k*60/a.slickBpm);
+    times.forEach((t0,k)=>{const start=Math.max(0,Math.round((t0+(k?(random01(k*13+1)-.5)*.024:0))*rate)),amp=(k%2?.8:1)*(.85+random01(k*7+2)*.3)*(build?.7+.3*t0/dur:1),len=Math.round(rate*.22);
+      let b1=0,l1=0,b2=0,l2=0;const f1=2*Math.sin(Math.PI*700/rate),f2=2*Math.sin(Math.PI*2400/rate);
+      for(let i=0;i<len&&start+i<n;i++){const x=i/rate,w=random01(start*3+i*7+k)*2-1;
+        l1+=f1*b1;let h=w-l1-.9*b1;b1+=f1*h;const slap=b1*Math.exp(-x*140)*1.4+Math.sin(2*Math.PI*85*x)*Math.exp(-x*45)*.8*Math.min(1,x/.002);
+        l2+=f2*b2;h=w*(random01(start+i*5+k*91)>.9?3:.4)-l2-.6*b2;b2+=f2*h;const wet=b2*Math.exp(-x*22)*Math.min(1,x/.01)*a.slickWet*.9;
+        d[start+i]+=(slap+wet)*amp;}});
+    let peak=0;for(const x of d)peak=Math.max(peak,Math.abs(x));if(peak>0)for(let i=0;i<n;i++)d[i]*=.9/peak;return {data:d,rate,duration:dur};}
   function synthesizeTrack(kind,a,rate=22050) {
-    const duration=kind==='iso'?1/a.isoRate:kind==='heart'?60/a.bpm:kind==='breath'?a.inhale+a.exhale+a.pause:32;
-    const data=new Float32Array(Math.max(1,Math.round(duration*rate)));let low=0;
+    if(kind==='slick')return slickTrack(a,rate);
+    const duration=kind==='iso'?1/a.isoRate:kind==='heart'?60/a.bpm:kind==='breath'?4*(a.inhale+a.exhale+a.pause):kind==='cue'?a.cueEvery:kind==='music'&&['pink','brown','ocean'].includes(a.music)?32.5:32;
+    const data=new Float32Array(Math.max(1,Math.round(duration*rate)));let low=0;const st={};
     const chords=[[130.81,164.81,196],[110,130.81,164.81],[87.31,110,130.81],[98,123.47,146.83]];
     for(let i=0;i<data.length;i++){
       const t=i/rate;let v=0;
       if(kind==='iso'){const phase=t/duration;const edge=.025;const envelope=Math.min(1,phase/edge,Math.max(0,(a.isoDuty-phase)/edge));v=Math.sin(t*a.isoHz*Math.PI*2)*Math.max(0,envelope);}
       else if(kind==='heart'){for(const [delay,amp,freq]of [[0,1,58],[duration*.23,.65,72]]){const x=t-delay;if(x>=0&&x<duration*.22)v+=amp*Math.sin(x*freq*Math.PI*2)*Math.sin(Math.min(1,x/.012)*Math.PI/2)*Math.exp(-x*40);}}
-      else if(kind==='breath'){low=low*.92+(random01(i+87)*2-1)*.08;const env=t<a.inhale?Math.sin(t/a.inhale*Math.PI)**1.5:t<a.inhale+a.exhale?.7*Math.sin((t-a.inhale)/a.exhale*Math.PI)**1.5:0;v=low*env*2;}
+      else if(kind==='cue')v=cueSample(i,t,a.cue)*Math.min(1,(duration-t)/.03);
+      else if(kind==='breath')v=breathSample(i,t,a,rate,st);
+      else if(BED_KINDS.includes(a.music))v=bedSample(i,t,a.music,st);
       else {
         const chord=chords[Math.floor(t/8)%4],u=t%8,env=Math.sin(u/8*Math.PI)**2;
         for(let n=0;n<3;n++)v+=Math.sin(t*chord[n]*Math.PI*2)*env*.16;
         if(a.music==='drift'){const slot=Math.floor(t/2),age=t%2,freq=chords[Math.floor(slot/4)%4][slot%3]*4;v=v*.45+Math.sin(t*freq*Math.PI*2)*Math.sin(Math.min(1,age/.03)*Math.PI/2)*Math.exp(-age*2)*.2;}
         if(a.music==='rain'){low=low*.97+(random01(i+99)*2-1)*.03;v=v*.6+low*.8*Math.sin(t/32*Math.PI)**2;}
       }
-      data[i]=Math.max(-1,Math.min(1,v));
+      data[i]=kind==='breath'||kind==='cue'?v:Math.max(-1,Math.min(1,v));
     }
+    if(kind==='breath'||kind==='cue'){let peak=0;for(const x of data)peak=Math.max(peak,Math.abs(x));if(peak>0)for(let i=0;i<data.length;i++)data[i]*=.9/peak;}
+    // Noise beds: generate half a second extra and crossfade it into the start so the loop point is seamless.
+    if(kind==='music'&&['pink','brown','ocean'].includes(a.music)){const N=Math.round(rate*.5),L=data.length-N,out=new Float32Array(L);for(let i=0;i<L;i++)out[i]=i<N?data[i]*(i/N)+data[L+i]*(1-i/N):data[i];return {data:out,rate,duration:L/rate};}
     return {data,rate,duration:data.length/rate};
   }
   function buildAudioMix(context,a,destination) {
     const nodes=[],sources=[],bus=context.createGain(),compressor=context.createDynamicsCompressor();
     nodes.push(bus,compressor);bus.gain.value=a.master*.35;compressor.threshold.value=-12;compressor.ratio.value=8;bus.connect(compressor);compressor.connect(destination);
     const start=context.currentTime+.03;
-    const loop=(kind,level)=>{const track=synthesizeTrack(kind,a),buffer=context.createBuffer(1,track.data.length,track.rate);buffer.copyToChannel(track.data,0);const source=context.createBufferSource(),gain=context.createGain();source.buffer=buffer;source.loop=true;gain.gain.value=level;source.connect(gain);gain.connect(bus);source.start(start);sources.push(source);nodes.push(source,gain);};
-    if(a.binaural){const merger=context.createChannelMerger(2);merger.channelInterpretation='discrete';merger.connect(bus);nodes.push(merger);for(const [channel,hz]of [a.leftHz,a.rightHz].entries()){const osc=context.createOscillator(),gain=context.createGain();osc.type='sine';osc.frequency.value=hz;gain.gain.value=a.toneLevel;osc.connect(gain);gain.connect(merger,0,channel);osc.start(start);sources.push(osc);nodes.push(osc,gain);}}
+    const loop=(kind,level)=>{const track=synthesizeTrack(kind,a,['breath','cue','slick'].includes(kind)?32000:22050),buffer=context.createBuffer(1,track.data.length,track.rate);buffer.copyToChannel(track.data,0);const source=context.createBufferSource(),gain=context.createGain();source.buffer=buffer;source.loop=true;gain.gain.value=level;source.connect(gain);gain.connect(bus);source.start(start);sources.push(source);nodes.push(source,gain);};
+    if(a.binaural){const merger=context.createChannelMerger(2);merger.channelInterpretation='discrete';merger.connect(bus);nodes.push(merger);for(const [channel,hz]of binauralHz(a).entries()){const osc=context.createOscillator(),gain=context.createGain();osc.type='sine';osc.frequency.value=hz;gain.gain.value=a.toneLevel;osc.connect(gain);gain.connect(merger,0,channel);osc.start(start);sources.push(osc);nodes.push(osc,gain);}}
     if(a.iso)loop('iso',a.isoLevel);if(a.heartbeat)loop('heart',a.heartLevel);if(a.breathing)loop('breath',a.breathLevel);if(a.music!=='none')loop('music',a.musicLevel);
-    return {start,bus,sources,nodes};
+    if(a.cue!=='none'&&a.cueMode==='interval')loop('cue',a.cueLevel);if(a.slick!=='none')loop('slick',a.slickLevel);
+    const result={start,bus,sources,nodes};
+    if(a.vocal!=='none')loadVocals(context,VOCAL_SETS[a.vocal]).then(buffers=>{
+      if(result.dead)return;if(!buffers.some(x=>x.length)){say('Vocal sounds are not available yet.');return;}
+      const gain=context.createGain();gain.gain.value=a.vocalLevel;gain.connect(bus);const src=context.createBufferSource();src.buffer=joinVocals(context,buffers,a.vocalGap,VOCAL_SETS[a.vocal].length>1);src.loop=true;src.connect(gain);
+      src.start(Math.max(start,context.currentTime+.02));sources.push(src);nodes.push(gain,src);});
+    return result;
   }
+  // Vocal clips live in assets/vocals/<name>.mp3 and are decoded once per page.
+  const vocalCache=new Map();
+  function loadVocals(context,keys){return Promise.all(keys.map(k=>{let p=vocalCache.get(k);if(!p){p=fetch(ASSET_BASE+'vocals/'+k+'.mp3').then(r=>{if(!r.ok)throw Error(String(r.status));return r.arrayBuffer();}).then(b=>context.decodeAudioData(b)).then(prepVocal);vocalCache.set(k,p);p.catch(()=>vocalCache.delete(k));}return p.catch(()=>null);})).then(list=>list.filter(Boolean));}
+  // Each clip is mixed to mono, trimmed of silence at both ends, brought to a common loudness (peak-limited) and given 10 ms fades.
+  function prepVocal(b){const c=b.numberOfChannels,n=b.length,m=new Float32Array(n);for(let ch=0;ch<c;ch++){const x=b.getChannelData(ch);for(let i=0;i<n;i++)m[i]+=x[i]/c;}
+    const fr=Math.max(1,Math.round(b.sampleRate*.02)),env=[];let emax=0;for(let i=0;i<n;i+=fr){let e=0;const end=Math.min(n,i+fr);for(let j=i;j<end;j++)e+=m[j]*m[j];e=Math.sqrt(e/(end-i));env.push(e);emax=Math.max(emax,e);}
+    if(!emax)return new Float32Array(0);const thr=emax*.05,first=Math.max(0,env.findIndex(e=>e>thr)-3),last=env.length-1-[...env].reverse().findIndex(e=>e>thr),s=first*fr,e=Math.min(n,(last+4)*fr);
+    let peak=0,act=0,cnt=0;for(let i=s;i<e;i++)peak=Math.max(peak,Math.abs(m[i]));for(const v of env)if(v>thr){act+=v*v;cnt++;}
+    const gain=Math.min(.9/peak,.18/Math.sqrt(act/Math.max(1,cnt))),out=m.slice(s,e);for(let i=0;i<out.length;i++)out[i]*=gain;
+    const f=Math.min(out.length>>1,Math.round(b.sampleRate*.01));for(let i=0;i<f;i++){out[i]*=i/f;out[out.length-1-i]*=i/f;}return out;}
+  // One looping buffer: the clips (shuffled for 'random') with a pause after each.
+  function joinVocals(context,clips,gap,shuffle){const rate=context.sampleRate,order=(shuffle?clips.slice().sort(()=>Math.random()-.5):clips).filter(x=>x.length);
+    const parts=order.map(x=>({x,pad:Math.round(rate*gap*(shuffle?.6+Math.random()*.8:1))})),out=context.createBuffer(1,Math.max(1,parts.reduce((n,p)=>n+p.x.length+p.pad,0)),rate),d=out.getChannelData(0);
+    let o=0;for(const {x,pad} of parts){d.set(x,o);o+=x.length+pad;}return out;}
   const wearableVariants = [
     {group:'ItemHead',asset:'InteractiveVRHeadset',name:'Hypno Reverie Headset',description:'Smooth curved visor. Cosmetic passthrough by default; use the native Function setting for vision blocking.',colors:['#18121f','#ee53ba','#8040b0'],type:{f:0,b:0,g:0}},
     {group:'ItemHood',asset:'CustomLatexHood',name:'Hypno Reverie Latex Hood',description:'Skin-tight glossy black latex hood that follows the head and face, with seams and a lip-sized mouth opening. Hides hair. Cosmetic by default; use the native Eyes setting for vision blocking.',colors:['#1C1C1C'],type:{m:3,e:2,x:0,h:1,z:0}}
@@ -282,10 +372,15 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   try { const p = JSON.parse(localStorage.getItem(PRIVACY_KEY) || '{}'); privacy = { broadcast: p.broadcast === true, showOthers: p.showOthers !== false }; } catch {}
   const AREA_KEY='hypnoreverie-area-v1';let area='player';
   try{const a=localStorage.getItem(AREA_KEY);if(['player','chat','game','screen'].includes(a))area=a;}catch{}
-  const PERMS_KEY='hypnoreverie-permissions-v1',ROLE_RANK={nobody:99,owner:5,lover:4,whitelist:3,friend:2,anyone:1},PERM_KEYS=['visuals','text','session','pulse','audio','expressions','permanent'];
-  let perms={ask:'anyone',ownerLock:false,auto:Object.fromEntries(PERM_KEYS.map(k=>[k,'nobody']))};
-  try{const v=JSON.parse(localStorage.getItem(PERMS_KEY)||'{}');if(ROLE_RANK[v.ask])perms.ask=v.ask;perms.ownerLock=v.ownerLock===true;for(const k of PERM_KEYS)if(ROLE_RANK[v.auto?.[k]])perms.auto[k]=v.auto[k];}catch{}
-  const offers=new Map(),offersSent=new Map(); // direct access: what others offer me / what I last told each peer
+  const PERMS_KEY='hypnoreverie-permissions-v1',ROLE_RANK={nobody:99,owner:5,lover:4,whitelist:3,friend:2,anyone:1};
+  let perms={ask:'anyone'};
+  const AUTH_KEY='hypnoreverie-authority-v1',AUTH_KEYS=['view','visuals','words','pulse','audio','imagery','expressions','effects','authority'];
+  let authority=Object.fromEntries(AUTH_KEYS.map(k=>[k,{min:'nobody',self:true}]));
+  try{const v=JSON.parse(localStorage.getItem(AUTH_KEY)||'{}');for(const k of AUTH_KEYS){if(ROLE_RANK[v[k]?.min])authority[k].min=v[k].min;if(v[k]?.self===false)authority[k].self=false;}}catch{}
+  // Never leave the table unreachable: if nobody else can change it, you can.
+  if(!authority.authority.self&&authority.authority.min==='nobody')authority.authority.self=true;
+  const authSent=new Map(),authSeq=new Map();
+  try{const v=JSON.parse(localStorage.getItem(PERMS_KEY)||'{}');if(ROLE_RANK[v.ask])perms.ask=v.ask;}catch{}
   const SESSION_KEY='hypnoreverie-resume-v1';
   let resume = {remember:false,enabled:false,member:null};
   try{const value=JSON.parse(localStorage.getItem(SESSION_KEY)||'{}');resume={remember:value.remember===true,enabled:value.enabled===true,member:Number.isSafeInteger(value.member)?value.member:null};}catch{}
@@ -311,7 +406,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     button{pointer-events:auto}button:hover{background:#47305f}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #cfafff;outline-offset:2px}
     button:disabled{opacity:.4;cursor:not-allowed}#stop{background:#592c42;border-color:#b5678d}#panel{pointer-events:auto;width:min(760px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:#17121f;border:1px solid #70568b;border-radius:18px;box-shadow:0 18px 80px #000b;overflow:hidden}
     .header{padding:17px 20px 0;background:#21172e}.brand{display:flex;align-items:center;gap:12px}.brand svg{width:48px;height:48px;flex:none}.brand h2{font-size:21px;margin:0}.brand small{font-size:12px;color:#b7a3cc}.brand #close{margin-left:auto;font-size:19px;padding:4px 10px}
-    .tabs{display:flex;flex-wrap:wrap;gap:4px;padding:14px 0 10px}.tabs button.on::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#7be0a0;margin-left:6px;vertical-align:middle}#preset-list{min-width:200px}.tabs button{white-space:nowrap;border-color:transparent;background:none;padding:8px 10px}.tabs button[aria-selected=true]{background:#66458d;color:white}
+    #content.settings-hidden fieldset{display:none!important}#imagery-layer{position:fixed;pointer-events:none;overflow:hidden}#imagery-layer>img,#imagery-layer>video{position:absolute;pointer-events:none}#media-url{flex:1;min-width:180px}.media-row{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #3a2c4d}.media-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#cdbde0}.auth-row{display:grid;grid-template-columns:1fr auto minmax(150px,auto);gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #3a2c4d}.auth-head{font-size:12px;color:#b7a3cc}.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:14px 0 10px}.tabs button.on::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#7be0a0;margin-left:6px;vertical-align:middle}#preset-list{min-width:200px}.tabs button{white-space:nowrap;border-color:transparent;background:none;padding:8px 10px}.tabs button[aria-selected=true]{background:#66458d;color:white}
     .session-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-top:1px solid #4c385d;padding:9px 0}.session-bar label{margin:0}.session-bar #target{max-width:240px}.session-bar .help{margin-left:auto}
     #content{padding:18px 20px;overflow-y:auto;min-height:0;overscroll-behavior:contain}h3{font-size:16px;margin:0 0 8px}p{color:#c3b2d2;line-height:1.5;margin:8px 0 14px}.help{font-size:12px;color:#bca9ce}
     label{display:block;margin:0}input[type=range]{display:block;width:100%;accent-color:#bd8cff;margin-top:9px}input[type=checkbox]{accent-color:#bd8cff;margin-right:6px}input[type=color]{height:30px;width:54px;border:0;padding:0;background:none;vertical-align:middle}
@@ -325,17 +420,17 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     #preview-bar{display:flex;align-items:center;justify-content:space-between}#preview-window p{margin:6px 0;font-size:11px}#preview-canvas{display:block;width:100%;max-height:45vh;object-fit:contain;background:#161222}
     @container(max-width:510px){fieldset{grid-template-columns:1fr}.header,#content,#footer{padding-left:10px;padding-right:10px}.brand h2{font-size:17px}.brand svg{width:32px;height:32px}.tabs{padding-top:8px}.tabs button{padding:6px}.session-bar{gap:6px}.session-bar #target{max-width:170px}}
   </style>
-  <div id="focus-blur" hidden></div><canvas id="effect" aria-hidden="true" hidden></canvas><canvas id="heads" aria-hidden="true" hidden></canvas>
+  <div id="focus-blur" hidden></div><div id="imagery-layer" aria-hidden="true" hidden></div><canvas id="effect" aria-hidden="true" hidden></canvas><canvas id="heads" aria-hidden="true" hidden></canvas>
   <div id="ui" hidden><section id="panel" role="dialog" aria-label="Hypno Reverie settings" hidden>
     <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.9.0 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
       <div class="tabs" role="tablist" aria-label="Settings categories">
         <button data-tab="overview" role="tab" aria-selected="true">Overview</button><button data-tab="primary" role="tab" aria-selected="false">Primary</button><button data-tab="secondary" role="tab" aria-selected="false">Secondary</button>
-        <button data-tab="text" role="tab" aria-selected="false">Words</button><button data-tab="pulse" role="tab" aria-selected="false">Pulse</button><button data-tab="audio" role="tab" aria-selected="false">Audio</button><button data-tab="focus" role="tab" aria-selected="false">Focus</button><button data-tab="expressions" role="tab" aria-selected="false">Face</button><button data-tab="head" role="tab" aria-selected="false">Head</button><button data-tab="sharing" role="tab" aria-selected="false">Keys</button><button data-tab="presets" role="tab" aria-selected="false">Presets</button>
+        <button data-tab="text" role="tab" aria-selected="false">Words</button><button data-tab="pulse" role="tab" aria-selected="false">Pulse</button><button data-tab="audio" role="tab" aria-selected="false">Audio</button><button data-tab="focus" role="tab" aria-selected="false">Focus</button><button data-tab="expressions" role="tab" aria-selected="false">Face</button><button data-tab="head" role="tab" aria-selected="false">Head</button><button data-tab="imagery" role="tab" aria-selected="false">Imagery</button><button data-tab="sharing" role="tab" aria-selected="false">Keys</button><button data-tab="authority" role="tab" aria-selected="false">Authority</button><button data-tab="presets" role="tab" aria-selected="false">Presets</button>
       </div>
       <div class="session-bar"><label>Edit <select id="target"><option value="self">My overlay</option></select></label><label><input id="enabled" type="checkbox"> Effects on</label><label id="lock-row" hidden><input id="lock" type="checkbox"> Lock controls</label><button id="preview-toggle" aria-pressed="false">Preview draft</button><span id="session-badge" class="help">Local session</span></div>
     </div>
     <div id="content"><div id="profile-card" class="card" hidden><h3 id="profile-title"></h3><p id="profile-status"></p><div id="request-options"><label>Requested access <select id="request-level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label><label>Duration <select id="request-duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="indefinite">Permanent access</option></select></label><label><input id="request-pulse" type="checkbox"> Include pulse / flash changes</label><label><input id="request-audio" type="checkbox"> Include audio control</label><label><input id="request-expressions" type="checkbox"> Include facial expressions</label></div><button id="request-keys">Request keys</button></div><div id="requests-card" class="card" hidden><h3>Key requests</h3><div id="requests-list"></div><p class="help">The controller chooses the requested permissions. Yes grants exactly those permissions; No declines.</p></div>
-      <div id="remote-note" class="notice" hidden>Editing a remote draft. Send changes to apply it.</div>
+      <div id="hidden-note" class="notice" hidden></div><div id="remote-note" class="notice" hidden>Editing a remote draft. Send changes to apply it.</div>
       <div id="overview" role="tabpanel"><h3>Set the scene</h3><p>Build your spirals, add words and pulse effects, then save a preset. Changes to your own overlay apply immediately.</p>
         <div class="card" id="local-session-card"><h3>Session controls</h3><p id="stop-note">Stop your effects and revoke keys to your overlay.</p><button id="stop">Stop / revoke</button><label><input id="remember-session" type="checkbox"> Keep effects on across room changes and relog</label><p class="help">Remembers on/off for this account when the addon loads again. Timed keys clear when leaving the room. Permanent access preserves effects and lock until returned or revoked.</p><p class="help">While keys are handed over, this button is disabled. Escape stops your session only while controls are unlocked.</p></div>
         <div class="notice">Photosensitivity notice: flashing lights and moving patterns may trigger seizures in people with photosensitive epilepsy. Avoid these effects if they are a trigger for you. Stop if you feel unwell. <a href="https://www.epilepsy.com/what-is-epilepsy/seizure-triggers/photosensitivity" target="_blank" rel="noopener noreferrer">Learn more</a></div>
@@ -345,21 +440,21 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       <div id="secondary" role="tabpanel" hidden><h3>Secondary spiral</h3><p class="help">Blend an independent spiral over the primary.</p><fieldset id="secondary-fields"></fieldset></div>
       <div id="text" role="tabpanel" hidden><h3>Word flashes</h3><p class="help">One word or sentence per line. Random positions stay within the player area; center + periphery alternates between the middle and edges.</p><fieldset id="text-fields"></fieldset></div>
       <div id="pulse" role="tabpanel" hidden><h3>Pulse & flash</h3><p class="help">Choose a rhythm. Flashes remain limited to one every two seconds or slower.</p><fieldset id="pulse-fields"></fieldset></div>
-      <div id="audio" role="tabpanel" hidden><h3>Audio layers</h3><p class="help">Headphones separate the left/right tones. Ambient music and sound loops are generated locally. Start at a comfortable volume.</p><div class="card"><button id="audio-start">Allow sound in this browser</button><button id="audio-mute">Mute audio</button><label><input id="audio-preview" type="checkbox"> Listen to selected draft locally</label><p id="audio-status" class="help">Audio needs a local click after loading.</p><p class="help">Browsers only play sound after a click, so press <b>Allow sound</b> once per visit. <b>Enable audio layer</b> below decides whether your overlay has sound at all. <b>Mute</b> silences it on this device only.</p></div><fieldset id="audio-fields"></fieldset></div>
+      <div id="audio" role="tabpanel" hidden><h3>Audio layers</h3><p class="help">Headphones separate the left/right tones. Ambient music and sound loops are generated locally. Start at a comfortable volume.</p><div class="card"><button id="audio-start">Allow sound in this browser</button><button id="audio-mute">Mute audio</button><label><input id="audio-auto" type="checkbox"> Start sound automatically when the audio layer is on</label><label><input id="audio-preview" type="checkbox"> Listen to selected draft locally</label><p id="audio-status" class="help">Audio needs a local click after loading.</p><p class="help">Sound starts by itself when the audio layer and effects are on, including when a controller turns them on. If your browser holds it back, it starts on your next click or key press in the game, or press <b>Allow sound</b>. With Self off for Audio (Authority tab) you cannot mute or turn automatic start off. <b>Enable audio layer</b> below decides whether your overlay has sound at all. <b>Mute</b> silences it on this device only.</p></div><fieldset id="audio-fields"></fieldset></div>
       <div id="focus" role="tabpanel" hidden><h3>Fixation & tunnel vision</h3><p class="help">A soft opening keeps the center clear. Words draw over the fixation point. Colour changes follow the selected audio rhythm, with a gentle minimum two-second cycle.</p><fieldset id="focus-fields"></fieldset></div>
       <div id="expressions" role="tabpanel" hidden><h3>Facial expressions</h3><p class="help">Use the character’s supported game expressions, including mouth and tongue options when available. Changes use the game’s expression rules and are visible in the room.</p><label>Face group <select id="face-group"></select></label><label>Expression <select id="face-value"></select></label><button id="face-apply">Apply expression</button><p id="face-status" class="help"></p></div>
       <div id="head" role="tabpanel" hidden><h3>Head effects</h3><p class="help">Combine tiny words, a forehead spiral, spiral eyes, and a halo. Other players see these while your overlay is on; your own view starts off. During a grant, the controller must allow you to use Show my head effects. Use Preview draft to inspect the design. Position controls help align unusual poses.</p>
         <div class="card"><label id="broadcast-label"><input id="broadcast-head" type="checkbox"> Share my head effects with the room</label><p class="help">Shares your head-effect settings and the currently displayed words with other Hypno Reverie users. During a grant, head effects enabled by your controller are shared automatically. Each viewer can still hide shared effects.</p><label><input id="show-heads" type="checkbox"> Show other players’ shared head effects</label></div><label id="own-head-row"><input id="show-own-head" type="checkbox"> Show my head effects (off by default)</label><label id="allow-own-head-row" hidden><input id="allow-own-head" type="checkbox"> Allow wearer to view head effects</label><fieldset id="head-fields"></fieldset>
       </div>
-      <div id="sharing" role="tabpanel" hidden><h3>Hand over the keys</h3><p class="help">Both players need Hypno Reverie 0.6 or newer. Dominant/controller status is self-declared; choose by name and member number.</p>
-        <div class="card"><label><input id="dominant" type="checkbox"> Available as a dominant/controller</label><button id="discover">Find players</button></div><div class="card" id="perms-card"><h3>Permissions</h3><p class="help">Choose who may ask for keys to your overlay, and who gets them without asking you. Roles come from your game lists: owner, lovers, whitelist and friends. Ghosted and blacklisted players are always blocked.</p><label>Who can request keys <select id="perm-ask"></select></label><p class="help"><b>Direct access</b>: people at or above the role you pick see <b>Take control</b> on your profile and get in straight away, without asking you. If they want more than you allow here, it comes to you as a normal request. Allowing a level also covers the levels above it in this list. If you tighten these later, anyone who no longer qualifies loses the keys.</p><p class="help"><b>Several controllers</b>: more than one person can hold keys at once. Each can only change what their own keys allow; if two change the same thing, the latest change wins. Your controls stay locked while anyone with full-session keys has them locked.</p><div id="perm-auto"></div><label><input id="perm-owner-lock" type="checkbox"> Let my owner lock these settings</label><p class="help">The lock applies while your owner holds full-session keys with your controls locked.</p><p id="perm-lock-note" class="notice" hidden>Your owner has locked these settings.</p></div>
+      <div id="imagery" role="tabpanel" hidden><h3>Imagery and pacer</h3><p class="help">Adults only. Show your own images or videos (JOI-style) in the overlay. Add links below: they stay in this browser and only you see them. People with Imagery access (Authority tab) or full-session keys can switch imagery on, choose a category and change how it looks, but they never see or add links. The beat pacer sets a pace on screen and can follow the wet rhythm tempo.</p><div class="card" id="media-card"><h3>Your links</h3><div class="row"><input id="media-url" type="url" placeholder="https://… (.jpg .png .gif .webp .mp4 .webm)"><select id="media-cat" aria-label="Category"></select><button id="media-add">Add</button></div><div id="media-list"></div><p class="help">Up to 60 direct links to image or video files. Some sites block showing their files elsewhere; if one never appears, use another host.</p></div><fieldset id="imagery-fields"></fieldset></div><div id="sharing" role="tabpanel" hidden><h3>Hand over the keys</h3><p class="help">Both players need Hypno Reverie 0.6 or newer. Dominant/controller status is self-declared; choose by name and member number.</p>
+        <div class="card"><label><input id="dominant" type="checkbox"> Available as a dominant/controller</label><button id="discover">Find players</button></div><div class="card" id="perms-card"><p class="help">Keys are a quick, temporary way to hand someone control, with no formal relationship. Several people can hold keys at once; each can only change what their own keys allow, and the latest change wins. Standing access for your owner, lovers and others is set in the <b>Authority</b> tab instead.</p><label>Who can request keys <select id="perm-ask"></select></label></div>
         <div class="card"><label>Give keys to <select id="peer"><option value="">No controllers discovered</option></select></label><label>Permission <select id="level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label>
           <label><input id="allow-pulse" type="checkbox"> Also allow pulse/flash changes</label><label><input id="allow-audio" type="checkbox"> Also allow audio control</label><label><input id="allow-expressions" type="checkbox"> Also allow facial expressions</label><label>Duration <select id="duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="custom">Custom</option><option value="indefinite">No time limit</option></select></label><label id="minutes-row" hidden>Minutes <input id="minutes" type="number" min="1" max="30" value="15"></label>
           <p class="help">A grant shares your current settings and message list, and allows controller-enabled head effects to be visible to the room. Permanent access remembers this controller, permissions, effects and lock across room changes and relog. Returning or revoking keys ends it. Timed grants remain room-scoped. Control messages require both players in the same room.</p>
           <div class="row"><button id="grant">Give keys</button><button id="revoke">Revoke keys</button></div><p id="grant-info"></p>
         </div>
       </div>
-      <div id="presets" role="tabpanel" hidden><h3>Saved presets</h3><p class="help">Save the complete appearance, words, pulse and head settings. Presets never save access grants, locks, visibility-sharing choices, or turn effects on.</p>
+      <div id="authority" role="tabpanel" hidden><h3>Authority</h3><p class="help">Standing access by role, like BCX. People at or above the lowest role can use that part of your overlay at any time: no keys and no requests. They open your profile, or pick you under Edit, and change it directly. <b>Self</b> is whether you can use that part yourself; untick it to lock yourself out. Roles come from your game lists (owner, lovers, whitelist, friends). Ghosted and blacklisted players never have access. Both players need Hypno Reverie 0.9.0.</p><p id="auth-note" class="notice" hidden></p><div id="auth-rows"></div><p class="help">Someone with <b>Change these permissions</b> can edit this table from their side, but only parts they hold themselves, and never in a way that removes their own access.</p></div><div id="presets" role="tabpanel" hidden><h3>Saved presets</h3><p class="help">Save the complete appearance, words, pulse and head settings. Presets never save access grants, locks, visibility-sharing choices, or turn effects on.</p>
         <div class="card"><label>Preset <select id="preset-list"><option value="">Choose a preset</option></select></label><div class="row"><button id="preset-load">Load preset</button><button id="preset-delete">Delete selected</button></div></div>
         <div class="card"><label>Name <input id="preset-name" type="text" maxlength="40" placeholder="e.g. Slow violet"></label><button id="preset-save">Save current settings</button><p class="help">Using the same name replaces that preset. Up to 24 presets, saved in this browser.</p></div>
       </div>
@@ -384,11 +479,11 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     label.append(input); if (type === 'textarea') label.classList.add('wide'); byId(parent).append(label);
     const record = { input, path, type, output }; fields.push(record);
     input.addEventListener('input', () => {
-      if (selected === 'self' && locked) return;
+      if (selected === 'self' && (locked || !selfCan(partOf(path)))) return;
       const value = type === 'checkbox' ? input.checked : ['range', 'number'].includes(type) ? Number(input.value) : type === 'textarea' ? input.value.split('\n') : input.value;
       const next = clone(editState()); setPath(next, path, value);
       if (selected === 'self') { settings = normalize(next); save(); resetEffectClock(); }
-      else { const grant = receivedGrants.get(Number(selected)); if (grant) grant.draft = normalize(next); }
+      else { const grant = receivedGrants.get(Number(selected)); if (grant) { grant.draft = normalize(next); grant.dirty = true; } }
       refreshFields(input); layout();
     });
   }
@@ -448,7 +543,8 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   slider('head-fields',['head','offsetY'],'Vertical alignment',-300,300,1);
   field('audio-fields',['audio','enabled'],'Enable audio layer','checkbox');
   slider('audio-fields',['audio','master'],'Master level',0,0.6);
-  field('audio-fields',['audio','binaural'],'Left / right tones','checkbox');
+  field('audio-fields',['audio','binaural'],'Binaural beats (headphones)','checkbox');
+  field('audio-fields',['audio','binauralPreset'],'Beat','select',null,null,null,[['custom','Custom (frequencies below)'],['delta','2.5 Hz delta · deep sleep'],['theta','6 Hz theta · trance'],['schumann','7.83 Hz · grounding'],['alpha','10 Hz alpha · calm'],['beta','15 Hz beta · alert'],['gamma','40 Hz gamma · intense focus']]);
   field('audio-fields',['audio','leftHz'],'Left frequency (Hz)','number',40,1000,0.1);
   field('audio-fields',['audio','rightHz'],'Right frequency (Hz)','number',40,1000,0.1);
   slider('audio-fields',['audio','toneLevel'],'Tone level',0,0.5);
@@ -457,16 +553,29 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   field('audio-fields',['audio','isoRate'],'Pulses per second','number',0.1,30,0.1);
   slider('audio-fields',['audio','isoDuty'],'Pulse on-time fraction',0.1,0.9);
   slider('audio-fields',['audio','isoLevel'],'Pulse track level',0,0.5);
-  field('audio-fields',['audio','music'],'Ambient music','select',null,null,null,[['none','None'],['velvet','Velvet chords'],['drift','Slow drifting bells'],['rain','Rain & warm pads']]);
+  field('audio-fields',['audio','music'],'Background sound','select',null,null,null,[['none','None'],['velvet','Velvet chords'],['drift','Slow drifting bells'],['rain','Rain & warm pads'],['pink','Pink noise'],['brown','Brown noise (deep)'],['ocean','Ocean waves'],['drone','Warm drone'],['bowls','Singing bowls']]);
   slider('audio-fields',['audio','musicLevel'],'Music level',0,0.5);
   field('audio-fields',['audio','heartbeat'],'Heartbeat','checkbox');
   field('audio-fields',['audio','bpm'],'Heartbeat speed (BPM)','number',30,180,1);
   slider('audio-fields',['audio','heartLevel'],'Heartbeat level',0,0.5);
   field('audio-fields',['audio','breathing'],'Breathing sound','checkbox');
+  field('audio-fields',['audio','breathStyle'],'Breathing style','select',null,null,null,[['mouth','Through the mouth'],['nose','Through the nose'],['sigh','Sighing (soft voice)']]);
   field('audio-fields',['audio','inhale'],'Inhale (seconds)','number',1,12,0.1);
   field('audio-fields',['audio','exhale'],'Exhale (seconds)','number',1,16,0.1);
   field('audio-fields',['audio','pause'],'Breath pause (seconds)','number',0,8,0.1);
   slider('audio-fields',['audio','breathLevel'],'Breathing level',0,0.5);
+  field('audio-fields',['audio','vocal'],'Vocal sounds (adult)','select',null,null,null,[['none','Off'],['random','Mix: all'],['ungagged','Mix: ungagged'],['gagged','Mix: gagged'],['sighs','Sighs'],['soft','Soft moans'],['needy','Needy, pleading moans'],['building','Building moans'],['orgasm','Orgasm'],['edge','Edged (brought close, denied)'],['afterglow','Afterglow'],['whimpers','Whimpers'],['panting','Panting'],['muffled','Muffled moans (gagged)'],['gagplead','Gagged pleading'],['gagorgasm','Gagged orgasm']]);
+  slider('audio-fields',['audio','vocalLevel'],'Vocal level',0,0.6);
+  field('audio-fields',['audio','vocalGap'],'Pause between clips (seconds)','number',0,30,0.5);
+  field('audio-fields',['audio','cue'],'Clicker / bell','select',null,null,null,[['none','Off'],['clicker','Training clicker'],['double','Double click'],['tick','Wood tick'],['bell','Small bell'],['chime','Three-note chime'],['tingsha','Tingsha cymbals'],['deep','Deep bell'],['gong','Gong']]);
+  field('audio-fields',['audio','cueMode'],'Ring','select',null,null,null,[['interval','Every few seconds'],['words','On every word flash'],['trigger','On certain words']]);
+  field('audio-fields',['audio','cueWords'],'Trigger words (one per line)','textarea');
+  field('audio-fields',['audio','cueEvery'],'Every (seconds)','number',0.5,60,0.5);
+  slider('audio-fields',['audio','cueLevel'],'Clicker / bell level',0,0.6);
+  field('audio-fields',['audio','slick'],'Wet rhythm (adult)','select',null,null,null,[['none','Off'],['steady','Steady'],['build','Building (speeds up over a minute)']]);
+  field('audio-fields',['audio','slickBpm'],'Tempo (beats per minute)','number',40,200,1);
+  slider('audio-fields',['audio','slickWet'],'Wetness',0,1);
+  slider('audio-fields',['audio','slickLevel'],'Wet rhythm level',0,0.6);
   field('focus-fields',['focus','enabled'],'Darken / blur periphery','checkbox');
   slider('focus-fields',['focus','opening'],'Clear center radius',0.1,0.8);
   slider('focus-fields',['focus','darkness'],'Outer darkness',0,1);
@@ -483,6 +592,33 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   slider('focus-fields',['focus','colorOpacity'],'Colour intensity',0,0.35);
   field('focus-fields',['focus','beatSource'],'Rhythm source','select',null,null,null,[['heartbeat','Heartbeat'],['iso','Isochronic pulses'],['binaural','Left/right frequency difference']]);
   field('focus-fields',['focus','beats'],'Beats per colour cycle','number',1,64,1);
+  field('imagery-fields',['imagery','enabled'],'Show imagery','checkbox');
+  field('imagery-fields',['imagery','builtin'],'Use the built-in video pack','checkbox');
+  field('imagery-fields',['imagery','category'],'Category','select',null,null,null,MEDIA_CATS.map(c=>[c,MEDIA_LABELS[c]]));
+  field('imagery-fields',['imagery','timing'],'Timing','select',null,null,null,[['cycle','Cycle on a timer'],['words','Flash with each word'],['steady','Stay on screen']]);
+  field('imagery-fields',['imagery','order'],'Order','select',null,null,null,[['random','Random'],['inorder','In order']]);
+  field('imagery-fields',['imagery','duration'],'Show each for (seconds)','number',0.5,60,0.5);
+  field('imagery-fields',['imagery','gap'],'Gap between (seconds)','number',0,60,0.5);
+  field('imagery-fields',['imagery','fade'],'Fade (seconds)','number',0,5,0.1);
+  slider('imagery-fields',['imagery','opacity'],'Opacity',0,1);
+  slider('imagery-fields',['imagery','size'],'Size',0.1,1);
+  field('imagery-fields',['imagery','position'],'Position','select',null,null,null,[['center','Centred'],['random','Random spot'],['fill','Fill the area']]);
+  field('imagery-fields',['imagery','blend'],'Blend','select',null,null,null,[['normal','Normal'],['screen','Screen (glow)'],['overlay','Overlay'],['soft-light','Soft light'],['multiply','Multiply']]);
+  field('imagery-fields',['imagery','layer'],'Layer','select',null,null,null,[['under','Under the spiral'],['over','Over the spiral']]);
+  field('imagery-fields',['imagery','pacer'],'Beat pacer','select',null,null,null,[['off','Off'],['ring','Pulsing ring'],['bar','Bouncing bar']]);
+  field('imagery-fields',['imagery','pacerFollow'],'Follow the wet rhythm tempo','checkbox');
+  field('imagery-fields',['imagery','pacerBpm'],'Pacer tempo (beats per minute)','number',20,220,1);
+  field('imagery-fields',['imagery','pacerColor'],'Pacer colour','color');
+  slider('imagery-fields',['imagery','pacerSize'],'Pacer size',0.05,0.6);
+  let media=[];try{const v=JSON.parse(localStorage.getItem(MEDIA_KEY)||'[]');if(Array.isArray(v))media=v.filter(m=>m&&typeof m.url==='string'&&/^https:\/\/\S+$/i.test(m.url)&&m.url.length<=2000).slice(0,60).map(m=>({url:m.url,cat:MEDIA_CATS.includes(m.cat)&&m.cat!=='any'?m.cat:'other'}));}catch{}
+  for(const c of MEDIA_CATS.slice(1)){const o=document.createElement('option');o.value=c;o.textContent=MEDIA_LABELS[c];byId('media-cat').append(o);}
+  function renderMedia(){const box=byId('media-list');box.replaceChildren();media.forEach((m,i)=>{const row=document.createElement('div');row.className='media-row';const tag=document.createElement('b');tag.textContent=MEDIA_LABELS[m.cat];
+    const u=document.createElement('span');u.textContent=m.url;u.title=m.url;const del=document.createElement('button');del.textContent='Remove';del.onclick=()=>{if(!selfCan('imagery'))return;media.splice(i,1);saveMedia();};row.append(tag,u,del);box.append(row);});
+    if(!media.length){const p=document.createElement('p');p.className='help';p.textContent='No links yet.';box.append(p);}}
+  function saveMedia(){try{localStorage.setItem(MEDIA_KEY,JSON.stringify(media));}catch{say('Links could not be saved.');}renderMedia();imageryState.key='';refreshFields();}
+  byId('media-add').onclick=()=>{if(!selfCan('imagery'))return;const url=byId('media-url').value.trim();if(!/^https:\/\/\S+$/i.test(url)||url.length>2000){say('Enter a full https:// link to an image or video file.');return;}
+    if(media.length>=60){say('Remove a link first (60 maximum).');return;}media.push({url,cat:byId('media-cat').value});byId('media-url').value='';saveMedia();say('Link added.');};
+  renderMedia();
   function syncLock(){locked=gate.list().some(g=>g.locked===true);}
   function savePermanent(){
     const owner=player()?.MemberNumber??permanent?.owner;if(!Number.isSafeInteger(owner))return;
@@ -545,8 +681,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     byId('pulse-fields').disabled = localLocked || (selected !== 'self' && !remote?.allowPulse);
     {const s=current,on={primary:s.spirals?.[0]?.enabled,secondary:s.spirals?.[1]?.enabled,text:s.text?.enabled,pulse:s.pulse?.enabled,audio:s.audio?.enabled,focus:s.focus?.enabled};
      for(const [t,v] of Object.entries(on)){const b=root.querySelector('[data-tab='+t+']');if(b){b.classList.toggle('on',!!v);b.title=v?'This part is switched on':'';}}}
-    if(byId('perm-auto-visuals')){const pl=permsLocked();for(const el of byId('perms-card').querySelectorAll('select,input'))el.disabled=pl;byId('perm-lock-note').hidden=!pl;
-      if(root.activeElement?.closest?.('#perms-card')==null){byId('perm-ask').value=perms.ask;for(const k of PERM_KEYS)byId('perm-auto-'+k).value=perms.auto[k];byId('perm-owner-lock').checked=perms.ownerLock;}}
+    if(root.activeElement!==byId('perm-ask'))byId('perm-ask').value=perms.ask;byId('perm-ask').disabled=!selfCan('authority');
     byId('enabled').checked = selected === 'self' ? enabled : !!remote?.enabled;
     byId('enabled').disabled = localLocked || (selected !== 'self' && remote?.level !== 'session');
     byId('lock-row').hidden = selected === 'self' || remote?.level !== 'session';
@@ -567,6 +702,24 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     byId('local-session-card').hidden = selected !== 'self'; byId('broadcast-label').hidden = selected !== 'self';
     byId('session-badge').textContent = selected !== 'self' ? 'Remote draft' : gate.size ? (locked ? 'Controls locked' : gate.size>1 ? gate.size+' controllers' : 'Keys handed over') : 'Local session';
     byId('remember-session').checked=resume.remember;
+    {const self=selected==='self',ra=remote?.authority?remote:null,hide=self?!selfCan('view'):!!ra&&!ra.canSee;
+     byId('content').classList.toggle('settings-hidden',hide);byId('hidden-note').hidden=!hide;
+     byId('hidden-note').textContent=self?'Your settings are hidden: Self is off for “See settings” in the Authority tab.':'Your role does not let you see this player’s settings.';
+     if(hide)for(const b of root.querySelectorAll('.tabs button.on'))b.classList.remove('on');
+     if(self){for(const r of fields)if(!selfCan(partOf(r.path)))r.input.disabled=true;
+       if(!selfCan('effects')){byId('enabled').disabled=true;byId('stop').disabled=true;}
+       if(['visuals','words','pulse','audio','imagery'].some(k=>!selfCan(k)))byId('preset-load').disabled=true;
+       if(hide){byId('preset-save').disabled=true;byId('preview-toggle').disabled=true;}}
+     if(ra){for(const r of fields)r.input.disabled=r.path[0]==='width'||!ra.access[partOf(r.path)];
+       byId('enabled').disabled=!ra.access.effects;byId('lock-row').hidden=true;byId('allow-own-head-row').hidden=true;byId('session-badge').textContent='Authority';if(hide)byId('preview-toggle').disabled=true;}
+     byId('release').hidden=!!ra;renderAuthority();}
+    byId('audio-mute').disabled=byId('audio-auto').disabled=!selfCan('audio');if(!selfCan('audio'))byId('audio-auto').checked=true;
+    byId('media-card').hidden=selected!=='self';byId('media-add').disabled=!selfCan('imagery');for(const b of byId('media-list').querySelectorAll('button'))b.disabled=!selfCan('imagery');
+    byId('imagery-fields').disabled=localLocked||(selected!=='self'&&!remote?.authority&&remote?.level!=='session');
+    {const im=editState().imagery;if(!byId('content').classList.contains('settings-hidden'))root.querySelector('[data-tab=imagery]')?.classList.toggle('on',!!(im?.enabled||im?.pacer!=='off'));}
+    if(editState().audio.binauralPreset!=='custom')for(const k of ['leftHz','rightHz'])byId('setting-audio-'+k).disabled=true;
+    if(editState().audio.cueMode!=='interval')byId('setting-audio-cueEvery').disabled=true;
+    if(editState().audio.cueMode!=='trigger')byId('setting-audio-cueWords').disabled=true;
     byId('status').textContent = status; refreshProfileCard();
   }
   for (const button of root.querySelectorAll('[data-tab]')) button.onclick = () => {
@@ -604,14 +757,28 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   byId('broadcast-head').onchange = () => { privacy.broadcast = byId('broadcast-head').checked; privacySave(); publishHead(true); };
   byId('show-heads').onchange = () => { privacy.showOthers = byId('show-heads').checked; hideSharedUntilEnabled = false; privacySave(); layout(); };
   byId('area').value=area;byId('area').onchange=()=>{area=byId('area').value;try{localStorage.setItem(AREA_KEY,area);}catch{}refreshFields();layout();};
-  const ROLE_CHOICES=[['nobody','Nobody'],['owner','Owner only'],['lover','Lovers and owner'],['whitelist','Whitelist and above'],['friend','Friends and above'],['anyone','Anyone']];
-  const PERM_LABELS={visuals:'Visuals only',text:'Visuals + words',session:'Full session + control lock',pulse:'Pulse / flash changes',audio:'Audio control',expressions:'Facial expressions',permanent:'Permanent access (no time limit)'};
+  const ROLE_CHOICES=[['nobody','Nobody'],['owner','Owner'],['lover','Lovers and above'],['whitelist','Whitelist and above'],['friend','Friends and above'],['anyone','Anyone']];
   function roleSelect(el,value,first){el.replaceChildren();for(const [v,t] of ROLE_CHOICES){const o=document.createElement('option');o.value=v;o.textContent=v==='nobody'?first:t;el.append(o);}el.value=value;}
   roleSelect(byId('perm-ask'),perms.ask,'Nobody (requests off)');
-  byId('perm-ask').onchange=()=>{if(!permsLocked()){perms.ask=byId('perm-ask').value;savePerms();}refreshFields();};
-  for(const k of PERM_KEYS){const row=document.createElement('label');row.textContent=PERM_LABELS[k]+' ';const s=document.createElement('select');s.id='perm-auto-'+k;roleSelect(s,perms.auto[k],'Nobody (always ask)');
-    s.onchange=()=>{if(!permsLocked()){perms.auto[k]=s.value;savePerms();}refreshFields();};row.append(s);byId('perm-auto').append(row);}
-  byId('perm-owner-lock').onchange=()=>{if(!permsLocked()){perms.ownerLock=byId('perm-owner-lock').checked;savePerms();}refreshFields();};
+  byId('perm-ask').onchange=()=>{if(selfCan('authority')){perms.ask=byId('perm-ask').value;savePerms();}refreshFields();};
+  function renderAuthority(){const box=byId('auth-rows'),remote=receivedGrants.get(Number(selected)),ra=remote?.authority?remote:null;let table,editable,note='';
+    if(selected==='self'){table=authority;editable=()=>selfCan('authority');if(!selfCan('authority'))note='You can’t change these: Self is off for “Change these permissions”.';}
+    else if(ra?.access.authority){table=ra.draftTable;editable=k=>ra.access[k];note='Editing '+label(Number(selected))+'’s authority. Send changes to apply. Changes that would remove your own access are ignored.';}
+    else{box.replaceChildren();byId('auth-note').hidden=false;byId('auth-note').textContent='You can’t see this player’s authority settings.';return;}
+    byId('auth-note').hidden=!note;byId('auth-note').textContent=note;
+    const key=JSON.stringify([selected,table,AUTH_KEYS.map(k=>editable(k))]);if(box.dataset.key===key||box.contains(root.activeElement))return;box.dataset.key=key;box.replaceChildren();
+    const head=document.createElement('div');head.className='auth-row auth-head';for(const t of ['Part','Self','Lowest role with access']){const c=document.createElement('span');c.textContent=t;head.append(c);}box.append(head);
+    for(const k of AUTH_KEYS){const row=document.createElement('div');row.className='auth-row';const name=document.createElement('span');name.textContent=AUTH_LABELS[k];
+      const cb=document.createElement('input');cb.type='checkbox';cb.checked=table[k].self;cb.disabled=!editable(k);cb.setAttribute('aria-label','Self: '+AUTH_LABELS[k]);
+      const sel=document.createElement('select');roleSelect(sel,table[k].min,'Nobody');sel.disabled=!editable(k);sel.setAttribute('aria-label','Lowest role: '+AUTH_LABELS[k]);
+      cb.onchange=()=>setAuth(k,'self',cb.checked);sel.onchange=()=>setAuth(k,'min',sel.value);row.append(name,cb,sel);box.append(row);}}
+  function setAuth(k,field,value){const remote=receivedGrants.get(Number(selected));byId('auth-rows').dataset.key='';
+    if(selected!=='self'){if(remote?.authority&&remote.access.authority&&remote.access[k]){remote.draftTable[k][field]=value;remote.dirty=true;}refreshFields();return;}
+    if(!selfCan('authority')){refreshFields();return;}
+    const next={...authority[k],[field]:value};
+    if(k==='authority'&&!next.self&&next.min==='nobody'){say('Give someone access to “Change these permissions” first, or you could never undo this.');refreshFields();return;}
+    if(k==='authority'&&field==='self'&&value===false&&!confirm('Lock yourself out of changing these permissions? Only people with authority will be able to change them back.')){refreshFields();return;}
+    authority[k]=next;saveAuthority();refreshFields();layout();}
   byId('duration').onchange = () => { byId('minutes-row').hidden = byId('duration').value !== 'custom'; };
   function refreshPresets() {
     const value = byId('preset-list').value; byId('preset-list').replaceChildren();
@@ -630,16 +797,16 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     savePresets(); byId('preset-list').value = existing >= 0 ? existing : presets.length - 1; say('Preset saved.');
   };
   byId('preset-load').onclick = () => {
-    const preset = presets[Number(byId('preset-list').value)]; if (!preset || (selected === 'self' && locked)) return;
+    const preset = presets[Number(byId('preset-list').value)]; if (!preset || (selected === 'self' && (locked || ['visuals','words','pulse','audio','imagery'].some(k=>!selfCan(k))))) return;
     if (selected === 'self') { settings = normalize(preset.settings); save(); resetEffectClock(); }
-    else { const grant = receivedGrants.get(Number(selected)); if (grant) grant.draft = normalize(preset.settings); }
+    else { const grant = receivedGrants.get(Number(selected)); if (grant) { grant.draft = normalize(preset.settings); grant.dirty = true; } }
     refreshFields(); layout(); say(selected === 'self' ? 'Preset loaded.' : 'Preset loaded into remote draft. Send changes to apply permitted settings.');
   };
   byId('preset-delete').onclick = () => { if (!presets.length || byId('preset-list').value === '') return; presets.splice(Number(byId('preset-list').value),1); savePresets(); say('Preset deleted.'); };
   refreshPresets();
   byId('enabled').onchange = () => {
-    if (selected === 'self') { if (!locked) { enabled = byId('enabled').checked; saveSession(); resetEffectClock(); layout(); } }
-    else { const grant = receivedGrants.get(Number(selected)); if (grant?.level === 'session') grant.enabled = byId('enabled').checked; }
+    if (selected === 'self') { if (!locked && selfCan('effects')) { enabled = byId('enabled').checked; saveSession(); resetEffectClock(); layout(); } }
+    else { const grant = receivedGrants.get(Number(selected)); if (grant?.level === 'session') { grant.enabled = byId('enabled').checked; grant.dirty = true; } }
     refreshFields();
   };
   byId('lock').onchange = () => { const grant = receivedGrants.get(Number(selected)); if (grant?.level === 'session') grant.locked = byId('lock').checked; };
@@ -655,25 +822,13 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if(member === null)return;
     const detected = peer && present(member) && Date.now()-peer.seen < 45000;
     byId('profile-title').textContent = label(member);
-    byId('profile-status').textContent = grant ? 'Hypno Reverie detected · You have keys. Edit and preview their draft, then Send changes.' : detected ? 'Hypno Reverie detected · Request keys to edit this player’s effects.' : 'Hypno Reverie not detected in this room. They may need to load it or update. Discovery can take up to 15 seconds.';
+    byId('profile-status').textContent = grant ? grant.authority ? 'Hypno Reverie detected · Your role gives you authority over this overlay. Change it here, then Send changes.' : 'Hypno Reverie detected · You have keys. Edit and preview their draft, then Send changes.' : detected ? 'Hypno Reverie detected · Request keys to edit this player’s effects.' : 'Hypno Reverie not detected in this room. They may need to load it or update. Discovery can take up to 15 seconds.';
     byId('request-options').hidden = !!grant; byId('request-keys').hidden = !!grant; byId('request-keys').disabled = !detected || Date.now()-(requestTimes.get(member)||0)<30000;
-    const acc=!grant&&detected?offers.get(member)?.access:null,busy=!!offers.get(member)?.busy,rank={visuals:0,text:1,session:2};
-    byId('request-keys').textContent=acc?'Take control':'Request keys';
-    for(const o of byId('request-level').options)o.disabled=!!acc&&rank[o.value]>rank[acc.level];
-    for(const o of byId('request-duration').options)o.disabled=!!acc&&o.value==='indefinite'&&!acc.permanent;
-    for(const [id,k] of [['request-pulse','pulse'],['request-audio','audio'],['request-expressions','expressions']]){byId(id).disabled=!!acc&&!acc[k];if(acc&&!acc[k])byId(id).checked=false;}
-    if(acc){
-      if(byId('request-level').dataset.offerFor!==String(member)){byId('request-level').dataset.offerFor=String(member);byId('request-level').value=acc.level;byId('request-pulse').checked=acc.pulse;byId('request-audio').checked=acc.audio;byId('request-expressions').checked=acc.expressions;}
-      if(byId('request-level').selectedOptions[0]?.disabled)byId('request-level').value=acc.level;
-      if(byId('request-duration').selectedOptions[0]?.disabled)byId('request-duration').value='30';
-      byId('profile-status').textContent=busy?'Hypno Reverie detected · You have direct access, but someone else is in control right now.':'Hypno Reverie detected · You have direct access. Take control any time; no approval needed.';
-      byId('request-keys').disabled=busy||Date.now()-(requestTimes.get(member)||0)<30000;
-    } else byId('request-level').dataset.offerFor='';
   }
   byId('request-keys').onclick = () => {
     const member=viewedProfile;if(!member || !peers.has(member) || !present(member) || Date.now()-(requestTimes.get(member)||0)<30000)return;
     dominant=true;byId('dominant').checked=true;send('hello',{dominant});
-    if(send('requestKeys',{level:byId('request-level').value,minutes:byId('request-duration').value==='indefinite'?null:Number(byId('request-duration').value),allowPulse:byId('request-pulse').checked,allowAudio:byId('request-audio').checked,allowExpressions:byId('request-expressions').checked},member)){requestTimes.set(member,Date.now());say(offers.get(member)?.access?'Taking control…':'Key request sent. Waiting for their approval.');refreshProfileCard();}
+    if(send('requestKeys',{level:byId('request-level').value,minutes:byId('request-duration').value==='indefinite'?null:Number(byId('request-duration').value),allowPulse:byId('request-pulse').checked,allowAudio:byId('request-audio').checked,allowExpressions:byId('request-expressions').checked},member)){requestTimes.set(member,Date.now());say('Key request sent. Waiting for their approval.');refreshProfileCard();}
   };
   function refreshRequests() {
     byId('requests-card').hidden=!keyRequests.size; byId('requests-list').replaceChildren();
@@ -696,7 +851,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if(byId('face-group').dataset.key!==key){byId('face-group').dataset.key=key;byId('face-group').replaceChildren();for(const name of Object.keys(options)){const option=document.createElement('option');option.value=name;option.textContent=name;byId('face-group').append(option);}if(options[group])byId('face-group').value=group;byId('face-value').dataset.group='';}
     const chosen=byId('face-group').value;
     if(byId('face-value').dataset.group!==chosen){byId('face-value').replaceChildren();for(const expression of options[chosen]||[]){const option=document.createElement('option');option.value=expression??'';option.textContent=expression===null?'Default':expression.replace(/([a-z])([A-Z])/g,'$1 $2');byId('face-value').append(option);}byId('face-value').dataset.group=chosen;}
-    const available=Object.keys(options).length>0,permitted=selected==='self'?!locked:!!remote?.allowExpressions;
+    const available=Object.keys(options).length>0,permitted=selected==='self'?(!locked&&selfCan('expressions')):!!remote?.allowExpressions;
     byId('face-apply').disabled=byId('face-group').disabled=byId('face-value').disabled=!available||!permitted;
     byId('face-status').textContent=!available?'No supported expression choices found on this character.':!permitted?'Expression control is not granted, or your controls are locked.':'Choose an expression and Apply. The game may block choices due to equipped items.';
   }
@@ -709,7 +864,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     for(const name of groups){const item=c.Appearance.find(item=>item.Asset?.Group?.Name===name);if(!item)continue;const reason=window.CharacterIsExpressionDisallowed(c,item,value);if(reason)return {ok:false,message:'The game blocked this expression: '+String(reason)};}
     window.CharacterSetFacialExpression(c,group,value);c.ActiveExpression?.setWithoutReload?.(group,value);return {ok:true,message:'Expression applied.'};
   }
-  byId('face-apply').onclick=()=>{const group=byId('face-group').value,value=byId('face-value').value||null;if(selected==='self'){if(!locked){try{say(applyFace(group,value).message);}catch{say('The game could not apply that expression.');}}return;}const grant=receivedGrants.get(Number(selected));if(!grant?.allowExpressions||Date.now()-(grant.lastSend||0)<300)return;grant.lastSend=Date.now();grant.seq++;send('expression',{token:grant.token,seq:grant.seq,group,value},Number(selected));};
+  byId('face-apply').onclick=()=>{const group=byId('face-group').value,value=byId('face-value').value||null;if(selected==='self'){if(!locked&&selfCan('expressions')){try{say(applyFace(group,value).message);}catch{say('The game could not apply that expression.');}}return;}const grant=receivedGrants.get(Number(selected));if(!grant?.allowExpressions||Date.now()-(grant.lastSend||0)<300)return;grant.lastSend=Date.now();grant.seq++;if(grant.authority)send('aset',{seq:grant.seq,expression:{group,value}},Number(selected));else send('expression',{token:grant.token,seq:grant.seq,group,value},Number(selected));};
   function player() { return window.Player; }
   function characters() { return Array.isArray(window.ChatRoomCharacter) ? window.ChatRoomCharacter : []; }
   function present(member) { return !blockedMember(member)&&characters().some(c => c.MemberNumber === member); }
@@ -744,9 +899,9 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   }
   byId('stop').onclick = () => { if (!gate.size) stop(); }; byId('revoke').onclick = () => { if (!gate.size) revoke('Keys revoked; overlay stopped.'); };
   function keydown(event) {
-    if (event.key === 'Escape') { if (!locked) stop(); }
+    if (event.key === 'Escape') { if (!locked && selfCan('effects')) stop(); }
     else if (event.altKey && event.shiftKey && event.code === 'KeyH' && !event.repeat) { event.preventDefault(); open(); }
-    else if (event.altKey && event.shiftKey && event.code === 'KeyS' && !event.repeat && !locked) {
+    else if (event.altKey && event.shiftKey && event.code === 'KeyS' && !event.repeat && !locked && selfCan('effects')) {
       event.preventDefault(); enabled = !enabled; saveSession(); resetEffectClock(); refreshFields(); layout();
     }
   }
@@ -770,11 +925,15 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if (!grant || !present(member) || (grant.expires !== null && grant.expires <= Date.now())) { say('These keys are no longer valid.'); return; }
     if (Date.now() - (grant.lastSend || 0) < 300) return;
     grant.lastSend = Date.now(); grant.seq++;
+    if (grant.authority) { const a = grant.access;
+      if (send('aset', { seq: grant.seq, settings: grant.draft, enabled: a.effects ? grant.enabled : undefined, table: a.authority ? grant.draftTable : undefined }, member)) { grant.dirty = false; say('Changes sent to ' + label(member) + '.'); }
+      else say('Could not send changes.'); return; }
     if (send('set', { token: grant.token, seq: grant.seq, settings: grant.draft, enabled: grant.enabled, locked: grant.locked, allowSelfHead:grant.allowSelfHead===true }, member)) say('Changes sent; waiting for acknowledgement.');
     else say('Could not send changes.');
   };
   byId('release').onclick = () => {
     const member = Number(selected), grant = receivedGrants.get(member);
+    if (grant?.authority) return;
     if (grant) send('release', { token: grant.token }, member);
     receivedGrants.delete(member); selected = 'self'; updatePeople(); refreshFields(); say('Keys returned.');
   };
@@ -787,7 +946,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     populate(byId('peer'), candidates.length ? candidates.map(([id]) => [String(id), label(id)]) : [['', 'No controllers discovered']]);
     if (candidates.some(([id]) => String(id) === peerValue)) byId('peer').value = peerValue;
     const targets = new Set(receivedGrants.keys()); if(viewedProfile !== null)targets.add(viewedProfile);
-    populate(byId('target'), [['self', 'My overlay'], ...[...targets].map(id => [String(id), label(id)])]);
+    populate(byId('target'), [['self', 'My overlay'], ...[...targets].map(id => [String(id), label(id) + (receivedGrants.get(id)?.authority ? ' · authority' : receivedGrants.has(id) ? ' · keys' : '')])]);
     if (targetValue === 'self' || targets.has(Number(targetValue))) byId('target').value = targetValue;
     else { selected = 'self'; byId('target').value = 'self'; refreshFields(); }
     const held=gate.list();
@@ -805,7 +964,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     const sender = data.Sender, packet = data.Dictionary;
     if (sender === player()?.MemberNumber || !present(sender) || !packet || typeof packet !== 'object' || packet.v !== 2 ||
       (packet.to !== null && packet.to !== player()?.MemberNumber)) return;
-    if (!['hello', 'helloAck', 'grant', 'ackGrant', 'set', 'applied', 'release', 'revoke', 'head', 'requestKeys', 'declineKeys', 'offer', 'expression', 'expressionResult'].includes(packet.kind)) return;
+    if (!['hello', 'helloAck', 'grant', 'ackGrant', 'set', 'applied', 'release', 'revoke', 'head', 'requestKeys', 'declineKeys', 'auth', 'aset', 'aresult', 'expression', 'expressionResult'].includes(packet.kind)) return;
     // Discovery and cosmetic head state may broadcast; control always targets a member.
     if (!['hello', 'head'].includes(packet.kind) && packet.to !== player()?.MemberNumber) return;
     try { if (JSON.stringify(packet).length > 16000) return; } catch { return; }
@@ -816,9 +975,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if(packet.kind === 'requestKeys'){
       if(!['visuals','text','session'].includes(packet.level) || !(packet.minutes===null || (Number.isFinite(packet.minutes) && packet.minutes>=1 && packet.minutes<=30)) || typeof packet.allowPulse!=='boolean')return;
       if(!roleAllows(sender,perms.ask)){send('declineKeys',{},sender);return;}
-      peers.set(sender,{dominant:true,seen:now});const request={at:now,level:packet.level,minutes:packet.minutes,allowPulse:packet.allowPulse,allowAudio:packet.allowAudio===true,allowExpressions:packet.allowExpressions===true};
-      if(!gate.has(sender)&&autoApproves(sender,request)){giveKeys(sender,request.level,request.minutes,request.allowPulse,request.allowAudio,request.allowExpressions);const h=gate.get(sender);if(h){h.auto=true;if(h.expires===null)savePermanent();say(label(sender)+' ('+ROLE_NAMES[roleOf(sender)]+') took control through direct access.');}return;}
-      keyRequests.set(sender,request);updatePeople();say(label(sender)+' requested keys. Review the request in the menu.');
+      peers.set(sender,{dominant:true,seen:now});keyRequests.set(sender,{at:now,level:packet.level,minutes:packet.minutes,allowPulse:packet.allowPulse,allowAudio:packet.allowAudio===true,allowExpressions:packet.allowExpressions===true});updatePeople();say(label(sender)+' requested keys. Review the request in the menu.');
       open();return;
     }
     if(packet.kind === 'declineKeys'){say(label(sender)+' declined your key request.');return;}
@@ -827,11 +984,27 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       else publicHeads.delete(sender);
       return;
     }
-    if(packet.kind==='offer'){const a=packet.access;
-      if(a&&typeof a==='object'&&['visuals','text','session'].includes(a.level))offers.set(sender,{access:{level:a.level,pulse:a.pulse===true,audio:a.audio===true,expressions:a.expressions===true,permanent:a.permanent===true},busy:packet.busy===true});
-      else offers.delete(sender);refreshProfileCard();return;}
+    if(packet.kind==='auth'){const a=packet.access,old=receivedGrants.get(sender);
+      if(!a||typeof a!=='object'){if(old?.authority){receivedGrants.delete(sender);updatePeople();refreshFields();}return;}
+      if(old&&!old.authority)return; // keys they handed me take precedence while held
+      const access={};for(const k of AUTH_KEYS)access[k]=a[k]===true;const see=access.view||['visuals','words','pulse','audio','imagery','effects'].some(k=>access[k]);
+      const g=old||{authority:true,token:'',level:'session',expires:null,seq:0,locked:false};
+      Object.assign(g,{access,canSee:see,allowPulse:true,allowAudio:true,allowExpressions:access.expressions,faceOptions:cleanFaceOptions(packet.faceOptions),seen:now,live:see?normalize(packet.settings):normalize(),liveEnabled:packet.enabled===true,liveTable:cleanTable(packet.table)});
+      if(!old||!g.dirty){g.draft=clone(g.live);g.enabled=g.liveEnabled;g.draftTable=clone(g.liveTable);}
+      receivedGrants.set(sender,g);if(!old)say('Your role gives you authority over '+label(sender)+'’s overlay.');updatePeople();refreshFields();return;}
+    if(packet.kind==='aresult'){const g=receivedGrants.get(sender);if(!g?.authority||g.seq!==packet.seq)return;g.faceOptions=cleanFaceOptions(packet.faceOptions);refreshFace();say(packet.ok?'Expression applied on '+label(sender)+'.':'Expression rejected by the receiver’s game.');return;}
+    if(packet.kind==='aset'){const a=authAccess(sender);if(!a||!Number.isSafeInteger(packet.seq)||packet.seq<=(authSeq.get(sender)||0))return;authSeq.set(sender,packet.seq);
+      if(packet.expression&&typeof packet.expression==='object'){if(!a.expressions)return;let r;try{r=applyFace(packet.expression.group,packet.expression.value??null);}catch{r={ok:false,message:'The game could not apply that expression.'};}
+        send('aresult',{ok:r.ok,message:r.message,seq:packet.seq,faceOptions:faceOptions(player())},sender);say(r.message);return;}
+      let changed=false;
+      if(packet.settings&&typeof packet.settings==='object'&&['visuals','words','pulse','audio','imagery'].some(k=>a[k])){const next=mergeParts(settings,normalize(packet.settings),a);if(JSON.stringify(next)!==JSON.stringify(settings)){settings=next;save();changed=true;}}
+      if(a.effects&&typeof packet.enabled==='boolean'&&packet.enabled!==enabled){enabled=packet.enabled;saveSession();changed=true;}
+      if(a.authority&&packet.table&&typeof packet.table==='object')changed=applyRemoteTable(sender,packet.table)||changed;
+      if(changed){resetEffectClock();refreshFields();updatePeople();layout();publishHead(true);say(`Overlay updated by ${label(sender)} (${ROLE_NAMES[roleOf(sender)]}).`);}
+      return;}
     if (packet.kind === 'hello' || packet.kind === 'helloAck') {
       if(gate.get(sender)?.expires===null && typeof packet.boot==='string' && packet.boot.length<=100 && peers.get(sender)?.boot!==packet.boot)rotateOne(sender);
+      authSent.delete(sender);
       peers.set(sender, { dominant: packet.dominant === true, seen: now, boot:typeof packet.boot==='string'?packet.boot.slice(0,100):'' });
       if (packet.kind === 'hello') send('helloAck', { dominant }, sender);
       sendPermanent(sender);updatePeople(); return;
@@ -878,14 +1051,14 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   function clearSession(reason) {
     if(permanent){for(const g of gate.list())if(g.expires!==null)gate.revoke(g.sender);syncLock();savePermanent();rotatePermanent();say(reason+' Permanent access retained.');}
     else {if(!resume.remember)enabled=false;revoke(reason,false,resume.remember);}
-    receivedGrants.clear();peers.clear();publicHeads.clear();keyRequests.clear();requestTimes.clear();offers.clear();offersSent.clear();viewedProfile=null;inboundTimes.clear();publicWasActive=false;selected='self';ownHeadVisible=false;selfHeadAllowed=false;
+    receivedGrants.clear();peers.clear();publicHeads.clear();keyRequests.clear();requestTimes.clear();authSent.clear();authSeq.clear();viewedProfile=null;inboundTimes.clear();publicWasActive=false;selected='self';ownHeadVisible=false;selfHeadAllowed=false;
     updatePeople();refreshFields();layout();
   }
   function disconnected() { clearSession('Connection lost. All remote keys cleared.'); }
   function memberLeft(data) {
     const member = data?.SourceMemberNumber ?? data?.MemberNumber;
     const leaving=gate.get(member);if(leaving){if(leaving.expires===null){savePermanent();rotateOne(member);}else revokeOne(member,`${label(member)} left the room. Their keys were revoked.`,false);}
-    receivedGrants.delete(member); peers.delete(member); publicHeads.delete(member); keyRequests.delete(member); offers.delete(member); offersSent.delete(member); updatePeople();
+    receivedGrants.delete(member); peers.delete(member); publicHeads.delete(member); keyRequests.delete(member); authSent.delete(member); authSeq.delete(member); updatePeople();
   }
   function roomSync() { clearSession('Room synchronized. Remote keys cleared.'); lastHello = 0; }
   const ROLE_NAMES={owner:'Owner',lover:'Lover',whitelist:'Whitelisted',friend:'Friend',anyone:'Anyone'};
@@ -898,19 +1071,29 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     return 'anyone';
   }
   function roleAllows(member,min){return ROLE_RANK[roleOf(member)]>=(ROLE_RANK[min]||99);}
-  // A level is covered when it or any level above it is auto-approved for this role (session includes words includes visuals).
-  function autoApproves(member,r){const a=perms.auto,levels=['visuals','text','session'];
-    return levels.slice(Math.max(0,levels.indexOf(r.level))).some(l=>roleAllows(member,a[l]))&&(!r.allowPulse||roleAllows(member,a.pulse))&&(!r.allowAudio||roleAllows(member,a.audio))&&(!r.allowExpressions||roleAllows(member,a.expressions))&&(r.minutes!==null||roleAllows(member,a.permanent));}
-  function permsLocked(){return perms.ownerLock&&gate.list().some(g=>g.locked===true&&g.level==='session'&&roleOf(g.sender)==='owner');}
   function savePerms(){try{localStorage.setItem(PERMS_KEY,JSON.stringify(perms));}catch{say('Permissions could not be saved.');}}
-  // Direct access: what this member may take without a request I approve.
-  function offerFor(member){if(!roleAllows(member,perms.ask))return null;const a=perms.auto,level=['session','text','visuals'].find(l=>roleAllows(member,a[l]));if(!level)return null;
-    return {level,pulse:roleAllows(member,a.pulse),audio:roleAllows(member,a.audio),expressions:roleAllows(member,a.expressions),permanent:roleAllows(member,a.permanent)};}
-  function sendOffers(){for(const [id] of peers){if(!present(id))continue;const access=offerFor(id),busy=false,key=JSON.stringify([access,busy]);
-    if(offersSent.get(id)===key||(access===null&&!offersSent.has(id)))continue;if(send('offer',{access,busy},id))offersSent.set(id,key);}}
-  // Keys taken through direct access end when the permissions no longer cover them.
-  function checkAutoGrant(){if(!Number.isSafeInteger(player()?.MemberNumber))return;
-    for(const g of gate.list())if(g.auto&&!autoApproves(g.sender,{level:g.level,minutes:g.expires===null?null:1,allowPulse:g.allowPulse,allowAudio:g.allowAudio,allowExpressions:g.allowExpressions}))revokeOne(g.sender,'Your permissions no longer cover '+label(g.sender)+'. Their keys were taken back.');}
+  const AUTH_LABELS={view:'See settings',visuals:'Spirals, focus and head effects',words:'Words',pulse:'Pulse and flash',audio:'Audio',imagery:'Imagery and pacer',expressions:'Facial expressions',effects:'Turn effects on and off',authority:'Change these permissions'};
+  const PULSE_FOCUS=['colorPulse','colorA','colorB','colorOpacity','beatSource','beats'];
+  function selfCan(k){return authority[k]?.self!==false;}
+  function saveAuthority(){try{localStorage.setItem(AUTH_KEY,JSON.stringify(authority));}catch{say('Authority settings could not be saved.');}authSent.clear();}
+  // What this member may do on my overlay, from my authority table (null = nothing).
+  function authAccess(member){if(!Number.isSafeInteger(member)||member===player()?.MemberNumber||blockedMember(member)||!present(member))return null;
+    const a={};let any=false;for(const k of AUTH_KEYS){a[k]=roleAllows(member,authority[k].min);any=any||a[k];}return any?a:null;}
+  function partOf(p){if(p[0]==='text'||(p[0]==='head'&&(p[1]==='words'||p[1]==='wordMode')))return 'words';if(p[0]==='pulse'||(p[0]==='focus'&&PULSE_FOCUS.includes(p[1])))return 'pulse';if(p[0]==='audio')return 'audio';if(p[0]==='imagery')return 'imagery';return 'visuals';}
+  function mergeParts(cur,inc,a){const next=clone(cur);
+    if(a.visuals){next.spirals=inc.spirals;next.width=inc.width;for(const k of Object.keys(inc.focus))if(!PULSE_FOCUS.includes(k))next.focus[k]=inc.focus[k];for(const k of Object.keys(inc.head))if(k!=='words'&&k!=='wordMode')next.head[k]=inc.head[k];}
+    if(a.words){next.text=inc.text;next.head.words=inc.head.words;next.head.wordMode=inc.head.wordMode;}
+    if(a.pulse){next.pulse=inc.pulse;for(const k of PULSE_FOCUS)next.focus[k]=inc.focus[k];}
+    if(a.audio)next.audio=inc.audio;if(a.imagery)next.imagery=inc.imagery;return normalize(next);}
+  function cleanTable(t){const r={};for(const k of AUTH_KEYS){const v=t?.[k];r[k]={min:ROLE_RANK[v?.min]?v.min:'nobody',self:v?.self!==false};}return r;}
+  // A remote editor may change only parts they hold themselves, and never in a way that removes their own access.
+  function applyRemoteTable(editor,incoming){const inc=cleanTable(incoming),mine=ROLE_RANK[roleOf(editor)];let changed=false;
+    for(const k of AUTH_KEYS){const cur=authority[k],n=inc[k];if(n.min===cur.min&&n.self===cur.self)continue;
+      if(!roleAllows(editor,cur.min)||mine<(ROLE_RANK[n.min]||99))continue;authority[k]={min:n.min,self:n.self};changed=true;}
+    if(changed)saveAuthority();return changed;}
+  function sendAuthority(){for(const [id] of peers){const a=authAccess(id),see=!!a&&(a.view||['visuals','words','pulse','audio','imagery','effects'].some(k=>a[k]));
+    const payload=a?{access:a,settings:see?settings:undefined,enabled:see?enabled:undefined,table:a.authority?authority:undefined,faceOptions:a.expressions?faceOptions(player()):undefined}:{access:null};
+    const key=JSON.stringify(payload);if(authSent.get(id)===key||(!a&&!authSent.has(id)))continue;if(send('auth',payload,id))authSent.set(id,key);}}
   function blockedMember(member) {
     const p=player();
     if(!p||!Number.isSafeInteger(member))return true;
@@ -923,7 +1106,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   function clearBlockedPeers() {
     if(!player())return; // No logged-in player (e.g. mid-relog): don't wipe saved access on a transient state.
     for(const g of gate.list())if(blockedMember(g.sender))revokeOne(g.sender,'A controller is ghosted or blacklisted. Their access was revoked.',false);
-    for(const map of [receivedGrants,peers,publicHeads,keyRequests,requestTimes,offers,offersSent])for(const id of map.keys())if(blockedMember(id))map.delete(id);
+    for(const map of [receivedGrants,peers,publicHeads,keyRequests,requestTimes,authSent,authSeq])for(const id of map.keys())if(blockedMember(id))map.delete(id);
     if(selected!=='self'&&blockedMember(Number(selected))){selected='self';refreshFields();}
     if(viewedProfile!==null&&blockedMember(viewedProfile))viewedProfile=null;
   }
@@ -974,7 +1157,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       socket.on('ChatRoomSyncMemberLeave', memberLeft); socket.on('ChatRoomSync', roomSync); }
   }
   function networkTick() {
-    installMessageHandler();registerPreferences();restorePermanent();clearBlockedPeers();checkAutoGrant();
+    installMessageHandler();registerPreferences();restorePermanent();clearBlockedPeers();
     const next = window.ServerSocket;
     if (next !== socket && typeof next?.on === 'function' && typeof next?.off === 'function') { clearSession('Connected. Remote keys start cleared.'); attachSocket(next); }
     const room = roomKey(), member = player()?.MemberNumber;
@@ -992,7 +1175,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     for (const [id, peer] of peers) if (!present(id) || now - peer.seen > 45000) peers.delete(id);
     for (const [id,request] of keyRequests) if(!present(id) || now-request.at>120000)keyRequests.delete(id);
     for (const [id,state] of publicHeads) if (!present(id) || now - state.seen > 5000) publicHeads.delete(id);
-    sendOffers(); publishHead(); updatePeople();
+    sendAuthority(); publishHead(); updatePeople();
   }
   let livePulse = newPulseState();
   function resetEffectClock() { activeTime = 0; lastFrame = 0; livePulse = newPulseState(); }
@@ -1029,6 +1212,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     headRectangle = visible ? bounds(game?.getBoundingClientRect(), chat.getBoundingClientRect(), 50, innerWidth, innerHeight) : null;
     canvas.hidden = !rectangle || !enabled || document.hidden;
     heads.hidden = !headRectangle || document.hidden;
+    positionImagery();
     for (const [layer,r] of [[canvas,rectangle],[heads,headRectangle]]) {
       if (!r) continue;
       Object.assign(layer.style,{left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px'});
@@ -1036,6 +1220,35 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       if (layer.width !== w || layer.height !== h) { layer.width = w; layer.height = h; }
     }
   }
+  // Imagery layer: one image or video at a time, faded in and out, placed over the same area as the overlay.
+  const imageryState={key:'',el:null,start:0,end:-1,lastCycle:-1,order:0};
+  function positionImagery(){const el=byId('imagery-layer'),im=settings.imagery;el.hidden=canvas.hidden||!im.enabled||!mediaPool(im).length||!rectangle;
+    if(el.hidden){if(imageryState.el){imageryState.el.remove();imageryState.el=null;imageryState.end=-1;}return;}
+    Object.assign(el.style,{left:rectangle.left+'px',top:rectangle.top+'px',width:rectangle.width+'px',height:rectangle.height+'px',zIndex:im.layer==='over'?'2':'0'});canvas.style.zIndex='1';}
+  // The built-in pack (assets/imagery) plus the wearer's own links.
+  function mediaPool(im){return [...(im.builtin?IMAGERY_PACK.map(x=>({url:ASSET_BASE+'imagery/'+x.file,cat:x.cat})):[]),...media];}
+  function pickMedia(im){const pool=mediaPool(im).filter(m=>im.category==='any'||m.cat===im.category);if(!pool.length)return null;
+    if(im.order==='inorder')return pool[imageryState.order++%pool.length];return pool[Math.floor(Math.random()*pool.length)];}
+  function showMedia(m,im){const layer=byId('imagery-layer');imageryState.el?.remove();imageryState.el=null;if(!m)return;
+    const video=/\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i.test(m.url),el=document.createElement(video?'video':'img');el.referrerPolicy='no-referrer';
+    if(video){el.muted=true;el.loop=true;el.autoplay=true;el.playsInline=true;}el.src=m.url;const W=layer.clientWidth,H=layer.clientHeight;
+    if(im.position==='fill')Object.assign(el.style,{left:'0',top:'0',width:'100%',height:'100%',objectFit:'cover'});
+    else{const bw=W*im.size,bh=H*im.size,x=im.position==='random'?Math.random()*(W-bw):(W-bw)/2,y=im.position==='random'?Math.random()*(H-bh):(H-bh)/2;Object.assign(el.style,{left:x+'px',top:y+'px',width:bw+'px',height:bh+'px',objectFit:'contain'});}
+    el.style.mixBlendMode=im.blend;el.style.opacity='0';layer.append(el);imageryState.el=el;if(video)el.play?.().catch(()=>{});}
+  function updateImagery(text){const im=settings.imagery,s=imageryState,t=activeTime;if(byId('imagery-layer').hidden)return;
+    const key=JSON.stringify([im,media.length]);if(key!==s.key||t<s.start){s.key=key;s.end=-1;s.lastCycle=-1;}
+    if(im.timing==='words'){if(text.message&&text.cycle!==s.lastCycle){s.lastCycle=text.cycle;showMedia(pickMedia(im),im);s.start=t;s.end=t+im.duration;}}
+    else if(im.timing==='steady'){if(s.end!==Infinity){showMedia(pickMedia(im),im);s.start=t;s.end=Infinity;}}
+    else if(s.end<0||t>=s.end+im.gap){showMedia(pickMedia(im),im);s.start=t;s.end=t+im.duration;}
+    if(!s.el)return;const f=Math.max(.001,im.fade);s.el.style.opacity=String(im.opacity*Math.max(0,Math.min(1,(t-s.start)/f,(s.end-t)/f)));}
+  // Beat pacer: a pulsing ring or a bouncing bar. Following the wet rhythm uses its tempo, including the 64-second build.
+  function pacerPhase(){const im=settings.imagery,a=settings.audio,follow=im.pacerFollow&&a.slick!=='none',bpm=follow?a.slickBpm:im.pacerBpm;
+    if(follow&&a.slick==='build'){const T=64,u=activeTime%T;return (bpm/60*(u+.9*T*(u/T)**2.5/2.5))%1;}return (activeTime*bpm/60)%1;}
+  function drawPacer(w,h){const im=settings.imagery;if(im.pacer==='off')return;const p=pacerPhase(),c=ctx;c.save();c.strokeStyle=c.fillStyle=im.pacerColor;
+    if(im.pacer==='ring'){const base=Math.min(w,h)*im.pacerSize/2,beat=Math.exp(-p*6),r=base*(.75+.25*beat);c.globalAlpha=.85;c.lineWidth=Math.max(2,base*.08);c.shadowColor=im.pacerColor;c.shadowBlur=base*.3*beat;
+      c.beginPath();c.arc(w/2,h/2,r,0,Math.PI*2);c.stroke();c.globalAlpha=.25*beat;c.fill();}
+    else{const bw=w*.6,x0=(w-bw)/2,y=h*.88,pos=.5-.5*Math.cos(p*Math.PI*2),s=Math.max(6,Math.min(w,h)*im.pacerSize*.12);c.globalAlpha=.35;c.fillRect(x0,y-2,bw,4);c.globalAlpha=.9;c.beginPath();c.arc(x0+bw*pos,y,s,0,Math.PI*2);c.fill();}
+    c.restore();}
   function wrapText(message, maxWidth, ctx) {
     const lines = []; let line = '';
     for (const char of message) {
@@ -1174,7 +1387,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   const focusScratch=document.createElement('canvas');
   function drawFocus(c,config,time,w,h,beatTime=time){
     const f=config.focus;
-    if(f.colorPulse){const rate=f.beatSource==='heartbeat'?config.audio.bpm/60:f.beatSource==='iso'?config.audio.isoRate:Math.abs(config.audio.rightHz-config.audio.leftHz);const seconds=Math.max(2,f.beats/Math.max(.01,rate)),mix=(1-Math.cos(beatTime/seconds*Math.PI*2))/2;
+    if(f.colorPulse){const rate=f.beatSource==='heartbeat'?config.audio.bpm/60:f.beatSource==='iso'?config.audio.isoRate:Math.abs(binauralHz(config.audio)[1]-binauralHz(config.audio)[0]);const seconds=Math.max(2,f.beats/Math.max(.01,rate)),mix=(1-Math.cos(beatTime/seconds*Math.PI*2))/2;
       const rgb=(color)=>[1,3,5].map(i=>parseInt(color.slice(i,i+2),16)),a=rgb(f.colorA),b=rgb(f.colorB);c.save();c.globalAlpha=f.colorOpacity;c.fillStyle='rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*mix)).join(',')+')';c.fillRect(0,0,w,h);c.restore();}
     if(f.enabled){const radius=focusRadius(f,time,w,h),outer=Math.max(radius+1,Math.min(w,h)*.65);
       if(f.blur>0){if(focusScratch.width!==w||focusScratch.height!==h){focusScratch.width=w;focusScratch.height=h;}const sc=focusScratch.getContext('2d');sc.clearRect(0,0,w,h);sc.save();sc.filter='blur('+f.blur*w/700+'px)';sc.drawImage(c.canvas,0,0);sc.filter='none';sc.globalCompositeOperation='destination-in';const mask=sc.createRadialGradient(w/2,h/2,radius,w/2,h/2,Math.min(outer,radius+Math.min(w,h)*.12));mask.addColorStop(0,'transparent');mask.addColorStop(1,'black');sc.fillStyle=mask;sc.fillRect(0,0,w,h);sc.restore();c.drawImage(focusScratch,0,0);}
@@ -1210,25 +1423,47 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       const w = canvas.width, h = canvas.height; ctx.clearRect(0, 0, w, h);
       settings.spirals.forEach((layer,i)=>drawVisualLayer(ctx,layer,activeTime,w,h,i,effectTextures,effectTextureKeys));
       drawFocus(ctx,settings,activeTime,w,h,audioClock(activeTime));
-      const text = textFrame(settings.text, activeTime);
-      drawPulse(text, w, h); drawText(text, w, h);
+      const text = textFrame(settings.text, activeTime); cueOnWord(text);
+      drawPulse(text, w, h); drawText(text, w, h); drawPacer(w, h); updateImagery(text);
     }
     updateFocusBackdrop(); drawHeads(time / 1000); renderPreview(dt);
     frameId = requestAnimationFrame(render);
   }
   let audioContext=null,audioReady=false,audioDraft=false,audioGraph=null,audioKey='',audioMutedByError=false;
   const retiredAudio=new Set();
-  function disposeAudio(graph,immediate=false){if(!graph)return;const now=audioContext?.currentTime||0;try{graph.bus.gain.cancelScheduledValues(now);graph.bus.gain.setTargetAtTime(0,now,.015);}catch{}const close=()=>{for(const source of graph.sources)try{source.stop();}catch{}for(const node of graph.nodes)try{node.disconnect();}catch{}};if(immediate)close();else{const id=setTimeout(()=>{retiredAudio.delete(id);close();},80);retiredAudio.add(id);}}
+  function disposeAudio(graph,immediate=false){if(!graph)return;graph.dead=true;const now=audioContext?.currentTime||0;try{graph.bus.gain.cancelScheduledValues(now);graph.bus.gain.setTargetAtTime(0,now,.015);}catch{}const close=()=>{for(const source of graph.sources)try{source.stop();}catch{}for(const node of graph.nodes)try{node.disconnect();}catch{}};if(immediate)close();else{const id=setTimeout(()=>{retiredAudio.delete(id);close();},80);retiredAudio.add(id);}}
+  // Word cues ring once when a new word or sentence appears: every one, or only those containing a trigger word or phrase (whole words, any case, punctuation ignored).
+  const cueNorm=s=>' '+s.toLowerCase().replace(/[^\p{L}\p{N}']+/gu,' ').trim()+' ';
+  let lastCueCycle=-1;
+  function cueOnWord(text){if(!text.message||text.cycle===lastCueCycle)return;lastCueCycle=text.cycle;const a=settings.audio;if(a.cue==='none'||a.cueMode==='interval'||!audioGraph||audioDraft)return;
+    if(a.cueMode==='trigger'){const m=cueNorm(text.message);if(!a.cueWords.some(w=>{const n=cueNorm(w);return n.trim()&&m.includes(n);}))return;}
+    try{let buf=audioGraph.cueBuffer;if(!buf){const tr=synthesizeTrack('cue',{...a,cueEvery:CUE_LEN[a.cue]},32000);buf=audioContext.createBuffer(1,tr.data.length,tr.rate);buf.copyToChannel(tr.data,0);audioGraph.cueBuffer=buf;}
+      const src=audioContext.createBufferSource(),gain=audioContext.createGain();gain.gain.value=a.cueLevel;src.buffer=buf;src.connect(gain);gain.connect(audioGraph.bus);src.onended=()=>{try{gain.disconnect();}catch{}};src.start();}catch{}}
   function syncAudio(){
     if(destroyed)return;
+    if(wantsAudio())tryAutoAudio();
     const config=audioDraft?editState().audio:settings.audio,validDraft=selected==='self'||receivedGrants.has(Number(selected));
     const play=audioReady&&audioContext?.state==='running'&&config.enabled&&(audioDraft?validDraft:enabled)&&!document.hidden;
     const key=play?JSON.stringify(config)+(audioDraft?selected:'live'):'';
     if(key!==audioKey){disposeAudio(audioGraph);audioGraph=null;audioKey=key;if(play){try{audioGraph=buildAudioMix(audioContext,config,audioContext.destination);}catch(error){audioKey='';audioReady=false;audioMutedByError=true;say('Audio could not start: '+error.message);}}}
-    byId('audio-status').textContent=audioMutedByError?'Audio unavailable. Try Allow sound again.':!audioReady?'Audio needs a local click after loading.':audioContext?.state!=='running'?'Browser paused audio. Click Allow sound to resume.':play?(audioDraft?'Listening to the selected draft locally.':'Audio playing on this device.'):'Audio ready; enable the audio layer and effects to play.';
+    byId('audio-status').textContent=audioMutedByError?'Audio unavailable. Try Allow sound again.':!audioReady?(wantsAudio()?'Starting sound… if your browser holds it back, it starts on your next click or key press in the game.':userMuted?'Muted on this device. Press Allow sound to hear it again.':'Sound starts by itself when the audio layer and effects are on.'):audioContext?.state!=='running'?'Browser paused audio. Click Allow sound to resume.':play?(audioDraft?'Listening to the selected draft locally.':'Audio playing on this device.'):'Audio ready; enable the audio layer and effects to play.';
   }
-  byId('audio-start').onclick=async()=>{try{const Context=window.AudioContext||window.webkitAudioContext;if(!Context)throw Error('Web Audio is unavailable');audioContext ||= new Context();await audioContext.resume();audioReady=true;audioMutedByError=false;syncAudio();}catch(error){say('Audio could not start: '+error.message);}};
-  byId('audio-mute').onclick=()=>{audioReady=false;syncAudio();};
+  const AUTO_AUDIO_KEY='hypnoreverie-audio-auto-v1';let autoAudio=true,userMuted=false,autoTrying=false,lastAutoTry=0;
+  try{if(localStorage.getItem(AUTO_AUDIO_KEY)==='0')autoAudio=false;}catch{}
+  async function startAudio(auto=false){
+    try{const Context=window.AudioContext||window.webkitAudioContext;if(!Context)throw Error('Web Audio is unavailable');audioContext ||= new Context();
+      // resume() can wait for a gesture; an automatic attempt gives up after a moment and tries again later.
+      await (auto?Promise.race([audioContext.resume(),new Promise(r=>setTimeout(r,400))]):audioContext.resume());
+      if(audioContext.state!=='running')return false;audioReady=true;audioMutedByError=false;if(!auto)userMuted=false;syncAudio();return true;}
+    catch(error){if(!auto)say('Audio could not start: '+error.message);return false;}}
+  // With Self off for Audio (Authority tab) the wearer cannot mute or opt out.
+  function wantsAudio(){const forced=!selfCan('audio');return (autoAudio||forced)&&(!userMuted||forced)&&!destroyed&&settings.audio.enabled&&enabled&&!document.hidden&&!(audioReady&&audioContext?.state==='running');}
+  async function tryAutoAudio(){if(autoTrying||!wantsAudio()||Date.now()-lastAutoTry<2000)return;autoTrying=true;lastAutoTry=Date.now();try{await startAudio(true);}finally{autoTrying=false;}}
+  const gestureAudio=()=>{if(wantsAudio())startAudio(true);};
+  for(const type of ['pointerdown','keydown','touchstart'])document.addEventListener(type,gestureAudio,true);
+  byId('audio-start').onclick=()=>startAudio(false);
+  byId('audio-auto').checked=autoAudio;byId('audio-auto').onchange=()=>{if(!selfCan('audio')){byId('audio-auto').checked=true;return;}autoAudio=byId('audio-auto').checked;try{localStorage.setItem(AUTO_AUDIO_KEY,autoAudio?'1':'0');}catch{}syncAudio();};
+  byId('audio-mute').onclick=()=>{if(!selfCan('audio'))return;audioReady=false;userMuted=true;syncAudio();};
   byId('audio-preview').onchange=()=>{audioDraft=byId('audio-preview').checked;syncAudio();};
   function audioClock(fallback){return audioGraph&&audioReady&&audioContext?.state==='running'?Math.max(0,audioContext.currentTime-audioGraph.start):fallback;}
   const wearableMod=bcModSdk.registerMod({name:'HypnoReverie',fullName:'Hypno Reverie',version:VERSION,repository:'https://github.com/Jaxx-01-ai/HypnoReverie'},{allowReplace:true});
@@ -1510,7 +1745,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   window.HypnoReverie = { version: VERSION, open, stop,
     destroy() {
       stop(); destroyed = true; removeMessageHandler(); clearInterval(wearableTimer);clearInterval(catsuitTimer);catsuitCache.clear();boleroLayerCache.clear();removeWearables();cancelAnimationFrame(frameId); clearInterval(layoutTimer); clearInterval(networkTimer);
-      clearInterval(audioTimer);disposeAudio(audioGraph,true);audioGraph=null;audioContext?.close().catch(()=>{});windowObserver.disconnect(); attachSocket(null); document.removeEventListener('keydown', keydown, true);
+      clearInterval(audioTimer);disposeAudio(audioGraph,true);audioGraph=null;audioContext?.close().catch(()=>{});windowObserver.disconnect(); attachSocket(null); document.removeEventListener('keydown', keydown, true);for(const type of ['pointerdown','keydown','touchstart'])document.removeEventListener(type,gestureAudio,true);
       removeEventListener('resize', layout); removeEventListener('scroll', layout, true); document.removeEventListener('visibilitychange', layout);
       try{if(inPreferences)leavePreferences();if(prefRegistered)delete PreferenceExtensionsSettings.HypnoReverie;}catch{}
       profileButton?.remove(); host.remove(); delete window.HypnoReverie;
