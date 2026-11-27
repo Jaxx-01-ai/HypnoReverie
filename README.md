@@ -1,6 +1,6 @@
-# Hypno Reverie
+﻿# Hypno Reverie
 
-Version **0.8.6**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable and privacy test release. The existing FUSAM submission remains for v0.6.0.
+Version **0.8.9**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable and privacy test release. The existing FUSAM submission remains for v0.6.0.
 
 ## Compatibility fixes retained from 0.8.1
 
@@ -12,11 +12,21 @@ Ghosted players (and, from 0.8.4, blacklisted players) cannot send accepted addo
 
 There is no jQuery dependency. The small local DOM helper was renamed from dollar-sign notation to **byId** to make that clear.
 
-## Catsuit artwork (0.8.6)
+## Menu and spiral placement (0.8.9)
 
-The Hypno Reverie Latex Top and Bottom now draw a rendered high-gloss latex surface: deep black with long cool-white highlights along the limbs and torso. Seven pose renders were made with Higgsfield from guides traced from the game's own Latex Catsuit shapes, then fitted back onto those shapes. The game's layer still supplies the exact outline, so every breast size and both Original and EchoV2 keep their native silhouettes.
+- **Show spiral on** (Primary tab): Player area (the default, left of the chat, with the width slider), Chat area, Whole game screen, or Full screen. It's a personal setting saved in this browser: presets and controllers with keys never change it. Clicks always pass through to the game. The chat-covering modes can make chat text harder to read, so lower the opacity if needed.
+- The tab strip wraps onto two rows instead of scrolling sideways, so every tab is visible.
+- A green dot marks each tab whose part is switched on (primary, secondary, words, pulse, audio, focus). The Overview explains how Effects on relates to each tab's own switch.
+- The footer no longer says "Room changed. Remote keys cleared." when the addon first starts.
+- Friendlier labels: Spin speed and Throb speed no longer show radians/cycles units.
+- Audio: the start button is now "Allow sound in this browser", with a note explaining it, the audio-layer switch and Mute.
+- The Words box shows example lines, the Presets list says "No presets saved yet" when empty, and the Keys tab note reads "Both players need Hypno Reverie 0.6 or newer."
 
-Poses with dedicated artwork: standing, arms over the head, arms behind (elbow touch and back cuffs), box tie, yoked, all fours (upper) and hogtied (upper); legs standing, closed, spread, kneeling and kneeling spread. Other combinations (for example the lower body in hogtied or all fours) keep the 0.8.5 glossy restyle. The native Shine layer is replaced by the artwork's own highlights. Where the Top and Bottom come from different renders, a faint line can show at the waist. Body parts no render covered, such as the outstretched arm in back cuffs, fall back to plain deep black latex.
+## Catsuit artwork (0.8.8)
+
+The Hypno Reverie Latex Top and Bottom now use one Higgsfield render per game layer: every Top pose (standing, arms over the head, elbow touch, back cuffs, box tie, yoked, all fours, hogtied) and every Bottom pose (standing, legs closed, spread, kneeling, kneeling spread), each at all four breast sizes. Each render was made from the game's own layer and is drawn at that layer's position, clipped to the game's outline. Nothing is moved, stretched or warped. Where a render falls slightly short of the outline, that edge shows as plain deep black latex.
+
+Notes: all 56 layers have their own render. The sleeve cuffs use the standing Top render of the same size. The lower body in hogtied and all fours, and EchoV2 where its outline differs, keep or fall back to the earlier glossy restyle. The native Shine layer is replaced by the renders' own highlights.
 
 ## Straitjacket fit (0.8.6)
 
@@ -95,7 +105,7 @@ Black strap and silver hardware colours in the assembled preview are approximati
 
 ### Installation
 
-Upload hypnoreverie.js, README.md, bookmarklet.txt and MOD-SDK-LICENSE.txt to the existing repository root. The artwork is embedded in the script; PNG uploads are unnecessary. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.8.6. Re-equip the hood from the Custom Latex Hood base. If you are updating from before 0.8.3, also re-equip the named top and bottom.
+Upload hypnoreverie.js, README.md, bookmarklet.txt and MOD-SDK-LICENSE.txt to the existing repository root. The artwork is embedded in the script; PNG uploads are unnecessary. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.8.9. Re-equip the hood from the Custom Latex Hood base. If you are updating from before 0.8.3, also re-equip the named top and bottom.
 
 This package has not been published automatically. The FUSAM submission is unchanged. BC Mod SDK 1.2.0 supplies the hooks. Native reference artwork is loaded from the game, is not bundled in the deployed script, and retains its upstream authorship and licensing.
 
