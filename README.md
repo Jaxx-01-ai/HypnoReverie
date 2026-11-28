@@ -1,6 +1,6 @@
 ﻿# Hypno Reverie
 
-Version **0.9.2**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable and privacy test release. The existing FUSAM submission remains for v0.6.0.
+Version **0.9.4**, by Jaxx-01-ai. Customizable visual and audio layers for Bondage Club. The visual overlay remains clipped to the left player area and allows game clicks through. This is a wearable and privacy test release. The existing FUSAM submission remains for v0.6.0.
 
 ## Compatibility fixes retained from 0.8.1
 
@@ -11,6 +11,25 @@ Incoming addon packets now use **ChatRoomRegisterMessageHandler** at priority -5
 Ghosted players (and, from 0.8.4, blacklisted players) cannot send accepted addon requests, control updates, expressions, or shared head effects. Ghosting an active controller revokes their keys, including permanent access, and stops their remote session on the next one-second network tick. The addon also prevents direct outgoing messages to ghosted players and drops their cached peer state. Unghosting does not restore revoked keys. Unloading removes only this addon's handler and SDK registration.
 
 There is no jQuery dependency. The small local DOM helper was renamed from dollar-sign notation to **byId** to make that clear.
+
+## Access profiles and colour-blind mode (0.9.4)
+
+- **Who can control your overlay** (top of the Overview tab, open the first time you use the menu): one click sets how much access other people get, so you do not have to fill in the Authority table by hand. You can still fine-tune everything in Keys > Authority afterwards; the card then shows *Custom*.
+  - **Private**: only you. Nobody can see or change your overlay or ask for keys.
+  - **Domme / Dom**: friends can watch your overlay, but nobody can change it or ask for keys; you control others through the keys and authority they give you.
+  - **Switch / Playful**: friends can see and change spirals, words, flashes and sound and switch effects on and off; whitelist can also use imagery and expressions; anyone can ask for keys. You keep full control.
+  - **Sub**: your owner can change everything, including the permissions; lovers everything else; whitelist the effects; friends can watch and ask for keys. You can still change and switch off your own effects.
+  - **Owned (locked)**: your owner holds everything and lovers can change the effects. You cannot switch your effects off, mute them or change the permissions; only your owner can give that back. Needs an owner in the game, and asks you to confirm.
+- **Colour-blind mode** (Overview tab, this device only, controllers cannot change it): recolours spirals, words, flashes, focus and the pacer for red-blind (protanopia), green-blind (deuteranopia, the most common), blue-yellow (tritanopia) or no colour vision (achromatopsia). Colours that would look the same are shifted so they can be told apart again (daltonization, based on Machado, Oliveira and Fernandes 2009). Your saved settings and what others see are unchanged.
+## Ten new built-in presets and spiral direction (0.9.3)
+
+- **New presets** (top bar, preset list): **Rubberization, Kitten, Maid, Helpless, Mindless, Denial, Drop Trigger Training, Good Girl Conditioning, Gentle Relaxation** and **Wake Up**. Each one follows the same induction structure as the first five (fixation and true statements, slow breathing, ten-to-one countdown, fractionation, first-person mantras, a reward phrase always paired with the same bell). *Drop Trigger Training* pairs the word *Drop* with the deep bell, so a controller can later put *drop* in the trigger-word list. *Good Girl Conditioning* is the praise half on its own. *Gentle Relaxation* has no kink content and is a good first preset. *Wake Up* counts up from one to five with an inward spiral and a 15 Hz beta beat, as a gentle way to end a session.
+- **Settings chosen from research**:
+  - **Direction**: a full-screen pattern that flows outward feels like travelling forward into it (the same effect that makes a stopped train feel like it is moving), so all the deepening presets fall outward into the tunnel, and *Wake Up* flows inward, pulling you back out. A consistent direction gives the strongest after-effect, so every layer in a preset flows the same way.
+  - **Colour**: how saturated and bright a colour is affects arousal more than its hue. Blue and grey read calmest and saturated red most arousing, so calm presets (Relaxation, Mindless) use dim, soft colours, and the arousal ones (Denial, Helpless) use deeper, saturated ones.
+  - **Speed**: spirals stay slow, about 3 to 7 rpm with 4 to 6 turns, where the after-effect is strongest. Words show for about 3 to 3.5 seconds with a one-second pause, slow like a hypnotist's voice. Breathing is paced at about six breaths a minute with a longer exhale.
+  - **Beats**: binaural beats work best when they start before and run through the session, so every preset starts its beat straight away. Helpless and Denial pulse their rings in time with the heartbeat (50 and 75 bpm).
+- **Spiral direction setting**: *Reverse spin* is now **Flow outward, falling into the tunnel** and means the same for every spiral style. Before, it meant inward for the spiral style but outward for rings, hearts, petals, polygons and stars. Saved settings are converted, so nothing you saved changes its look. New users start with the spiral falling outward. The first five built-in presets now fall outward too.
 
 ## New moan clips (0.9.2)
 
@@ -146,7 +165,7 @@ Black strap and silver hardware colours in the assembled preview are approximati
 
 ### Installation
 
-Upload hypnoreverie.js, README.md, bookmarklet.txt, MOD-SDK-LICENSE.txt **and the whole assets folder (including assets/vocals)** to the existing repository root. From 0.9.0 the artwork and vocal clips are not embedded in the script. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.9.2. Re-equip the hood from the Custom Latex Hood base. If you are updating from before 0.8.3, also re-equip the named top and bottom.
+Upload hypnoreverie.js, README.md, bookmarklet.txt, MOD-SDK-LICENSE.txt **and the whole assets folder (including assets/vocals)** to the existing repository root. From 0.9.0 the artwork and vocal clips are not embedded in the script. Keep the existing bookmark, reload the game after GitHub Pages deploys, and load the addon again. Verify version 0.9.4. Re-equip the hood from the Custom Latex Hood base. If you are updating from before 0.8.3, also re-equip the named top and bottom.
 
 This package has not been published automatically. The FUSAM submission is unchanged. BC Mod SDK 1.2.0 supplies the hooks. Native reference artwork is loaded from the game, is not bundled in the deployed script, and retains its upstream authorship and licensing.
 

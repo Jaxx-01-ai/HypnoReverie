@@ -1,9 +1,9 @@
-// Hypno Reverie 0.9.2 — Jaxx-01-ai
+// Hypno Reverie 0.9.4 — Jaxx-01-ai
 // Original canvas renderer and opt-in, room-scoped control protocol.
 (() => {
   'use strict';
   const BOOT = typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():String(Math.random());
-  const VERSION = '0.9.2', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
+  const VERSION = '0.9.4', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
   const PRESET_KEY = 'hypnoreverie-presets-v1', PRIVACY_KEY = 'hypnoreverie-head-sharing-v1';
   const clone = value => JSON.parse(JSON.stringify(value));
   // Binaural presets: [left Hz, right Hz]; the difference is the beat.
@@ -48,7 +48,7 @@
   const bool = (v, fallback) => typeof v === 'boolean' ? v : fallback;
   const choice = (v, values, fallback) => values.includes(v) ? v : fallback;
   const spiralDefault = { enabled: true, color: '#b47bff', background: '#171024', backgroundOpacity: 0.2,
-    opacity: 0.4, arms: 4, spin: 1, reverse: false, throbSpeed: 0.4, throbStrength: 0,
+    opacity: 0.4, arms: 4, spin: 1, reverse: true, throbSpeed: 0.4, throbStrength: 0,
     zoom: 1, thickness: 0.5, blur: 0, curve: 5, taper: 0, style: 'spiral', form: 'arch' };
   const defaults = { width: 50, spirals: [spiralDefault, { ...spiralDefault, enabled: false, color: '#69e0e8',
     opacity: 0.22, arms: 3, reverse: true, backgroundOpacity: 0, spin: 0.6, form: 'log' }],
@@ -67,7 +67,7 @@
       return { enabled: bool(s.enabled, d.enabled), color: color(s.color, d.color),
         background: color(s.background, d.background), backgroundOpacity: num(s.backgroundOpacity, d.backgroundOpacity, 0, 1),
         opacity: num(s.opacity, d.opacity, 0, 1), arms: 1,
-        spin: num(s.spin, d.spin, 0, 12), reverse: bool(s.reverse, d.reverse),
+        spin: num(s.spin, d.spin, 0, 12), reverse: (s.dir === 1 || choice(s.style,['spiral','rings','hearts','petals','polygon','star'],'spiral') === 'spiral') ? bool(s.reverse, d.reverse) : !bool(s.reverse, d.reverse), dir: 1,
         throbSpeed: num(s.throbSpeed, d.throbSpeed, 0, 5), throbStrength: num(s.throbStrength, d.throbStrength, 0, 0.6),
         zoom: num(s.zoom, d.zoom, 0.25, 6), thickness: num(s.thickness, d.thickness, 0.01, 0.99),
         blur: num(s.blur, d.blur, 0, 50), curve: num(s.curve, d.curve, 0, 12), taper:num(s.taper,0,0,0.95), style:choice(s.style,['spiral','rings','hearts','petals','polygon','star'], 'spiral'), form:choice(s.form,['arch','log'],'arch') };
@@ -451,7 +451,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     button{pointer-events:auto}button:hover{background:#47305f}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #cfafff;outline-offset:2px}
     button:disabled{opacity:.4;cursor:not-allowed}#stop{background:#592c42;border-color:#b5678d}#panel{pointer-events:auto;width:min(760px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:#17121f;border:1px solid #70568b;border-radius:18px;box-shadow:0 18px 80px #000b;overflow:hidden}
     .header{padding:17px 20px 0;background:#21172e}.brand{display:flex;align-items:center;gap:12px}.brand svg{width:48px;height:48px;flex:none}.brand h2{font-size:21px;margin:0}.brand small{font-size:12px;color:#b7a3cc}.brand #close{margin-left:auto;font-size:19px;padding:4px 10px}
-    .advanced{grid-column:1/-1}.advanced summary{cursor:pointer;color:#b7a3cc;font-size:12px;margin:4px 0}output{min-width:62px;display:inline-block;text-align:right}#drag-bar{width:100%}#drag-bar #close{margin-left:auto!important}.section{grid-column:1/-1;border:1px solid #3a2c4d;border-radius:10px;padding:2px 12px;margin:8px 0;background:#1c1527}.section>summary{cursor:pointer;font-weight:600;padding:8px 0;color:#eadfff}.section>fieldset{margin:2px 0 10px}.section-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:2px 0 10px}.preset-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 0 10px}.preset-bar select{max-width:230px}.view-toggle{font-size:12px;color:#cdbde0}ol.steps{margin:4px 0 12px 18px;line-height:1.6}#content.settings-hidden fieldset,#content.settings-hidden .reset-tab{display:none!important}.reset-tab{float:right;margin:-6px 0 6px;font-size:12px;padding:5px 9px}#auth-window{position:fixed;left:calc(50% - 310px);top:40px;width:min(620px,calc(100vw - 16px));max-height:calc(100vh - 60px);overflow:auto;background:#17121f;border:1px solid #70568b;border-radius:14px;pointer-events:auto;padding:12px 16px;box-shadow:0 18px 80px #000b}#auth-window.docked{border-radius:8px;box-shadow:none;background:rgba(20,15,28,.97)}#auth-window.docked #auth-bar{display:none}#auth-bar{display:flex;align-items:center;gap:10px;cursor:move}#auth-bar strong{flex:1}#imagery-layer{position:fixed;pointer-events:none;overflow:hidden}#imagery-layer>img,#imagery-layer>video{position:absolute;pointer-events:none}#media-url{flex:1;min-width:180px}.media-row{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #3a2c4d}.media-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#cdbde0}.auth-row{display:grid;grid-template-columns:1fr auto minmax(150px,auto);gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #3a2c4d}.auth-head{font-size:12px;color:#b7a3cc}.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:14px 0 10px}.tabs button.on::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#7be0a0;margin-left:6px;vertical-align:middle}#preset-list{min-width:200px}.tabs button{white-space:nowrap;border-color:transparent;background:none;padding:8px 10px}.tabs button[aria-selected=true]{background:#66458d;color:white}
+    .advanced{grid-column:1/-1}.advanced summary{cursor:pointer;color:#b7a3cc;font-size:12px;margin:4px 0}output{min-width:62px;display:inline-block;text-align:right}#drag-bar{width:100%}#drag-bar #close{margin-left:auto!important}.section{grid-column:1/-1;border:1px solid #3a2c4d;border-radius:10px;padding:2px 12px;margin:8px 0;background:#1c1527}.section>summary{cursor:pointer;font-weight:600;padding:8px 0;color:#eadfff}.section>fieldset{margin:2px 0 10px}.section-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:2px 0 10px}.preset-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 0 10px}.preset-bar select{max-width:230px}.view-toggle{font-size:12px;color:#cdbde0}ol.steps{margin:4px 0 12px 18px;line-height:1.6}#quick-fields{margin:0 0 14px}.cb-row{margin:0 0 22px}#profile-card{margin:0 0 14px}.cb-row label{display:flex;flex-direction:column;gap:4px;max-width:420px}.profile-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;padding:4px 0 10px}.profile{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;padding:10px 12px;border-radius:10px;white-space:normal;line-height:1.35}.profile span{font-size:12px;font-weight:400;opacity:.85}.profile.active{outline:2px solid #b47bff;background:#2c1f40}#content.settings-hidden fieldset,#content.settings-hidden .reset-tab{display:none!important}.reset-tab{float:right;margin:-6px 0 6px;font-size:12px;padding:5px 9px}#auth-window{position:fixed;left:calc(50% - 310px);top:40px;width:min(620px,calc(100vw - 16px));max-height:calc(100vh - 60px);overflow:auto;background:#17121f;border:1px solid #70568b;border-radius:14px;pointer-events:auto;padding:12px 16px;box-shadow:0 18px 80px #000b}#auth-window.docked{border-radius:8px;box-shadow:none;background:rgba(20,15,28,.97)}#auth-window.docked #auth-bar{display:none}#auth-bar{display:flex;align-items:center;gap:10px;cursor:move}#auth-bar strong{flex:1}#imagery-layer{position:fixed;pointer-events:none;overflow:hidden}#imagery-layer>img,#imagery-layer>video{position:absolute;pointer-events:none}#media-url{flex:1;min-width:180px}.media-row{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #3a2c4d}.media-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#cdbde0}.auth-row{display:grid;grid-template-columns:1fr auto minmax(150px,auto);gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #3a2c4d}.auth-head{font-size:12px;color:#b7a3cc}.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:14px 0 10px}.tabs button.on::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#7be0a0;margin-left:6px;vertical-align:middle}#preset-list{min-width:200px}.tabs button{white-space:nowrap;border-color:transparent;background:none;padding:8px 10px}.tabs button[aria-selected=true]{background:#66458d;color:white}
     .session-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-top:1px solid #4c385d;padding:9px 0}.session-bar label{margin:0}.session-bar #target{max-width:240px}.session-bar .help{margin-left:auto}
     #content{padding:18px 20px;overflow-y:auto;min-height:0;overscroll-behavior:contain}h3{font-size:16px;margin:0 0 8px}p{color:#c3b2d2;line-height:1.5;margin:8px 0 14px}.help{font-size:12px;color:#bca9ce}
     label{display:block;margin:0}input[type=range]{display:block;width:100%;accent-color:#bd8cff;margin-top:9px}input[type=checkbox]{accent-color:#bd8cff;margin-right:6px}input[type=color]{height:30px;width:54px;border:0;padding:0;background:none;vertical-align:middle}
@@ -467,7 +467,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   </style>
   <div id="focus-blur" hidden></div><div id="imagery-layer" aria-hidden="true" hidden></div><canvas id="effect" aria-hidden="true" hidden></canvas><canvas id="heads" aria-hidden="true" hidden></canvas>
   <div id="ui" hidden><section id="panel" role="dialog" aria-label="Hypno Reverie settings" hidden>
-    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.9.2 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
+    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.9.4 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
       <div class="tabs" role="tablist" aria-label="Settings categories">
         <button data-tab="overview" role="tab" aria-selected="true">Overview</button><button data-tab="primary" role="tab" aria-selected="false">Primary</button><button data-tab="secondary" role="tab" aria-selected="false">Secondary</button>
         <button data-tab="text" role="tab" aria-selected="false">Words</button><button data-tab="pulse" role="tab" aria-selected="false">Pulse</button><button data-tab="audio" role="tab" aria-selected="false">Audio</button><button data-tab="focus" role="tab" aria-selected="false">Focus</button><button data-tab="expressions" role="tab" aria-selected="false">Face</button><button data-tab="head" role="tab" aria-selected="false">Head</button><button data-tab="imagery" role="tab" aria-selected="false">Imagery</button><button data-tab="sharing" role="tab" aria-selected="false">Keys</button><button data-tab="presets" role="tab" aria-selected="false">Presets</button>
@@ -476,7 +476,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     </div>
     <div id="content"><div id="profile-card" class="card" hidden><h3 id="profile-title"></h3><p id="profile-status"></p><div id="request-options"><label>Requested access <select id="request-level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label><label>Duration <select id="request-duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="indefinite">Permanent access</option></select></label><label><input id="request-pulse" type="checkbox"> Include pulse / flash changes</label><label><input id="request-audio" type="checkbox"> Include audio control</label><label><input id="request-expressions" type="checkbox"> Include facial expressions</label></div><button id="request-keys">Request keys</button></div><div id="requests-card" class="card" hidden><h3>Key requests</h3><div id="requests-list"></div><p class="help">The controller chooses the requested permissions. Yes grants exactly those permissions; No declines.</p></div>
       <div id="hidden-note" class="notice" hidden></div><div id="remote-note" class="notice" hidden>Editing a remote draft. Send changes to apply it.</div>
-      <div id="overview" role="tabpanel"><h3>Quick start</h3><ol class="steps"><li>Pick a <b>Preset</b> at the top and press <b>Load</b>, or build your own in the other tabs.</li><li>Tick <b>Effects on</b>.</li><li>Set the <b>Intensity</b> below. Tick <b>All settings</b> at the top whenever you want every option.</li></ol><fieldset id="quick-fields"></fieldset>
+      <div id="overview" role="tabpanel"><details id="profile-card" class="section"><summary id="profile-summary">Who can control your overlay</summary><p class="muted">Pick how much access other people get. This fills in the Authority table (Keys tab) for you; you can fine-tune it there.</p><div id="profile-list" class="profile-list"></div><p id="profile-note" class="muted" hidden></p></details><h3>Quick start</h3><ol class="steps"><li>Pick a <b>Preset</b> at the top and press <b>Load</b>, or build your own in the other tabs.</li><li>Tick <b>Effects on</b>.</li><li>Set the <b>Intensity</b> below. Tick <b>All settings</b> at the top whenever you want every option.</li></ol><fieldset id="quick-fields"></fieldset><fieldset class="cb-row"><label>Colour-blind mode (this device only)<select id="cb-mode"><option value="off">Off</option><option value="protan">Red-blind or red-weak (protanopia)</option><option value="deutan">Green-blind or green-weak (deuteranopia, most common)</option><option value="tritan">Blue-yellow (tritanopia)</option><option value="mono">No colour (achromatopsia): stronger brightness contrast</option></select></label></fieldset>
         <div class="card" id="local-session-card"><h3>Session controls</h3><p id="stop-note">Stop your effects and revoke keys to your overlay.</p><button id="stop">Stop / revoke</button><label><input id="remember-session" type="checkbox"> Keep effects on across room changes and relog</label><p class="help">Remembers on/off for this account when the addon loads again. Timed keys clear when leaving the room. Permanent access preserves effects and lock until returned or revoked.</p><p class="help">While keys are handed over, this button is disabled. Escape stops your session only while controls are unlocked.</p></div>
         <div class="notice">Photosensitivity notice: flashing lights and moving patterns may trigger seizures in people with photosensitive epilepsy. Avoid these effects if they are a trigger for you. Stop if you feel unwell. <a href="https://www.epilepsy.com/what-is-epilepsy/seizure-triggers/photosensitivity" target="_blank" rel="noopener noreferrer">Learn more</a></div>
         <p class="help"><b>Effects on</b> (above) turns your whole overlay on or off. Inside it, each part has its own switch; a green dot on a tab means that part is switched on.</p><p class="help">Open this menu from the headset icon in your player profile, your bookmark, or Alt+Shift+H. Authority settings are in Preferences &gt; Extensions (or Keys &gt; Authority settings). Close the menu to return to play.</p>
@@ -550,7 +550,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     slider(parent, path('opacity'), 'Spiral opacity', 0, 1);
     slider(parent, path('backgroundOpacity'), 'Background opacity', 0, 1);
     slider(parent, path('spin'), 'Spin speed', 0, 12, 0.05);
-    field(parent, path('reverse'), 'Reverse spin', 'checkbox');
+    field(parent, path('reverse'), 'Flow outward, falling into the tunnel (off: inward)', 'checkbox');
     quick('throb','Throb (gently grows and shrinks)',[['custom','Custom (sliders below)'],['off','Off'],['gentle','Gentle'],['strong','Strong']],(s,v)=>{s.throbStrength=THROBS[v];s.throbSpeed=.35;});
     slider(parent,path('throbSpeed'),'Throb speed',0,5);
     slider(parent,path('throbStrength'),'Throb strength',0,0.6);
@@ -765,6 +765,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       for(const i of [0,1])for(const k of ['line','throb']){const q=byId('quick-'+k+'-'+i);if(q)q.closest('label').hidden=true;}}
     for(const d of root.querySelectorAll('details.section'))d.hidden=[...d.querySelectorAll('label')].every(l=>l.hidden)&&!d.querySelector('#face-group');}
   function refreshFields(skip) {
+    if(typeof renderProfiles==='function')try{renderProfiles();}catch{}
     const current = editState(), remote = receivedGrants.get(Number(selected));
     for (const record of fields) {
       const value = getPath(current, record.path);
@@ -864,7 +865,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   const ROLE_CHOICES=[['nobody','Nobody'],['owner','Owner'],['lover','Lovers and above'],['whitelist','Whitelist and above'],['friend','Friends and above'],['anyone','Anyone']];
   function roleSelect(el,value,first){el.replaceChildren();for(const [v,t] of ROLE_CHOICES){const o=document.createElement('option');o.value=v;o.textContent=v==='nobody'?first:t;el.append(o);}el.value=value;}
   roleSelect(byId('perm-ask'),perms.ask,'Nobody (requests off)');
-  byId('perm-ask').onchange=()=>{if(selfCan('authority')){perms.ask=byId('perm-ask').value;savePerms();}refreshFields();};
+  byId('perm-ask').onchange=()=>{if(selfCan('authority')){perms.ask=byId('perm-ask').value;savePerms();}refreshFields();renderProfiles();};
   let authSelected='self';
   function refreshAuthTargets(){const sel=byId('auth-target'),keep=authSelected,items=[['self','My overlay'],...[...receivedGrants].filter(([,g])=>g.authority&&g.access.authority).map(([id])=>[String(id),label(id)])];
     const key=JSON.stringify(items);if(sel.dataset.key!==key){sel.dataset.key=key;sel.replaceChildren(...items.map(([v,t])=>{const o=document.createElement('option');o.value=v;o.textContent=t;return o;}));}
@@ -891,6 +892,36 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if(k==='authority'&&!next.self&&next.min==='nobody'){say('Give someone access to “Change these permissions” first, or you could never undo this.');refreshFields();return;}
     if(k==='authority'&&field==='self'&&value===false&&!confirm('Lock yourself out of changing these permissions? Only people with authority will be able to change them back.')){refreshFields();return;}
     authority[k]=next;saveAuthority();refreshFields();layout();}
+  // Access profiles: [authority per part], Self switches that go off, who may ask for keys.
+  const PROFILE_KEY='hypnoreverie-profile-v1';
+  const PROFILES=[
+    {id:'private',name:'Private',desc:'Only you control your overlay. Nobody else can see or change it, and nobody can ask for keys.',
+     min:{view:'nobody',visuals:'nobody',words:'nobody',pulse:'nobody',audio:'nobody',imagery:'nobody',expressions:'nobody',effects:'nobody',authority:'nobody'},lock:[],ask:'nobody'},
+    {id:'domme',name:'Domme / Dom',desc:'You control others, not the other way round. Friends can watch your overlay but nobody can change it or ask for keys; others can still give you keys to theirs.',
+     min:{view:'friend',visuals:'nobody',words:'nobody',pulse:'nobody',audio:'nobody',imagery:'nobody',expressions:'nobody',effects:'nobody',authority:'nobody'},lock:[],ask:'nobody'},
+    {id:'switch',name:'Switch / Playful',desc:'Friends can see and change your spirals, words, flashes and sound and switch effects on and off. Whitelist can add imagery and expressions. Anyone can ask for keys. You keep full control.',
+     min:{view:'friend',visuals:'friend',words:'friend',pulse:'friend',audio:'friend',imagery:'whitelist',expressions:'whitelist',effects:'friend',authority:'nobody'},lock:[],ask:'anyone'},
+    {id:'sub',name:'Sub',desc:'Your owner can change everything, including these permissions. Lovers can change everything else, whitelist can change the effects, friends can watch. Friends can ask for keys. You can still change and switch off your own effects.',
+     min:{view:'friend',visuals:'whitelist',words:'whitelist',pulse:'whitelist',audio:'whitelist',imagery:'lover',expressions:'lover',effects:'lover',authority:'owner'},lock:[],ask:'friend'},
+    {id:'owned',name:'Owned (locked)',desc:'Your owner holds everything. Lovers can change the effects. You cannot switch your effects off, mute them, or change these permissions; only your owner can give that back. Needs an owner in the game.',
+     min:{view:'lover',visuals:'lover',words:'lover',pulse:'lover',audio:'lover',imagery:'owner',expressions:'owner',effects:'owner',authority:'owner'},lock:['effects','audio','authority'],ask:'lover'}];
+  function hasOwner(){const p=player();try{return !!(p?.Ownership?.MemberNumber);}catch{return false;}}
+  function currentProfile(){return PROFILES.find(pr=>perms.ask===pr.ask&&AUTH_KEYS.every(k=>authority[k].min===pr.min[k]&&authority[k].self===!pr.lock.includes(k)))?.id||'custom';}
+  function applyProfile(id){const pr=PROFILES.find(p=>p.id===id);if(!pr)return;
+    if(!selfCan('authority')){say('You can’t change your access: Self is off for “Change these permissions”.');renderProfiles();return;}
+    if(pr.lock.length&&!hasOwner()){say('Owned (locked) needs an owner in the game.');renderProfiles();return;}
+    if(pr.lock.length&&!confirm('Lock yourself in? You will not be able to switch your effects off, mute them or change these permissions. Only your owner can unlock you.')){renderProfiles();return;}
+    for(const k of AUTH_KEYS)authority[k]={min:pr.min[k],self:!pr.lock.includes(k)};perms.ask=pr.ask;try{localStorage.setItem(PROFILE_KEY,pr.id);}catch{}
+    saveAuthority();savePerms();
+    byId('perm-ask').value=perms.ask;byId('auth-rows').dataset.key='';say('Access set to '+pr.name+'.');refreshFields();layout();renderProfiles();}
+  function renderProfiles(){const cur=currentProfile(),box=byId('profile-list'),can=selfCan('authority');let chosen=null;try{chosen=localStorage.getItem(PROFILE_KEY);}catch{}
+    const name=cur==='custom'?(chosen?'Custom (set in the Keys tab)':'choose one below'):PROFILES.find(p=>p.id===cur).name;
+    byId('profile-summary').textContent='Who can control your overlay: '+name;
+    const key=JSON.stringify([cur,can,hasOwner()]);if(box.dataset.key!==key){box.dataset.key=key;box.replaceChildren();
+      for(const pr of PROFILES){const b=document.createElement('button');b.type='button';b.className='profile'+(pr.id===cur?' active':'');b.disabled=!can||(pr.lock.length>0&&!hasOwner());
+        const t=document.createElement('b');t.textContent=pr.name;const d=document.createElement('span');d.textContent=pr.desc;b.append(t,d);b.onclick=()=>applyProfile(pr.id);box.append(b);}}
+    const note=byId('profile-note');note.hidden=can;note.textContent=can?'':'Locked: only someone with “Change these permissions” can change your access.';
+    if(!chosen&&!byId('profile-card').dataset.seen){byId('profile-card').dataset.seen='1';byId('profile-card').open=true;}}
   byId('auth-target').onchange=()=>{authSelected=byId('auth-target').value;byId('auth-rows').dataset.key='';renderAuthority();};
   byId('open-authority').onclick=()=>openAuthority(false);byId('auth-main').onclick=()=>open();
   byId('auth-close').onclick=()=>{byId('auth-window').hidden=true;if(byId('ui').hidden)leavePreferences();};
@@ -901,8 +932,8 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   // Built-in presets: load-only, available to everyone.
   const BUILTIN_PRESETS=[
  {name:'Dronification',settings:{
-  spirals:[{enabled:true,style:'rings',color:'#39f3ff',background:'#02090c',backgroundOpacity:.5,opacity:.4,spin:.45,thickness:.16,taper:.3,blur:0,zoom:1.1,throbSpeed:.2,throbStrength:.06},
-           {enabled:true,style:'polygon',color:'#1a7c8c',background:'#000000',backgroundOpacity:0,opacity:.2,spin:.3,reverse:true,thickness:.08,taper:0,blur:4,zoom:1.6,throbSpeed:.35,throbStrength:0}],
+  spirals:[{enabled:true,dir:1,reverse:true,style:'rings',color:'#39f3ff',background:'#02090c',backgroundOpacity:.5,opacity:.4,spin:.45,thickness:.16,taper:.3,blur:0,zoom:1.1,throbSpeed:.2,throbStrength:.06},
+           {enabled:true,dir:1,reverse:true,style:'polygon',color:'#1a7c8c',background:'#000000',backgroundOpacity:0,opacity:.2,spin:.3,thickness:.08,taper:0,blur:4,zoom:1.6,throbSpeed:.35,throbStrength:0}],
   text:{enabled:true,font:'mono',color:'#7ff9ff',opacity:.88,mode:'tunnel',fontSize:52,duration:3,gap:.9,random:false,messages:[
    'You are watching the rings','You are breathing','You are reading these words','Each ring draws your eyes inward','Breathe in for four','Breathe out slowly for six',
    'Ten. Thoughts slowing','Nine. Deeper','Eight. Quieter','Seven. Emptier','Six. Deeper','Five. Static fading','Four. Deeper','Three. Blank','Two. Almost silent','One. Drone mode',
@@ -913,8 +944,8 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
    cue:'tick',cueMode:'trigger',cueWords:['good drone','obey','drone'],cueLevel:.28,sweep:true,sweepRate:10},
   focus:{enabled:true,opening:.34,darkness:.9,blur:6,tighten:true,endOpening:.15,tightenSeconds:240,fixation:'ring',size:.09,color:'#39f3ff'}}},
  {name:'Bimbofication',settings:{
-  spirals:[{enabled:true,style:'hearts',color:'#ff5fbf',background:'#2a0420',backgroundOpacity:.38,opacity:.42,spin:.5,thickness:.3,taper:.2,blur:0,zoom:1,throbSpeed:.35,throbStrength:.08},
-           {enabled:true,style:'spiral',form:'log',color:'#ffd1f0',background:'#000000',backgroundOpacity:0,opacity:.14,spin:.6,reverse:true,curve:5,thickness:.4,taper:.4,blur:8,zoom:1,throbSpeed:.35,throbStrength:0}],
+  spirals:[{enabled:true,dir:1,reverse:true,style:'hearts',color:'#ff5fbf',background:'#2a0420',backgroundOpacity:.38,opacity:.42,spin:.5,thickness:.3,taper:.2,blur:0,zoom:1,throbSpeed:.35,throbStrength:.08},
+           {enabled:true,dir:1,reverse:true,style:'spiral',form:'log',color:'#ffd1f0',background:'#000000',backgroundOpacity:0,opacity:.14,spin:.6,curve:5,thickness:.4,taper:.4,blur:8,zoom:1,throbSpeed:.35,throbStrength:0}],
   text:{enabled:true,font:'rounded',colorMode:'fade',color:'#ff7ad9',color2:'#ffffff',color3:'#c77dff',colorCount:'3',colorSpeed:8,opacity:.9,mode:'zoom',fontSize:58,duration:3,gap:.9,random:false,messages:[
    'You are looking at the hearts','You are breathing','You are reading these words','Your eyes feel soft and heavy','Breathe in pink','Breathe out every thought',
    'Ten. Giggly','Nine. Softer','Eight. Bubbly','Seven. Sillier','Six. Deeper','Five. Fuzzy','Four. Pinker','Three. Blank and pretty','Two. Empty','One. Bimbo',
@@ -925,8 +956,8 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
    vocal:'soft',vocalLevel:.1,vocalGap:8,cue:'chime',cueMode:'trigger',cueWords:['good girl','giggle','pink'],cueLevel:.28,sweep:true,sweepRate:9},
   focus:{enabled:true,opening:.36,darkness:.72,blur:6,tighten:true,endOpening:.2,tightenSeconds:240,fixation:'spiral',size:.08,color:'#ff7ad9'}}},
  {name:'Dollification',settings:{
-  spirals:[{enabled:true,style:'petals',color:'#e8c7ff',background:'#140c1c',backgroundOpacity:.42,opacity:.34,spin:.28,thickness:.22,taper:.4,blur:0,zoom:1.15,throbSpeed:.2,throbStrength:.05},
-           {enabled:true,style:'rings',color:'#ffffff',background:'#000000',backgroundOpacity:0,opacity:.09,spin:.2,reverse:true,thickness:.05,taper:0,blur:6,zoom:1.8,throbSpeed:.35,throbStrength:0}],
+  spirals:[{enabled:true,dir:1,reverse:true,style:'petals',color:'#e8c7ff',background:'#140c1c',backgroundOpacity:.42,opacity:.34,spin:.28,thickness:.22,taper:.4,blur:0,zoom:1.15,throbSpeed:.2,throbStrength:.05},
+           {enabled:true,dir:1,reverse:true,style:'rings',color:'#ffffff',background:'#000000',backgroundOpacity:0,opacity:.09,spin:.2,thickness:.05,taper:0,blur:6,zoom:1.8,throbSpeed:.35,throbStrength:0}],
   text:{enabled:true,font:'elegant',color:'#f6e9ff',opacity:.86,mode:'fade',fontSize:56,duration:3.2,gap:1,random:false,messages:[
    'You are watching the pendant','You are breathing','You are reading these words','Your body is becoming still','Breathe in slowly','Breathe out and freeze',
    'Ten. Still','Nine. Stiller','Eight. Porcelain','Seven. Smooth','Six. Silent','Five. Posed','Four. Plastic','Three. Perfect','Two. Empty','One. Doll',
@@ -937,8 +968,8 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
    cue:'tingsha',cueMode:'trigger',cueWords:['good doll','doll','posed'],cueLevel:.26,sweep:true,sweepRate:12},
   focus:{enabled:true,opening:.34,darkness:.82,blur:8,tighten:true,endOpening:.17,tightenSeconds:240,fixation:'pendant',size:.09,color:'#e8c7ff'}}},
  {name:'Obedience',settings:{
-  spirals:[{enabled:true,style:'spiral',form:'log',color:'#a06bff',background:'#0b0614',backgroundOpacity:.42,opacity:.4,spin:1,curve:6,thickness:.5,taper:.3,blur:0,zoom:1,throbSpeed:.35,throbStrength:.06},
-           {enabled:true,style:'spiral',form:'arch',color:'#e6c36a',background:'#000000',backgroundOpacity:0,opacity:.13,spin:.7,reverse:true,curve:4,thickness:.4,taper:.5,blur:6,zoom:1,throbSpeed:.35,throbStrength:0}],
+  spirals:[{enabled:true,dir:1,reverse:true,style:'spiral',form:'log',color:'#a06bff',background:'#0b0614',backgroundOpacity:.42,opacity:.4,spin:1,curve:6,thickness:.5,taper:.3,blur:0,zoom:1,throbSpeed:.35,throbStrength:.06},
+           {enabled:true,dir:1,reverse:true,style:'spiral',form:'arch',color:'#e6c36a',background:'#000000',backgroundOpacity:0,opacity:.13,spin:.7,curve:4,thickness:.4,taper:.5,blur:6,zoom:1,throbSpeed:.35,throbStrength:0}],
   text:{enabled:true,font:'caps',color:'#f3e2b0',opacity:.9,mode:'echo',fontSize:58,duration:3,gap:.9,random:false,messages:[
    'Follow the pendant','You are breathing','You are reading these words','And each word you read, you accept','Breathe in','Breathe out longer',
    'Ten. Deeper','Nine. Calmer','Eight. Deeper','Seven. Softer','Six. Deeper','Five. Yes','Four. Deeper','Three. Yes','Two. Deeper','One. Obedient',
@@ -949,8 +980,8 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
    cue:'bell',cueMode:'trigger',cueWords:['good girl','obey'],cueLevel:.3,sweep:true,sweepRate:8},
   focus:{enabled:true,opening:.33,darkness:.86,blur:8,tighten:true,endOpening:.15,tightenSeconds:240,fixation:'pendant',size:.1,color:'#e6c36a'}}},
  {name:'Submission',settings:{
-  spirals:[{enabled:true,style:'spiral',form:'log',color:'#c2184a',background:'#0d0205',backgroundOpacity:.46,opacity:.38,spin:.9,curve:5,thickness:.55,taper:.35,blur:0,zoom:1.05,throbSpeed:.3,throbStrength:.07},
-           {enabled:true,style:'rings',color:'#ff7a9c',background:'#000000',backgroundOpacity:0,opacity:.11,spin:.25,reverse:true,thickness:.06,taper:0,blur:6,zoom:1.5,throbSpeed:.35,throbStrength:0}],
+  spirals:[{enabled:true,dir:1,reverse:true,style:'spiral',form:'log',color:'#c2184a',background:'#0d0205',backgroundOpacity:.46,opacity:.38,spin:.9,curve:5,thickness:.55,taper:.35,blur:0,zoom:1.05,throbSpeed:.3,throbStrength:.07},
+           {enabled:true,dir:1,reverse:true,style:'rings',color:'#ff7a9c',background:'#000000',backgroundOpacity:0,opacity:.11,spin:.25,thickness:.06,taper:0,blur:6,zoom:1.5,throbSpeed:.35,throbStrength:0}],
   text:{enabled:true,font:'script',color:'#ffd0dc',opacity:.88,mode:'fade',fontSize:50,duration:3.2,gap:1,random:false,messages:[
    'Watch the flame','You are breathing','You are reading these words','Let your shoulders drop','Breathe in','Breathe out and let go',
    'Ten. Softer','Nine. Deeper','Eight. Heavier','Seven. Softer','Six. Deeper','Five. Yielding','Four. Deeper','Three. Surrendering','Two. Deeper','One. Surrendered',
@@ -959,7 +990,124 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   pulse:{enabled:true,mode:'text',every:4,shape:'soft',style:'edges',color:'#c2184a',opacity:.18,duration:1.4},
   audio:{enabled:true,master:.2,binaural:true,binauralPreset:'theta4',music:'rain',musicLevel:.24,heartbeat:true,heartPace:'b55',heartLevel:.12,breathing:true,breathStyle:'sigh',inhale:4,exhale:6,pause:0,breathLevel:.1,
    vocal:'needy',vocalLevel:.09,vocalGap:10,cue:'deep',cueMode:'trigger',cueWords:['good girl','kneel','submit'],cueLevel:.3,sweep:true,sweepRate:10},
-  focus:{enabled:true,opening:.32,darkness:.88,blur:8,tighten:true,endOpening:.15,tightenSeconds:240,fixation:'candle',size:.11,color:'#ff7a9c'}}}
+  focus:{enabled:true,opening:.32,darkness:.88,blur:8,tighten:true,endOpening:.15,tightenSeconds:240,fixation:'candle',size:.11,color:'#ff7a9c'}}},
+ {name:'Rubberization',settings:{
+  spirals:[{enabled:true,dir:1,reverse:true,style:'spiral',form:'log',color:'#d9dee7',background:'#020203',backgroundOpacity:.55,opacity:.36,spin:.7,curve:6,thickness:.5,taper:.3,blur:0,zoom:1,throbSpeed:.25,throbStrength:.05},
+           {enabled:true,dir:1,reverse:true,style:'rings',color:'#6c7480',background:'#000000',backgroundOpacity:0,opacity:.12,spin:.3,thickness:.07,taper:0,blur:6,zoom:1.6,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'bold',color:'#eef2f8',opacity:.88,mode:'tunnel',fontSize:54,duration:3.2,gap:1,random:false,messages:[
+   'You are watching the shine','You are breathing','You are reading these words','Every band slides inward','Breathe in slowly','Breathe out longer',
+   'Ten. Smooth','Nine. Deeper','Eight. Shiny','Seven. Tighter','Six. Deeper','Five. Sealed','Four. Glossy','Three. Deeper','Two. No edges left','One. Rubber',
+   'Rise a little','And sink twice as deep','Rubber does not think','Rubber is smooth and quiet','Every thought slides off the surface','Tight. Warm. Contained.',
+   'Smooth. Shiny. Sealed.','I am rubber','I am a shiny toy','Polished and obedient','Good rubber toy','Good rubber toy. Deeper.']},
+  pulse:{enabled:true,mode:'text',every:4,shape:'instant',style:'edges',color:'#d9dee7',opacity:.14,duration:.3},
+  audio:{enabled:true,master:.22,binaural:true,binauralPreset:'theta5',music:'drone',musicLevel:.24,iso:true,isoLevel:.06,breathing:true,breathStyle:'nose',inhale:4,exhale:6,pause:0,breathLevel:.08,
+   vocal:'deep',vocalLevel:.08,vocalGap:10,cue:'tick',cueMode:'trigger',cueWords:['rubber','sealed','good rubber toy'],cueLevel:.28,sweep:true,sweepRate:10},
+  imagery:{enabled:true,builtin:true,category:'body',order:'random',timing:'cycle',duration:6,gap:8,fade:1.2,opacity:.32,size:.8,position:'fit'},
+  focus:{enabled:true,opening:.34,darkness:.88,blur:8,tighten:true,endOpening:.15,tightenSeconds:240,fixation:'ring',size:.09,color:'#d9dee7'}}},
+ {name:'Kitten',settings:{
+  spirals:[{enabled:true,dir:1,reverse:true,style:'hearts',color:'#ff9ad5',background:'#1c0817',backgroundOpacity:.4,opacity:.4,spin:.55,thickness:.3,taper:.2,blur:0,zoom:1,throbSpeed:.35,throbStrength:.07},
+           {enabled:true,dir:1,reverse:true,style:'petals',color:'#ffffff',background:'#000000',backgroundOpacity:0,opacity:.1,spin:.25,thickness:.1,taper:.3,blur:6,zoom:1.5,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'rounded',colorMode:'word',color:'#ff9ad5',color2:'#ffffff',color3:'#d9a6ff',colorCount:'3',opacity:.9,mode:'zoom',fontSize:56,duration:3,gap:.9,random:false,messages:[
+   'Watch the little toy swing','You are breathing','You are reading these words','Your eyes follow it so easily','Breathe in','Breathe out and stretch',
+   'Ten. Curious','Nine. Softer','Eight. Playful','Seven. Sleepy','Six. Deeper','Five. Purring','Four. Cosy','Three. Deeper','Two. Little','One. Kitten',
+   'Stretch up a little','And curl up twice as deep','Kittens don’t worry','Kittens just play and nap','Head pats feel so good','You want to be close',
+   'I am a good kitten','I purr when I’m praised','I belong to my owner','Soft. Playful. Owned.','Good kitty','Good kitty. Purr.']},
+  pulse:{enabled:true,mode:'text',every:4,shape:'soft',style:'center',color:'#ff9ad5',opacity:.16,duration:1.2},
+  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'theta7',music:'velvet',musicLevel:.24,breathing:true,breathStyle:'sigh',inhale:4,exhale:6,pause:0,breathLevel:.08,
+   vocal:'purr',vocalLevel:.1,vocalGap:8,cue:'bell',cueMode:'trigger',cueWords:['good kitty','purr','kitten'],cueLevel:.28,sweep:true,sweepRate:9},
+  focus:{enabled:true,opening:.38,darkness:.72,blur:6,tighten:true,endOpening:.2,tightenSeconds:240,fixation:'pendant',size:.09,color:'#ff9ad5'}}},
+ {name:'Maid',settings:{
+  spirals:[{enabled:true,dir:1,reverse:true,style:'petals',color:'#f3ede3',background:'#0b0909',backgroundOpacity:.5,opacity:.3,spin:.3,thickness:.22,taper:.4,blur:0,zoom:1.1,throbSpeed:.2,throbStrength:.04},
+           {enabled:true,dir:1,reverse:true,style:'rings',color:'#2b2626',background:'#000000',backgroundOpacity:0,opacity:.2,spin:.2,thickness:.12,taper:0,blur:4,zoom:1.5,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'elegant',color:'#f6f0e6',opacity:.86,mode:'fade',fontSize:54,duration:3.3,gap:1,random:false,messages:[
+   'Watch the pendant','You are breathing','You are reading these words','Your hands are resting, still','Breathe in','Breathe out and settle',
+   'Ten. Calm','Nine. Neat','Eight. Quiet','Seven. Attentive','Six. Deeper','Five. Ready','Four. Graceful','Three. Deeper','Two. Devoted','One. Maid',
+   'Rise for a moment','And settle twice as deep','A good maid is always ready','Pleasing feels peaceful','Every task done well feels warm','You love a tidy, quiet mind',
+   'I live to serve','Yes Mistress. Yes Master.','I am a good maid','Service is my pleasure','Good maid','Good maid. Curtsy.']},
+  pulse:{enabled:true,mode:'text',every:4,shape:'soft',style:'edges',color:'#f3ede3',opacity:.13,duration:1.5},
+  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'theta',music:'bowls',musicLevel:.26,breathing:true,breathStyle:'nose',inhale:4,exhale:6,pause:0,breathLevel:.07,
+   cue:'tingsha',cueMode:'trigger',cueWords:['yes mistress','yes master','good maid','serve'],cueLevel:.26,sweep:true,sweepRate:12},
+  focus:{enabled:true,opening:.34,darkness:.82,blur:8,tighten:true,endOpening:.17,tightenSeconds:240,fixation:'pendant',size:.09,color:'#e6c36a'}}},
+ {name:'Helpless',settings:{
+  spirals:[{enabled:true,dir:1,reverse:true,style:'rings',color:'#a3122e',background:'#0a0204',backgroundOpacity:.5,opacity:.36,spin:.35,thickness:.2,taper:.3,blur:0,zoom:1.1,throbSpeed:.83,throbStrength:.05},
+           {enabled:true,dir:1,reverse:true,style:'spiral',form:'log',color:'#ff4d6d',background:'#000000',backgroundOpacity:0,opacity:.12,spin:.5,curve:5,thickness:.4,taper:.4,blur:8,zoom:1,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'serif',color:'#ffd6de',opacity:.88,mode:'echo',fontSize:54,duration:3.3,gap:1,random:false,messages:[
+   'Watch the rings close in','You are breathing','You are reading these words','Your arms feel heavy','Breathe in','Breathe out and go limp',
+   'Ten. Heavy','Nine. Deeper','Eight. Bound','Seven. Still','Six. Deeper','Five. Tied','Four. Held','Three. Deeper','Two. Can’t move','One. Helpless',
+   'Struggle up a little','And sink twice as deep','The ropes hold you','The tighter they hold, the calmer you feel','Nothing to do but feel','Someone else decides',
+   'I can’t move','I don’t want to','I am helpless','I am safe being held','Good girl','Good girl. Stay.']},
+  pulse:{enabled:true,mode:'text',every:4,shape:'heartbeat',style:'edges',color:'#a3122e',opacity:.17,duration:1},
+  audio:{enabled:true,master:.22,binaural:true,binauralPreset:'theta4',music:'rain',musicLevel:.24,heartbeat:true,heartPace:'b50',heartLevel:.14,
+   vocal:'ache',vocalLevel:.08,vocalGap:10,cue:'deep',cueMode:'trigger',cueWords:['helpless','bound','good girl'],cueLevel:.3,sweep:true,sweepRate:10},
+  imagery:{enabled:true,builtin:true,category:'body',order:'random',timing:'cycle',duration:6,gap:8,fade:1.2,opacity:.3,size:.8,position:'fit'},
+  focus:{enabled:true,opening:.32,darkness:.9,blur:8,tighten:true,endOpening:.12,tightenSeconds:240,fixation:'ring',size:.1,color:'#ff4d6d'}}},
+ {name:'Mindless',settings:{
+  spirals:[{enabled:true,dir:1,reverse:true,style:'spiral',form:'arch',color:'#9aa0a6',background:'#040404',backgroundOpacity:.55,opacity:.26,spin:.55,curve:6,thickness:.38,taper:.45,blur:12,zoom:1,throbSpeed:.17,throbStrength:.05},
+           {enabled:false,dir:1,reverse:true,style:'rings',color:'#5d6166',background:'#000000',backgroundOpacity:0,opacity:.1,spin:.2,thickness:.05,taper:0,blur:8,zoom:1.6,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'thin',color:'#cfd3d8',opacity:.7,mode:'fade',fontSize:52,duration:3.6,gap:3,random:false,messages:[
+   'Just watch','Breathing','Reading','Slower','Ten','Nine','Eight','Seven','Six','Five','Four','Three','Two','One',
+   'Empty','Up a little','And down, twice as deep','Nothing','Quiet','Blank','No thoughts','Just the spiral','Empty','Blank and happy','Mindless']},
+  pulse:{enabled:false},
+  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'delta',music:'brown',musicLevel:.26,breathing:true,breathStyle:'nose',inhale:4,exhale:8,pause:0,breathLevel:.07,
+   vocal:'drift',vocalLevel:.06,vocalGap:14,cue:'gong',cueMode:'trigger',cueWords:['empty','blank'],cueLevel:.22,sweep:true,sweepRate:14},
+  focus:{enabled:true,opening:.36,darkness:.86,blur:10,tighten:true,endOpening:.16,tightenSeconds:240,fixation:'breath',size:.1,color:'#9aa0a6'}}},
+ {name:'Denial',settings:{
+  spirals:[{enabled:true,dir:1,reverse:true,style:'spiral',form:'log',color:'#9b4dff',background:'#0b0414',backgroundOpacity:.45,opacity:.42,spin:.9,curve:5,thickness:.5,taper:.3,blur:0,zoom:1,throbSpeed:1.25,throbStrength:.06},
+           {enabled:true,dir:1,reverse:true,style:'rings',color:'#e6c36a',background:'#000000',backgroundOpacity:0,opacity:.12,spin:.35,thickness:.06,taper:0,blur:6,zoom:1.5,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'script',color:'#f1dcff',opacity:.9,mode:'zoom',fontSize:56,duration:3,gap:.9,random:false,messages:[
+   'Watch the spiral','You are breathing','You are reading these words','And you are already warm','Breathe in','Breathe out slowly',
+   'Ten. Warmer','Nine. Deeper','Eight. Needier','Seven. Hotter','Six. Deeper','Five. Aching','Four. Wanting','Three. Deeper','Two. So close','One. Not yet',
+   'Ease off a little','And build twice as high','You want it so badly','And you have to wait','Waiting makes it sweeter','The ache feels good',
+   'I want','I wait','I am not allowed yet','Needy and obedient','Not yet','Good girl. Wait.']},
+  pulse:{enabled:true,mode:'text',every:3,shape:'heartbeat',style:'center',color:'#9b4dff',opacity:.2,duration:1},
+  audio:{enabled:true,master:.22,binaural:true,binauralPreset:'theta7',music:'velvet',musicLevel:.22,heartbeat:true,heartPace:'b75',heartLevel:.12,
+   vocal:'ache',vocalLevel:.1,vocalGap:6,slick:'build',slickBpm:90,slickWet:.6,slickLevel:.14,cue:'chime',cueMode:'trigger',cueWords:['not yet','wait','good girl'],cueLevel:.28,sweep:true,sweepRate:8},
+  imagery:{enabled:true,builtin:true,category:'any',order:'random',timing:'words',duration:3,gap:1,fade:.6,opacity:.38,size:.8,position:'fit'},
+  focus:{enabled:true,opening:.36,darkness:.8,blur:6,tighten:true,endOpening:.2,tightenSeconds:240,fixation:'spiral',size:.08,color:'#e6c36a'}}},
+ {name:'Drop Trigger Training',settings:{
+  spirals:[{enabled:true,dir:1,reverse:true,style:'spiral',form:'log',color:'#4fa3ff',background:'#020812',backgroundOpacity:.5,opacity:.36,spin:.75,curve:6,thickness:.5,taper:.35,blur:0,zoom:1,throbSpeed:.2,throbStrength:.05},
+           {enabled:true,dir:1,reverse:true,style:'rings',color:'#1d4f8a',background:'#000000',backgroundOpacity:0,opacity:.14,spin:.3,thickness:.06,taper:0,blur:6,zoom:1.6,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'sans',color:'#dcecff',opacity:.9,mode:'center',fontSize:60,duration:3,gap:1,random:false,messages:[
+   'Watch the spiral','You are breathing','Breathe out slowly','Each time you hear the bell, you drop','Drop',
+   'Ten. Nine. Eight.','Drop','Seven. Six. Five.','Drop','Four. Three. Two.','One.','Drop',
+   'Come up a little','Drop','Deeper every time','Drop','The word does the work','Drop','Whenever you hear it','Drop',
+   'Drop means deeper','Drop means now','Drop','Good. Drop.']},
+  pulse:{enabled:true,mode:'text',every:2,shape:'fadein',style:'edges',color:'#4fa3ff',opacity:.16,duration:1.4},
+  audio:{enabled:true,master:.22,binaural:true,binauralPreset:'theta',music:'drift',musicLevel:.22,breathing:true,breathStyle:'nose',inhale:4,exhale:6,pause:0,breathLevel:.07,
+   cue:'deep',cueMode:'trigger',cueWords:['drop'],cueLevel:.32,sweep:false},
+  focus:{enabled:true,opening:.34,darkness:.86,blur:8,tighten:true,endOpening:.15,tightenSeconds:120,fixation:'ring',size:.09,color:'#4fa3ff'}}},
+ {name:'Good Girl Conditioning',settings:{
+  spirals:[{enabled:true,dir:1,reverse:true,style:'spiral',form:'arch',color:'#ffb3d1',background:'#1a0a12',backgroundOpacity:.4,opacity:.34,spin:.6,curve:5,thickness:.4,taper:.45,blur:6,zoom:1,throbSpeed:.25,throbStrength:.05},
+           {enabled:true,dir:1,reverse:true,style:'rings',color:'#e6c36a',background:'#000000',backgroundOpacity:0,opacity:.1,spin:.25,thickness:.05,taper:0,blur:6,zoom:1.6,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'elegant',colorMode:'fade',color:'#ffd6e8',color2:'#ffe9b0',colorCount:'2',colorSpeed:10,opacity:.9,mode:'fade',fontSize:56,duration:3,gap:1,random:false,messages:[
+   'Watch the spiral','You are breathing','Every time you hear the chime, you feel good','Good girl','Breathe in','Breathe out and smile','Good girl',
+   'Ten. Warm','Nine. Proud','Eight. Good girl','Seven. Glowing','Six. Deeper','Five. Good girl','Four. Happy','Three. Deeper','Two. Good girl','One. Melting',
+   'Hearing it makes you glow','Good girl','The warmth spreads every time','Good girl','I love being a good girl','Good girl','Praise feels so good','Good girl. Deeper.']},
+  pulse:{enabled:true,mode:'text',every:3,shape:'soft',style:'center',color:'#ffb3d1',opacity:.16,duration:1.4},
+  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'theta7',music:'velvet',musicLevel:.24,breathing:true,breathStyle:'sigh',inhale:4,exhale:6,pause:0,breathLevel:.07,
+   vocal:'melting',vocalLevel:.08,vocalGap:8,cue:'chime',cueMode:'trigger',cueWords:['good girl'],cueLevel:.3,sweep:true,sweepRate:9},
+  focus:{enabled:true,opening:.38,darkness:.74,blur:6,tighten:true,endOpening:.2,tightenSeconds:240,fixation:'spiral',size:.08,color:'#ffb3d1'}}},
+ {name:'Gentle Relaxation',settings:{
+  spirals:[{enabled:true,dir:1,reverse:true,style:'spiral',form:'arch',color:'#6fa8dc',background:'#06101a',backgroundOpacity:.45,opacity:.26,spin:.5,curve:5,thickness:.38,taper:.45,blur:12,zoom:1,throbSpeed:.1,throbStrength:.06},
+           {enabled:false,dir:1,reverse:true,style:'rings',color:'#3d6f99',background:'#000000',backgroundOpacity:0,opacity:.1,spin:.2,thickness:.05,taper:0,blur:8,zoom:1.6,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'rounded',color:'#dbe9f7',opacity:.8,mode:'fade',fontSize:52,duration:3.5,gap:1.2,random:false,messages:[
+   'Let your eyes rest on the spiral','You are breathing','You are reading these words','Follow the circle as it grows and shrinks','Breathe in for four','Breathe out for six',
+   'Ten. Shoulders drop','Nine. Jaw softens','Eight. Hands heavy','Seven. Calm','Six. Slower','Five. Warm','Four. Quiet','Three. Easy','Two. Peaceful','One. Rest',
+   'Notice how calm feels','And let it double','Nothing needs doing right now','Each breath out lets go a little more','You are safe and comfortable','Just rest here',
+   'I am calm','I am at ease','Calm and comfortable','Rest']},
+  pulse:{enabled:false},
+  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'alpha',music:'ocean',musicLevel:.26,breathing:true,breathStyle:'nose',inhale:4,exhale:6,pause:0,breathLevel:.08,cue:'none',sweep:true,sweepRate:14},
+  focus:{enabled:true,opening:.42,darkness:.65,blur:6,tighten:false,fixation:'breath',size:.11,color:'#9cc5ea'}}},
+ {name:'Wake Up',settings:{
+  spirals:[{enabled:true,dir:1,style:'spiral',form:'arch',color:'#ffd27a',background:'#0a0806',backgroundOpacity:.3,opacity:.24,spin:.8,reverse:false,curve:4,thickness:.4,taper:.3,blur:4,zoom:1,throbSpeed:.3,throbStrength:.04},
+           {enabled:false,dir:1,style:'rings',color:'#fff2cc',background:'#000000',backgroundOpacity:0,opacity:.1,spin:.3,reverse:false,thickness:.05,taper:0,blur:6,zoom:1.6,throbSpeed:.35,throbStrength:0}],
+  text:{enabled:true,font:'sans',color:'#fff4dc',opacity:.9,mode:'center',fontSize:58,duration:3,gap:.8,random:false,messages:[
+   'In a moment you will come back','Counting up from one to five','One. Feeling returns to your hands','Two. Breathing a little faster','Three. Sounds around you grow clear',
+   'Four. Eyes ready to open','Five. Eyes open, wide awake','Clear-headed and refreshed','Stretch','Take a full breath in','Awake, alert, feeling good']},
+  pulse:{enabled:false},
+  audio:{enabled:true,master:.2,binaural:true,binauralPreset:'beta',music:'drift',musicLevel:.18,breathing:true,breathStyle:'mouth',inhale:3,exhale:3,pause:0,breathLevel:.06,
+   cue:'chime',cueMode:'trigger',cueWords:['five','wide awake'],cueLevel:.3,sweep:false},
+  focus:{enabled:false}}}
 ];
   function refreshPresets() {
     const value = byId('preset-list').value; byId('preset-list').replaceChildren();
@@ -1258,7 +1406,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   const AUTH_LABELS={view:'See settings',visuals:'Spirals, focus and head effects',words:'Words',pulse:'Pulse and flash',audio:'Audio',imagery:'Imagery and pacer',expressions:'Facial expressions',effects:'Turn effects on and off',authority:'Change these permissions'};
   const PULSE_FOCUS=['colorPulse','colorA','colorB','colorOpacity','beatSource','beats'];
   function selfCan(k){return authority[k]?.self!==false;}
-  function saveAuthority(){try{localStorage.setItem(AUTH_KEY,JSON.stringify(authority));}catch{say('Authority settings could not be saved.');}authSent.clear();}
+  function saveAuthority(){try{localStorage.setItem(AUTH_KEY,JSON.stringify(authority));}catch{say('Authority settings could not be saved.');}authSent.clear();if(typeof renderProfiles==='function')try{renderProfiles();}catch{}}
   // What this member may do on my overlay, from my authority table (null = nothing).
   function authAccess(member){if(!Number.isSafeInteger(member)||member===player()?.MemberNumber||blockedMember(member)||!present(member))return null;
     const a={};let any=false;for(const k of AUTH_KEYS){a[k]=roleAllows(member,authority[k].min);any=any||a[k];}return any?a:null;}
@@ -1622,7 +1770,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       const side=Math.hypot(w,h)*1.04*throb*Math.max(1,z);c.drawImage(textures[index],-side/2,-side/2,side,side);
     }else{
       const radius=Math.hypot(w,h)*.7,spacing=Math.max(8,Math.min(w,h)*.2*s.zoom/Math.max(1,s.arms/4)),count=Math.min(80,Math.ceil(radius/spacing)+2);
-      const phase=((time*s.spin*.25*(s.reverse?-1:1))%1+1)%1;
+      const phase=((time*s.spin*.25*(s.reverse?1:-1))%1+1)%1;
       if(['polygon','star','petals'].includes(s.style))c.rotate(time*s.spin*.08);
       for(let i=0;i<count;i++){
         const r=(i+phase)*spacing*throb;if(r<1)continue;c.lineWidth=Math.max(.4,spacing*s.thickness*(1-s.taper*(1-Math.min(1,r/radius))));c.beginPath();
@@ -1672,7 +1820,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   function renderPreview(dt) {
     if(byId('preview-window').hidden || document.hidden || !previewContext)return;
     if(selected !== 'self' && !receivedGrants.has(Number(selected))){showPreview(false);return;}
-    const config=editState(),key=selected+JSON.stringify(config);
+    const config=cbView(editState()),key=selected+cbMode+JSON.stringify(config);
     if(key!==previewConfig){previewConfig=key;previewTime=0;previewPulseState=newPulseState();}
     previewTime+=dt;
     byId('preview-label').textContent=(selected==='self'?'My overlay':label(Number(selected)))+' · unsent appearance preview';
@@ -1686,16 +1834,35 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     drawText(frame,w,h,config.text,c);
     drawHeadGlyph(c,{head:config.head,message:textFrame({...config.text,enabled:true},previewTime).message},previewTime,250+config.head.offsetX*.5,195+config.head.offsetY*.5,.5);
   }
+  const CB_KEY='hypnoreverie-colorblind-v1';let cbMode='off';try{const v=localStorage.getItem(CB_KEY);if(['protan','deutan','tritan','mono'].includes(v))cbMode=v;}catch{}
+  const CB_SIM={protan:[[.152286,1.052583,-.204868],[.114503,.786281,.099216],[-.003882,-.048116,1.051998]],
+    deutan:[[.367322,.860646,-.227968],[.280085,.672501,.047413],[-.01182,.04294,.968881]],
+    tritan:[[1.255528,-.076749,-.178779],[-.078411,.930809,.147602],[.004733,.691367,.3039]]};
+  const cbCache=new Map();
+  function cbColor(hex){if(cbMode==='off'||typeof hex!=='string'||!/^#[0-9a-f]{6}$/i.test(hex))return hex;const key=cbMode+hex;if(cbCache.has(key))return cbCache.get(key);
+    const lin=v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4},gam=v=>{v=Math.max(0,Math.min(1,v));return Math.round(255*(v<=.0031308?v*12.92:1.055*v**(1/2.4)-.055));};
+    const c=[1,3,5].map(i=>lin(parseInt(hex.slice(i,i+2),16)));let out;
+    if(cbMode==='mono'){const y=.2126*c[0]+.7152*c[1]+.0722*c[2],k=Math.max(0,Math.min(1,(y-.18)*1.35+.18));out=[k,k,k];}
+    else{const m=CB_SIM[cbMode],s=m.map(r=>r[0]*c[0]+r[1]*c[1]+r[2]*c[2]),e=c.map((v,i)=>v-s[i]);
+      const shift=cbMode==='tritan'?[e[0]+.7*e[2],e[1]+.7*e[2],0]:[0,.7*e[0]+e[1],.7*e[0]+e[2]];out=c.map((v,i)=>v+shift[i]);}
+    const r='#'+out.map(v=>gam(v).toString(16).padStart(2,'0')).join('');cbCache.set(key,r);return r;}
+  function cbView(s){if(cbMode==='off'||!s)return s;const f=cbColor;
+    return {...s,spirals:s.spirals.map(x=>({...x,color:f(x.color),background:f(x.background)})),text:{...s.text,color:f(s.text.color),color2:f(s.text.color2),color3:f(s.text.color3),colorMode:s.text.colorMode==='rainbow'&&cbMode!=='mono'?'fade':s.text.colorMode},
+      pulse:{...s.pulse,color:f(s.pulse.color)},focus:{...s.focus,color:f(s.focus.color),colorA:f(s.focus.colorA),colorB:f(s.focus.colorB)},head:{...s.head,color:f(s.head.color)},
+      imagery:{...s.imagery,pacerColor:f(s.imagery.pacerColor)}};}
+  byId('cb-mode').value=cbMode;byId('cb-mode').onchange=()=>{cbMode=byId('cb-mode').value;try{localStorage.setItem(CB_KEY,cbMode);}catch{}say(cbMode==='off'?'Colour-blind mode off.':'Colour-blind mode on for this device.');};
   function render(time) {
     if (destroyed) return;
     const dt = lastFrame ? Math.min((time - lastFrame) / 1000, 0.1) : 0; lastFrame = time;
     if (!canvas.hidden && ctx) {
       activeTime += dt;
       const w = canvas.width, h = canvas.height; ctx.clearRect(0, 0, w, h);
+      const real=settings;settings=cbView(real);try{
       drawIntensity=settings.intensity;settings.spirals.forEach((layer,i)=>drawVisualLayer(ctx,layer,activeTime,w,h,i,effectTextures,effectTextureKeys));
       drawFocus(ctx,settings,activeTime,w,h,audioClock(activeTime));
       const text = textFrame(settings.text, activeTime); cueOnWord(text);
       drawPulse(text, w, h); drawText(text, w, h); drawPacer(w, h); updateImagery(text);
+      }finally{settings=real;}
     }
     updateFocusBackdrop(); drawHeads(time / 1000); renderPreview(dt);
     frameId = requestAnimationFrame(render);
