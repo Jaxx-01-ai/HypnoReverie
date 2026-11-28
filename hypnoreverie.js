@@ -1,23 +1,30 @@
-// Hypno Reverie 0.9.1 — Jaxx-01-ai
+// Hypno Reverie 0.9.2 — Jaxx-01-ai
 // Original canvas renderer and opt-in, room-scoped control protocol.
 (() => {
   'use strict';
   const BOOT = typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():String(Math.random());
-  const VERSION = '0.9.1', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
+  const VERSION = '0.9.2', KEY = 'hypnoreverie-v2', CHANNEL = 'HypnoReverie';
   const PRESET_KEY = 'hypnoreverie-presets-v1', PRIVACY_KEY = 'hypnoreverie-head-sharing-v1';
   const clone = value => JSON.parse(JSON.stringify(value));
   // Binaural presets: [left Hz, right Hz]; the difference is the beat.
   const BINAURAL_PRESETS=Object.fromEntries(Object.entries({delta2:2,delta:3,theta4:4,theta5:5,theta:6,theta7:7,schumann:7.83,alpha8:8,alpha9:9,alpha:10,alpha11:11,alpha12:12,beta:15,gamma:40}).map(([k,b])=>[k,[200,200+b]]));
   const binauralHz=a=>BINAURAL_PRESETS[a.binauralPreset]||BINAURAL_PRESETS.theta;
   // Vocal clips (assets/vocals/<name>.mp3) and the sets the menu offers; sets with several clips play shuffled.
-  const VOCAL_SETS={sighs:['sighs'],soft:['soft'],needy:['needy'],building:['building'],orgasm:['orgasm','orgasm2'],edge:['edge'],afterglow:['afterglow'],whimpers:['whimpers'],panting:['panting'],
+  const VOCAL_SETS={sighs:['sighs'],soft:['soft'],needy:['needy'],building:['building'],afterglow:['afterglow'],whimpers:['whimpers'],panting:['panting'],
     muffled:['muffled'],gagplead:['gagplead'],gagorgasm:['gagorgasm'],
-    random:['sighs','soft','needy','building','orgasm','orgasm2','edge','afterglow','whimpers','panting','muffled','gagplead','gagorgasm'],
-    ungagged:['sighs','soft','needy','building','orgasm','orgasm2','edge','afterglow','whimpers','panting'],gagged:['muffled','gagplead','gagorgasm']};
+    melting:['melting'],hum:['hum'],purr:['purr'],trance:['trance'],ache:['ache'],deep:['deep'],drift:['drift'],
+    hypnotic:['melting','hum','purr','trance','ache','deep','drift'],
+    random:['sighs','soft','needy','building','afterglow','whimpers','panting','melting','hum','purr','trance','ache','deep','drift','muffled','gagplead','gagorgasm'],
+    ungagged:['sighs','soft','needy','building','afterglow','whimpers','panting','melting','hum','purr','trance','ache','deep','drift'],gagged:['muffled','gagplead','gagorgasm']};
   const VOCAL_CHOICES=['none',...Object.keys(VOCAL_SETS)];
+  // Basic view shows only these settings; 'All settings' shows everything.
+  const VIEW_KEY='hypnoreverie-view-v1';let advancedView=false;try{advancedView=localStorage.getItem(VIEW_KEY)==='all';}catch{}
+  const BASIC_KEYS=new Set(['intensity','spirals.enabled','spirals.style','spirals.form','spirals.color','spirals.spin','spirals.opacity','text.enabled','text.messages','text.mode','text.font','text.color',
+    'pulse.enabled','pulse.shape','pulse.color','audio.enabled','audio.master','audio.binaural','audio.binauralPreset','audio.music','audio.breathing','audio.heartbeat','audio.heartPace','audio.vocal',
+    'audio.cue','audio.cueMode','audio.cueWords','audio.slick','focus.enabled','focus.fixation','imagery.enabled','imagery.builtin','imagery.category','imagery.timing','head.words','head.forehead','head.eyes','head.halo']);
   const BED_KINDS=['pink','brown','ocean','drone','bowls'],TONAL_BEDS=['velvet','drift','rain','drone','bowls'];
   // Units shown next to settings.
-  const UNIT_PCT=new Set(['opacity','backgroundOpacity','throbStrength','thickness','taper','master','toneLevel','isoLevel','musicLevel','heartLevel','breathLevel','vocalLevel','cueLevel','slickLevel','opening','darkness','endOpening']);
+  const UNIT_PCT=new Set(['intensity','opacity','backgroundOpacity','throbStrength','thickness','taper','master','toneLevel','isoLevel','musicLevel','heartLevel','breathLevel','vocalLevel','cueLevel','slickLevel','opening','darkness','endOpening']);
   const UNIT_SEC=new Set(['duration','gap','interval','randomMin','randomMax','textDelay','inhale','exhale','pause','vocalGap','cueEvery','sweepRate','colorSpeed','fade']);
   function unitOf(p){const k=p.at(-1);if(k==='size')return p[0]==='head'?'×':'%';if(UNIT_PCT.has(k))return '%';if(UNIT_SEC.has(k))return 's';if(['blur','fontSize','wordSize','offsetX','offsetY'].includes(k))return 'px';
     if(k==='throbSpeed')return 'Hz';if(k==='spin')return 'rpm';if(k==='slickBpm')return 'bpm';if(k==='zoom')return '×';return '';}
@@ -70,7 +77,7 @@
     const messages = Array.isArray(t.messages) ? t.messages.filter(x => typeof x === 'string')
       .slice(0, 40).map(x => x.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 160).trim()).filter(Boolean) : [];
     const min = num(p.randomMin, pd.randomMin, 2, 300);
-    return { width: 50, spirals,
+    return { width: 50, intensity: num(raw.intensity, 1, 0.2, 1.5), spirals,
       text: { enabled: bool(t.enabled, false), color: color(t.color, td.color), opacity: num(t.opacity, td.opacity, 0, 1),
         duration: num(t.duration, td.duration, 0.001, 30), gap: num(t.gap, td.gap, 0, 30),
         font: choice(t.font, Object.keys(FONT_STACKS), 'sans'), colorMode: choice(t.colorMode, ['single', 'word', 'fade', 'rainbow'], 'single'),
@@ -115,7 +122,7 @@
         !Number.isSafeInteger(packet.seq) || packet.seq <= this.lastSequence || now - this.lastCommand < 200) return null;
       if (!packet.settings || typeof packet.settings !== 'object') return null;
       const incoming = normalize(packet.settings), next = clone(current);
-      next.spirals = incoming.spirals;
+      next.spirals = incoming.spirals; next.intensity = incoming.intensity;
       next.head = incoming.head; next.focus=incoming.focus;
       if(!g.allowPulse)for(const key of ['colorPulse','colorA','colorB','colorOpacity','beatSource','beats'])next.focus[key]=current.focus[key];
       if(g.allowAudio)next.audio=incoming.audio;
@@ -196,7 +203,7 @@
     return p.opacity*v;
   }
   // State-variable band-pass, one sample at a time (state lives in s.l<k>/s.b<k>).
-  function svf(s,k,x,fc,q,rate){const f=2*Math.sin(Math.PI*Math.min(fc,rate/6)/rate);s['l'+k]=(s['l'+k]||0)+f*(s['b'+k]||0);const h=x-s['l'+k]-q*(s['b'+k]||0);s['b'+k]=(s['b'+k]||0)+f*h;return s['b'+k];}
+  function svf(s,k,x,fc,q,rate){const L=s.L||(s.L=new Float64Array(8)),B=s.B||(s.B=new Float64Array(8)),p=Math.PI*Math.min(fc,rate/6)/rate,f=2*p*(1-p*p/6);L[k]+=f*B[k];const h=x-L[k]-q*B[k];B[k]+=f*h;return B[k];}
   // Breath: turbulent noise through moving nose/mouth resonances. Inhale is brighter and quicker; exhale is warmer with a slow release.
   // Every breath in the loop varies slightly so it never sounds mechanical; 'sigh' adds a soft falling voice on the exhale.
   function breathSample(i,t,a,rate,s){
@@ -245,7 +252,7 @@
     let peak=0;for(const x of d)peak=Math.max(peak,Math.abs(x));if(peak>0)for(let i=0;i<n;i++)d[i]*=.9/peak;return {data:d,rate,duration:dur};}
   function synthesizeTrack(kind,a,rate=22050,shift=0) {
     if(kind==='slick')return slickTrack(a,rate);
-    const duration=kind==='iso'?1/a.isoRate:kind==='heart'?60/a.bpm:kind==='breath'?4*(a.inhale+a.exhale+a.pause):kind==='cue'?a.cueEvery:kind==='music'&&['pink','brown','ocean'].includes(a.music)?32.5:32;
+    const duration=kind==='iso'?1/a.isoRate:kind==='heart'?60/a.bpm:kind==='breath'?2*(a.inhale+a.exhale+a.pause):kind==='cue'?a.cueEvery:kind==='music'&&['pink','brown','ocean'].includes(a.music)?32.5:32;
     const data=new Float32Array(Math.max(1,Math.round(duration*rate)));let low=0;const st={};
     const chords=[[130.81,164.81,196],[110,130.81,164.81],[87.31,110,130.81],[98,123.47,146.83]];
     for(let i=0;i<data.length;i++){
@@ -268,19 +275,39 @@
     if(kind==='music'&&['pink','brown','ocean'].includes(a.music)){const N=Math.round(rate*.5),L=data.length-N,out=new Float32Array(L);for(let i=0;i<L;i++)out[i]=i<N?data[i]*(i/N)+data[L+i]*(1-i/N):data[i];return {data:out,rate,duration:L/rate};}
     return {data,rate,duration:data.length/rate};
   }
+  // Generated sounds are kept, so changing a level or another layer does not regenerate everything.
+  const trackCache=new Map();
+  function cachedTrack(kind,a,rate,shift=0){const key=JSON.stringify([kind,rate,shift,a.music,a.inhale,a.exhale,a.pause,a.breathStyle,a.bpm,a.isoRate,a.isoHz,a.isoDuty,a.cue,a.cueEvery,a.slick,a.slickBpm,a.slickWet]);
+    let t=trackCache.get(key);if(!t){t=synthesizeTrack(kind,a,rate,shift);trackCache.set(key,t);if(trackCache.size>24)trackCache.delete(trackCache.keys().next().value);}return t;}
+  // Sounds are generated in a background worker (built from these same functions); if a site blocks workers, they are generated here instead.
+  let synthWorker=null,synthSeq=0;const synthWaiting=new Map();
+  function trackKey(kind,a,rate,shift){return JSON.stringify([kind,rate,shift,a.music,a.inhale,a.exhale,a.pause,a.breathStyle,a.bpm,a.isoRate,a.isoHz,a.isoDuty,a.cue,a.cueEvery,a.slick,a.slickBpm,a.slickWet]);}
+  function remember(key,t){trackCache.set(key,t);if(trackCache.size>24)trackCache.delete(trackCache.keys().next().value);return t;}
+  function synthFallback(){synthWorker=false;for(const [id,job] of synthWaiting){synthWaiting.delete(id);job.done(synthesizeTrack(job.kind,job.a,job.rate,job.shift));}}
+  function getSynthWorker(){if(synthWorker!==null)return synthWorker;
+    try{const code='const BED_KINDS='+JSON.stringify(BED_KINDS)+';\n'+[random01,svf,breathSample,bedSample,cueSample,slickTrack,synthesizeTrack].map(f=>f.toString()).join('\n')+
+        '\nonmessage=e=>{const {id,kind,a,rate,shift}=e.data;const t=synthesizeTrack(kind,a,rate,shift);postMessage({id,data:t.data,rate:t.rate,duration:t.duration},[t.data.buffer]);};';
+      synthWorker=new Worker(URL.createObjectURL(new Blob([code],{type:'text/javascript'})));
+      synthWorker.onmessage=e=>{const job=synthWaiting.get(e.data.id);synthWaiting.delete(e.data.id);job?.done(e.data);};synthWorker.onerror=()=>{try{synthWorker.terminate();}catch{}synthFallback();};}
+    catch{synthWorker=false;}return synthWorker;}
+  function trackAsync(kind,a,rate,shift=0){const key=trackKey(kind,a,rate,shift);if(trackCache.has(key))return Promise.resolve(trackCache.get(key));
+    const w=getSynthWorker();if(!w)return Promise.resolve(remember(key,synthesizeTrack(kind,a,rate,shift)));
+    return new Promise(res=>{const id=++synthSeq;synthWaiting.set(id,{kind,a:JSON.parse(JSON.stringify(a)),rate,shift,done:t=>res(remember(key,t))});w.postMessage({id,kind,a:JSON.parse(JSON.stringify(a)),rate,shift});});}
   function buildAudioMix(context,a,destination) {
     const nodes=[],sources=[],bus=context.createGain(),compressor=context.createDynamicsCompressor();
-    nodes.push(bus,compressor);bus.gain.value=a.master*.35;compressor.threshold.value=-12;compressor.ratio.value=8;bus.connect(compressor);compressor.connect(destination);
+    nodes.push(bus,compressor);bus.gain.value=Math.min(.6,a.master*(a.intensity??1))*.35;compressor.threshold.value=-12;compressor.ratio.value=8;bus.connect(compressor);compressor.connect(destination);
     const start=context.currentTime+.03;
     // 'Move sounds between ears': everything except the binaural tones goes through a slowly swinging stereo panner.
     let tgt=bus;if(a.sweep&&context.createStereoPanner){const pan=context.createStereoPanner(),lfo=context.createOscillator(),depth=context.createGain();lfo.frequency.value=1/a.sweepRate;depth.gain.value=.85;lfo.connect(depth);depth.connect(pan.pan);pan.connect(bus);lfo.start(start);sources.push(lfo);nodes.push(pan,lfo,depth);tgt=pan;}
-    const loop=(kind,level)=>{const track=synthesizeTrack(kind,a,['breath','cue','slick'].includes(kind)?32000:22050),buffer=context.createBuffer(1,track.data.length,track.rate);buffer.copyToChannel(track.data,0);const source=context.createBufferSource(),gain=context.createGain();source.buffer=buffer;source.loop=true;gain.gain.value=level;source.connect(gain);gain.connect(tgt);source.start(start);sources.push(source);nodes.push(source,gain);};
+    const loop=(kind,level)=>{trackAsync(kind,a,['cue','slick'].includes(kind)?32000:22050).then(track=>{if(result.dead)return;const buffer=context.createBuffer(1,track.data.length,track.rate);buffer.copyToChannel(track.data,0);
+      const source=context.createBufferSource(),gain=context.createGain();source.buffer=buffer;source.loop=true;gain.gain.value=level;source.connect(gain);gain.connect(tgt);const at=Math.max(start,context.currentTime+.03);source.start(at);
+      if(kind==='breath')result.start=at;sources.push(source);nodes.push(source,gain);});};
     if(a.binaural&&!TONAL_BEDS.includes(a.music)){const merger=context.createChannelMerger(2);merger.channelInterpretation='discrete';merger.connect(bus);nodes.push(merger);for(const [channel,hz]of binauralHz(a).entries()){const osc=context.createOscillator(),gain=context.createGain();osc.type='sine';osc.frequency.value=hz;gain.gain.value=a.toneLevel;osc.connect(gain);gain.connect(merger,0,channel);osc.start(start);sources.push(osc);nodes.push(osc,gain);}}
     if(a.iso)loop('iso',a.isoLevel);if(a.heartbeat)loop('heart',a.heartLevel);if(a.breathing)loop('breath',a.breathLevel);if(a.music!=='none'){if(a.binaural&&TONAL_BEDS.includes(a.music)){
       // Binaural beat inside the music: left ear as written, right ear pitched up by the beat (kept on whole cycles so the loop stays seamless).
-      const [l,r]=binauralHz(a),shift=Math.round((r-l)*32)/32,L=synthesizeTrack('music',a,22050,0),Rt=synthesizeTrack('music',a,22050,shift),buf=context.createBuffer(2,L.data.length,L.rate);
-      buf.copyToChannel(L.data,0);buf.copyToChannel(Rt.data.subarray(0,L.data.length),1);const src=context.createBufferSource(),g=context.createGain();src.buffer=buf;src.loop=true;g.gain.value=a.musicLevel;
-      src.connect(g);g.connect(bus);src.start(start);sources.push(src);nodes.push(src,g);}else loop('music',a.musicLevel);}
+      const [l,r]=binauralHz(a),shift=Math.round((r-l)*32)/32;Promise.all([trackAsync('music',a,22050,0),trackAsync('music',a,22050,shift)]).then(([L,Rt])=>{if(result.dead)return;
+      const buf=context.createBuffer(2,L.data.length,L.rate);buf.copyToChannel(L.data,0);buf.copyToChannel(Rt.data.subarray(0,L.data.length),1);const src=context.createBufferSource(),g=context.createGain();src.buffer=buf;src.loop=true;g.gain.value=a.musicLevel;
+      src.connect(g);g.connect(bus);src.start(Math.max(start,context.currentTime+.03));sources.push(src);nodes.push(src,g);});}else loop('music',a.musicLevel);}
     if(a.cue!=='none'&&a.cueMode==='interval')loop('cue',a.cueLevel);if(a.slick!=='none')loop('slick',a.slickLevel);
     const result={start,bus,sources,nodes};
     if(a.vocal!=='none')loadVocals(context,VOCAL_SETS[a.vocal]).then(buffers=>{
@@ -424,7 +451,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     button{pointer-events:auto}button:hover{background:#47305f}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #cfafff;outline-offset:2px}
     button:disabled{opacity:.4;cursor:not-allowed}#stop{background:#592c42;border-color:#b5678d}#panel{pointer-events:auto;width:min(760px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:#17121f;border:1px solid #70568b;border-radius:18px;box-shadow:0 18px 80px #000b;overflow:hidden}
     .header{padding:17px 20px 0;background:#21172e}.brand{display:flex;align-items:center;gap:12px}.brand svg{width:48px;height:48px;flex:none}.brand h2{font-size:21px;margin:0}.brand small{font-size:12px;color:#b7a3cc}.brand #close{margin-left:auto;font-size:19px;padding:4px 10px}
-    .advanced{grid-column:1/-1}.advanced summary{cursor:pointer;color:#b7a3cc;font-size:12px;margin:4px 0}output{min-width:62px;display:inline-block;text-align:right}#drag-bar{width:100%}#drag-bar #close{margin-left:auto!important}#content.settings-hidden fieldset,#content.settings-hidden .reset-tab{display:none!important}.reset-tab{float:right;margin:-6px 0 6px;font-size:12px;padding:5px 9px}#auth-window{position:fixed;left:calc(50% - 310px);top:40px;width:min(620px,calc(100vw - 16px));max-height:calc(100vh - 60px);overflow:auto;background:#17121f;border:1px solid #70568b;border-radius:14px;pointer-events:auto;padding:12px 16px;box-shadow:0 18px 80px #000b}#auth-window.docked{border-radius:8px;box-shadow:none;background:rgba(20,15,28,.97)}#auth-window.docked #auth-bar{display:none}#auth-bar{display:flex;align-items:center;gap:10px;cursor:move}#auth-bar strong{flex:1}#imagery-layer{position:fixed;pointer-events:none;overflow:hidden}#imagery-layer>img,#imagery-layer>video{position:absolute;pointer-events:none}#media-url{flex:1;min-width:180px}.media-row{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #3a2c4d}.media-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#cdbde0}.auth-row{display:grid;grid-template-columns:1fr auto minmax(150px,auto);gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #3a2c4d}.auth-head{font-size:12px;color:#b7a3cc}.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:14px 0 10px}.tabs button.on::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#7be0a0;margin-left:6px;vertical-align:middle}#preset-list{min-width:200px}.tabs button{white-space:nowrap;border-color:transparent;background:none;padding:8px 10px}.tabs button[aria-selected=true]{background:#66458d;color:white}
+    .advanced{grid-column:1/-1}.advanced summary{cursor:pointer;color:#b7a3cc;font-size:12px;margin:4px 0}output{min-width:62px;display:inline-block;text-align:right}#drag-bar{width:100%}#drag-bar #close{margin-left:auto!important}.section{grid-column:1/-1;border:1px solid #3a2c4d;border-radius:10px;padding:2px 12px;margin:8px 0;background:#1c1527}.section>summary{cursor:pointer;font-weight:600;padding:8px 0;color:#eadfff}.section>fieldset{margin:2px 0 10px}.section-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;padding:2px 0 10px}.preset-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 0 10px}.preset-bar select{max-width:230px}.view-toggle{font-size:12px;color:#cdbde0}ol.steps{margin:4px 0 12px 18px;line-height:1.6}#content.settings-hidden fieldset,#content.settings-hidden .reset-tab{display:none!important}.reset-tab{float:right;margin:-6px 0 6px;font-size:12px;padding:5px 9px}#auth-window{position:fixed;left:calc(50% - 310px);top:40px;width:min(620px,calc(100vw - 16px));max-height:calc(100vh - 60px);overflow:auto;background:#17121f;border:1px solid #70568b;border-radius:14px;pointer-events:auto;padding:12px 16px;box-shadow:0 18px 80px #000b}#auth-window.docked{border-radius:8px;box-shadow:none;background:rgba(20,15,28,.97)}#auth-window.docked #auth-bar{display:none}#auth-bar{display:flex;align-items:center;gap:10px;cursor:move}#auth-bar strong{flex:1}#imagery-layer{position:fixed;pointer-events:none;overflow:hidden}#imagery-layer>img,#imagery-layer>video{position:absolute;pointer-events:none}#media-url{flex:1;min-width:180px}.media-row{display:grid;grid-template-columns:70px 1fr auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #3a2c4d}.media-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:#cdbde0}.auth-row{display:grid;grid-template-columns:1fr auto minmax(150px,auto);gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #3a2c4d}.auth-head{font-size:12px;color:#b7a3cc}.tabs{display:flex;flex-wrap:wrap;gap:4px;padding:14px 0 10px}.tabs button.on::after{content:'';display:inline-block;width:7px;height:7px;border-radius:50%;background:#7be0a0;margin-left:6px;vertical-align:middle}#preset-list{min-width:200px}.tabs button{white-space:nowrap;border-color:transparent;background:none;padding:8px 10px}.tabs button[aria-selected=true]{background:#66458d;color:white}
     .session-bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-top:1px solid #4c385d;padding:9px 0}.session-bar label{margin:0}.session-bar #target{max-width:240px}.session-bar .help{margin-left:auto}
     #content{padding:18px 20px;overflow-y:auto;min-height:0;overscroll-behavior:contain}h3{font-size:16px;margin:0 0 8px}p{color:#c3b2d2;line-height:1.5;margin:8px 0 14px}.help{font-size:12px;color:#bca9ce}
     label{display:block;margin:0}input[type=range]{display:block;width:100%;accent-color:#bd8cff;margin-top:9px}input[type=checkbox]{accent-color:#bd8cff;margin-right:6px}input[type=color]{height:30px;width:54px;border:0;padding:0;background:none;vertical-align:middle}
@@ -440,16 +467,16 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   </style>
   <div id="focus-blur" hidden></div><div id="imagery-layer" aria-hidden="true" hidden></div><canvas id="effect" aria-hidden="true" hidden></canvas><canvas id="heads" aria-hidden="true" hidden></canvas>
   <div id="ui" hidden><section id="panel" role="dialog" aria-label="Hypno Reverie settings" hidden>
-    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.9.1 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
+    <div class="header"><div class="brand" id="drag-bar" title="Drag to move the menu">${LOGO}<div><h2>Hypno Reverie</h2><small>0.9.2 · Drag here to move</small></div><button id="compact" title="Toggle compact menu; drag the bottom-right corner to resize" aria-label="Toggle compact menu">↔</button><button id="close" aria-label="Close menu">×</button></div>
       <div class="tabs" role="tablist" aria-label="Settings categories">
         <button data-tab="overview" role="tab" aria-selected="true">Overview</button><button data-tab="primary" role="tab" aria-selected="false">Primary</button><button data-tab="secondary" role="tab" aria-selected="false">Secondary</button>
         <button data-tab="text" role="tab" aria-selected="false">Words</button><button data-tab="pulse" role="tab" aria-selected="false">Pulse</button><button data-tab="audio" role="tab" aria-selected="false">Audio</button><button data-tab="focus" role="tab" aria-selected="false">Focus</button><button data-tab="expressions" role="tab" aria-selected="false">Face</button><button data-tab="head" role="tab" aria-selected="false">Head</button><button data-tab="imagery" role="tab" aria-selected="false">Imagery</button><button data-tab="sharing" role="tab" aria-selected="false">Keys</button><button data-tab="presets" role="tab" aria-selected="false">Presets</button>
       </div>
-      <div class="session-bar"><label>Edit <select id="target"><option value="self">My overlay</option></select></label><label><input id="enabled" type="checkbox"> Effects on</label><label id="lock-row" hidden><input id="lock" type="checkbox"> Lock controls</label><button id="reset-tab-top" title="Reset the settings on this tab to their defaults">Reset tab</button><button id="preview-toggle" aria-pressed="false">Preview draft</button><span id="session-badge" class="help">Local session</span></div>
+      <div class="session-bar"><label>Edit <select id="target"><option value="self">My overlay</option></select></label><label><input id="enabled" type="checkbox"> Effects on</label><label id="lock-row" hidden><input id="lock" type="checkbox"> Lock controls</label><label class="view-toggle" title="Show every setting"><input id="view-advanced" type="checkbox"> All settings</label><button id="reset-tab-top" title="Reset the settings on this tab to their defaults">Reset tab</button><button id="preview-toggle" aria-pressed="false">Preview draft</button><span id="session-badge" class="help">Local session</span></div>
     </div>
     <div id="content"><div id="profile-card" class="card" hidden><h3 id="profile-title"></h3><p id="profile-status"></p><div id="request-options"><label>Requested access <select id="request-level"><option value="visuals">Visuals only</option><option value="text">Visuals + words</option><option value="session">Full session + control lock</option></select></label><label>Duration <select id="request-duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="indefinite">Permanent access</option></select></label><label><input id="request-pulse" type="checkbox"> Include pulse / flash changes</label><label><input id="request-audio" type="checkbox"> Include audio control</label><label><input id="request-expressions" type="checkbox"> Include facial expressions</label></div><button id="request-keys">Request keys</button></div><div id="requests-card" class="card" hidden><h3>Key requests</h3><div id="requests-list"></div><p class="help">The controller chooses the requested permissions. Yes grants exactly those permissions; No declines.</p></div>
       <div id="hidden-note" class="notice" hidden></div><div id="remote-note" class="notice" hidden>Editing a remote draft. Send changes to apply it.</div>
-      <div id="overview" role="tabpanel"><h3>Set the scene</h3><p>Build your spirals, add words and pulse effects, then save a preset. Changes to your own overlay apply immediately.</p>
+      <div id="overview" role="tabpanel"><h3>Quick start</h3><ol class="steps"><li>Pick a <b>Preset</b> at the top and press <b>Load</b>, or build your own in the other tabs.</li><li>Tick <b>Effects on</b>.</li><li>Set the <b>Intensity</b> below. Tick <b>All settings</b> at the top whenever you want every option.</li></ol><fieldset id="quick-fields"></fieldset>
         <div class="card" id="local-session-card"><h3>Session controls</h3><p id="stop-note">Stop your effects and revoke keys to your overlay.</p><button id="stop">Stop / revoke</button><label><input id="remember-session" type="checkbox"> Keep effects on across room changes and relog</label><p class="help">Remembers on/off for this account when the addon loads again. Timed keys clear when leaving the room. Permanent access preserves effects and lock until returned or revoked.</p><p class="help">While keys are handed over, this button is disabled. Escape stops your session only while controls are unlocked.</p></div>
         <div class="notice">Photosensitivity notice: flashing lights and moving patterns may trigger seizures in people with photosensitive epilepsy. Avoid these effects if they are a trigger for you. Stop if you feel unwell. <a href="https://www.epilepsy.com/what-is-epilepsy/seizure-triggers/photosensitivity" target="_blank" rel="noopener noreferrer">Learn more</a></div>
         <p class="help"><b>Effects on</b> (above) turns your whole overlay on or off. Inside it, each part has its own switch; a green dot on a tab means that part is switched on.</p><p class="help">Open this menu from the headset icon in your player profile, your bookmark, or Alt+Shift+H. Authority settings are in Preferences &gt; Extensions (or Keys &gt; Authority settings). Close the menu to return to play.</p>
@@ -506,6 +533,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     });
   }
   function slider(parent, path, title, min, max, step = 0.01) { field(parent, path, title, 'range', min, max, step); }
+  slider('quick-fields',['intensity'],'Intensity (spirals, flashes, words and sound together)',0.2,1.5);
   for (const [i, parent] of ['primary-fields', 'secondary-fields'].entries()) {
     const path = key => ['spirals', i, key];
     field(parent,path('style'),'Pattern','select',null,null,null,[['spiral','Spiral'],['rings','Expanding rings'],['hearts','Heart tunnel'],['petals','Flower tunnel'],['polygon','Polygon tunnel'],['star','Star tunnel']]);
@@ -592,7 +620,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   field('audio-fields',['audio','exhale'],'Exhale (seconds)','number',1,16,0.1);
   field('audio-fields',['audio','pause'],'Breath pause (seconds)','number',0,8,0.1);
   slider('audio-fields',['audio','breathLevel'],'Breathing level',0,0.5);
-  field('audio-fields',['audio','vocal'],'Vocal sounds (adult)','select',null,null,null,[['none','Off'],['random','Mix: all'],['ungagged','Mix: ungagged'],['gagged','Mix: gagged'],['sighs','Sighs'],['soft','Soft moans'],['needy','Needy, pleading moans'],['building','Building moans'],['orgasm','Orgasm'],['edge','Edged (brought close, denied)'],['afterglow','Afterglow'],['whimpers','Whimpers'],['panting','Panting'],['muffled','Muffled moans (gagged)'],['gagplead','Gagged pleading'],['gagorgasm','Gagged orgasm']]);
+  field('audio-fields',['audio','vocal'],'Vocal sounds (adult)','select',null,null,null,[['none','Off'],['random','Mix: all'],['ungagged','Mix: ungagged'],['gagged','Mix: gagged'],['hypnotic','Mix: slow and hypnotic'],['sighs','Sighs'],['soft','Soft moans'],['needy','Needy, pleading moans'],['building','Building moans'],['afterglow','Afterglow'],['whimpers','Whimpers'],['panting','Panting'],['melting','Melting moans'],['hum','Humming moans'],['purr','Purring moans'],['trance','Rhythmic trance moans'],['ache','Aching moans'],['deep','Deep, throaty moans'],['drift','Sleepy, drifting moans'],['muffled','Muffled moans (gagged)'],['gagplead','Gagged pleading'],['gagorgasm','Gagged orgasm']]);
   slider('audio-fields',['audio','vocalLevel'],'Vocal level',0,0.6);
   field('audio-fields',['audio','vocalGap'],'Pause between clips (seconds)','number',0,30,0.5);
   field('audio-fields',['audio','cue'],'Clicker / bell','select',null,null,null,[['none','Off'],['clicker','Training clicker'],['double','Double click'],['tick','Wood tick'],['bell','Small bell'],['chime','Three-note chime'],['tingsha','Tingsha cymbals'],['deep','Deep bell'],['gong','Gong']]);
@@ -708,8 +736,12 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     const line=Object.entries(LINE_STYLES).find(([,v])=>near(v.thickness,sp.thickness)&&near(v.taper,sp.taper)&&near(v.blur,sp.blur))?.[0]||'custom';
     const throb=sp.throbStrength===0?'off':Object.entries(THROBS).find(([k,v])=>k!=='off'&&near(v,sp.throbStrength)&&near(sp.throbSpeed,.35))?.[0]||'custom';
     for(const [k,v] of [['line',line],['throb',throb]]){const el=byId('quick-'+k+'-'+i);if(!el)continue;el.closest('label').hidden=!on;if(root.activeElement!==el)el.value=v;}}
-  const TAB_FIELDS={primary:'primary-fields',secondary:'secondary-fields',text:'text-fields',pulse:'pulse-fields',audio:'audio-fields',focus:'focus-fields',imagery:'imagery-fields'};
-  function activeTabFields(){return TAB_FIELDS[root.querySelector('.tabs [aria-selected=true]')?.dataset.tab];}
+  const TAB_GROUPS={primary:['primary-fields','secondary-fields','focus-fields'],text:['text-fields','pulse-fields'],audio:['audio-fields'],imagery:['imagery-fields']};
+  function activeTabFields(){return TAB_GROUPS[root.querySelector('.tabs [aria-selected=true]')?.dataset.tab]?.[0];}
+  function resetActiveTab(){const ids=TAB_GROUPS[root.querySelector('.tabs [aria-selected=true]')?.dataset.tab];if(!ids)return;
+    const rows=RESET_TABS.filter(([id,part])=>ids.includes(id)&&!byId(id).disabled&&(selected!=='self'||(!locked&&selfCan(part))));if(!rows.length||!confirm('Reset the settings on this tab to their defaults?'))return;
+    const next=clone(editState());for(const [,,reset] of rows)reset(next);
+    if(selected==='self'){settings=normalize(next);save();resetEffectClock();}else{const g=receivedGrants.get(Number(selected));if(!g)return;g.draft=normalize(next);g.dirty=true;}say('Tab reset to defaults.');refreshFields();layout();}
   function updateResetTop(){const id=activeTabFields(),b=byId('reset-tab-top');if(!b)return;b.hidden=!id||byId('content').classList.contains('settings-hidden');b.disabled=!id||byId(id).disabled;}
   function showIf(id,on){const el=byId('setting-'+id);if(el)el.closest('label').hidden=!on;}
   function applyVisibility(){const s=editState(),a=s.audio,t=s.text,p=s.pulse,f=s.focus,im=s.imagery,h=s.head;
@@ -728,7 +760,10 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     {const on=im.enabled,still=im.timing==='steady';for(const k of ['builtin','category','timing','fade','opacity','position'])showIf('imagery-'+k,on);showIf('imagery-order',on&&!still);showIf('imagery-duration',on&&!still);
      showIf('imagery-gap',on&&im.timing==='cycle');showIf('imagery-size',on&&(im.position==='center'||im.position==='random'));}
     {const any=h.words||h.forehead||h.eyes||h.halo;showIf('head-color',any);showIf('head-opacity',any);showIf('head-size',any&&(h.forehead||h.eyes||h.halo));showIf('head-wordSize',h.words);showIf('head-wordMode',h.words);
-     const adv=byId('head-fields').querySelector('.advanced');if(adv)adv.hidden=!any;}}
+     const adv=byId('head-fields').querySelector('.advanced');if(adv)adv.hidden=!any||!advancedView;}
+    if(!advancedView){for(const r of fields)if(!BASIC_KEYS.has(r.path.filter(x=>typeof x==='string').join('.')))r.input.closest('label').hidden=true;
+      for(const i of [0,1])for(const k of ['line','throb']){const q=byId('quick-'+k+'-'+i);if(q)q.closest('label').hidden=true;}}
+    for(const d of root.querySelectorAll('details.section'))d.hidden=[...d.querySelectorAll('label')].every(l=>l.hidden)&&!d.querySelector('#face-group');}
   function refreshFields(skip) {
     const current = editState(), remote = receivedGrants.get(Number(selected));
     for (const record of fields) {
@@ -860,7 +895,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   byId('open-authority').onclick=()=>openAuthority(false);byId('auth-main').onclick=()=>open();
   byId('auth-close').onclick=()=>{byId('auth-window').hidden=true;if(byId('ui').hidden)leavePreferences();};
   draggable(byId('auth-window'),byId('auth-bar'));
-  byId('reset-tab-top').onclick=()=>{const id=activeTabFields();if(id)RESET_BUTTONS[id]?.onclick();};
+  byId('reset-tab-top').onclick=resetActiveTab;
   for(const tab of root.querySelectorAll('[data-tab]'))tab.addEventListener('click',()=>updateResetTop());
   byId('duration').onchange = () => { byId('minutes-row').hidden = byId('duration').value !== 'custom'; };
   // Built-in presets: load-only, available to everyone.
@@ -931,7 +966,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     { const g = document.createElement('optgroup'); g.label = 'Built-in'; BUILTIN_PRESETS.forEach((p,i) => { const o = document.createElement('option'); o.value = 'b:' + i; o.textContent = p.name; g.append(o); }); byId('preset-list').append(g); }
     const mine = document.createElement('optgroup'); mine.label = 'Your presets'; byId('preset-list').append(mine);
     for (const [i,p] of presets.entries()) { const o = document.createElement('option'); o.value = i; o.textContent = p.name; mine.append(o); }
-    if (!presets.length) { const o = document.createElement('option'); o.value = ''; o.textContent = 'No presets saved yet'; o.disabled = true; o.selected = true; byId('preset-list').append(o); }
+    if (!presets.length) { const o = document.createElement('option'); o.value = ''; o.textContent = 'None saved yet'; o.disabled = true; mine.append(o); }
     if (presets[Number(value)] || String(value).startsWith('b:')) byId('preset-list').value = value;
   }
   function savePresets() { try { localStorage.setItem(PRESET_KEY,JSON.stringify(presets)); } catch { say('Preset storage is unavailable.'); } refreshPresets(); }
@@ -1229,7 +1264,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     const a={};let any=false;for(const k of AUTH_KEYS){a[k]=roleAllows(member,authority[k].min);any=any||a[k];}return any?a:null;}
   function partOf(p){if(p[0]==='text'||(p[0]==='head'&&(p[1]==='words'||p[1]==='wordMode')))return 'words';if(p[0]==='pulse'||(p[0]==='focus'&&PULSE_FOCUS.includes(p[1])))return 'pulse';if(p[0]==='audio')return 'audio';if(p[0]==='imagery')return 'imagery';return 'visuals';}
   function mergeParts(cur,inc,a){const next=clone(cur);
-    if(a.visuals){next.spirals=inc.spirals;next.width=inc.width;for(const k of Object.keys(inc.focus))if(!PULSE_FOCUS.includes(k))next.focus[k]=inc.focus[k];for(const k of Object.keys(inc.head))if(k!=='words'&&k!=='wordMode')next.head[k]=inc.head[k];}
+    if(a.visuals){next.intensity=inc.intensity;next.spirals=inc.spirals;next.width=inc.width;for(const k of Object.keys(inc.focus))if(!PULSE_FOCUS.includes(k))next.focus[k]=inc.focus[k];for(const k of Object.keys(inc.head))if(k!=='words'&&k!=='wordMode')next.head[k]=inc.head[k];}
     if(a.words){next.text=inc.text;next.head.words=inc.head.words;next.head.wordMode=inc.head.wordMode;}
     if(a.pulse){next.pulse=inc.pulse;for(const k of PULSE_FOCUS)next.focus[k]=inc.focus[k];}
     if(a.audio)next.audio=inc.audio;if(a.imagery)next.imagery=inc.imagery;return normalize(next);}
@@ -1328,10 +1363,11 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   let livePulse = newPulseState();
   function resetEffectClock() { activeTime = 0; lastFrame = 0; livePulse = newPulseState(); }
   function makeTexture(i, s, textures = effectTextures, textureKeys = effectTextureKeys) {
-    const key = JSON.stringify([s.color, s.arms, s.curve, s.thickness, s.taper, s.form]);
+    const key = JSON.stringify([s.color, s.arms, s.curve, s.thickness, s.taper, s.form, s.style === 'spiral' ? s.blur : 0]);
     if (key === textureKeys[i]) return;
     const texture = textures[i]; texture.width = texture.height = 1536;
     drawSpiralTexture(texture.getContext('2d'),s,1536);
+    if(s.blur>0){const tmp=document.createElement('canvas');tmp.width=tmp.height=1536;tmp.getContext('2d').drawImage(texture,0,0);const tc=texture.getContext('2d');tc.clearRect(0,0,1536,1536);tc.filter='blur('+(s.blur*1.6)+'px)';tc.drawImage(tmp,0,0);tc.filter='none';}
     textureKeys[i] = key;
   }
   function syncProfileButton() {
@@ -1345,6 +1381,29 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     else { profileButton = document.createElement('button'); profileButton.innerHTML = LOGO; profileButton.onclick = onClick; profileButton.style.cssText = 'width:60px;height:60px;cursor:pointer'; }
     profileButton.dataset.member=String(member);profileButton.title=title;profileButton.setAttribute('aria-label',title);menu.append(profileButton);
   }
+  {const section=(title,id)=>{const d=document.createElement('details');d.className='section';d.id=id;const s=document.createElement('summary');s.textContent=title;d.append(s);return d;},tabBtn=t=>root.querySelector('[data-tab='+t+']');
+   // Spirals tab: first spiral, then folding sections for the second spiral and the focus tunnel
+   byId('primary').querySelector('h3').textContent='Spirals';const sec=section('Second spiral (layered over the first)','sec-second');sec.append(byId('secondary-fields'));byId('primary-fields').after(sec);
+   const foc=section('Focus: tunnel and fixation','sec-focus');foc.append(byId('focus-fields'));sec.after(foc);
+   // Words tab: flashes fold underneath
+   const fl=section('Flashes','sec-flash');fl.append(byId('pulse-fields'));byId('text-fields').after(fl);
+   // Body tab: head effects plus facial expressions
+   const face=section('Facial expressions','sec-face');face.open=true;for(const el of [...byId('expressions').children])if(el.tagName!=='H3')face.append(el);byId('head').append(face);byId('head').querySelector('h3').textContent='Head effects and face';
+   // Audio tab: folding groups
+   for(const [title,keys] of [['Beats and tones',['binaural','binauralPreset','toneLevel','iso','isoLevel']],['Background',['music','musicLevel','sweep','sweepRate']],
+       ['Body sounds',['heartbeat','heartPace','heartLevel','breathing','breathStyle','inhale','exhale','pause','breathLevel']],['Adult sounds',['vocal','vocalLevel','vocalGap','slick','slickBpm','slickLevel']],
+       ['Bell and clicker',['cue','cueMode','cueWords','cueEvery','cueLevel']]]){const d=section(title,'sec-audio-'+keys[0]);d.dataset.keys=keys.join(',');const g=document.createElement('div');g.className='section-grid';d.append(g);
+     for(const k of keys){const el=byId('setting-audio-'+k);if(el)g.append(el.closest('label'));}byId('audio-fields').append(d);}
+   // tabs: 7 left
+   for(const t of ['secondary','focus','pulse','expressions','presets'])tabBtn(t)?.remove();tabBtn('primary').textContent='Spirals';tabBtn('head').textContent='Body';
+   // presets: one row under the top bar
+   const bar=document.createElement('div');bar.className='preset-bar';const lab=document.createElement('label');lab.append(document.createTextNode('Preset '),byId('preset-list'));
+   const saveAs=document.createElement('button');saveAs.id='preset-save-as';saveAs.textContent='Save as\u2026';saveAs.onclick=()=>{const n=prompt('Name for this preset:');if(n){byId('preset-name').value=n;byId('preset-save').click();}};
+   byId('preset-load').textContent='Load';byId('preset-delete').textContent='Delete';bar.append(lab,byId('preset-load'),saveAs,byId('preset-delete'));root.querySelector('.session-bar').after(bar);
+   // sections start open when what they hold is in use
+   sec.open=!!settings.spirals[1].enabled;foc.open=!!(settings.focus.enabled||settings.focus.fixation!=='none');fl.open=!!settings.pulse.enabled;
+   for(const d of byId('audio-fields').querySelectorAll('details.section'))d.open=d.dataset.keys.split(',').some(k=>{const v=settings.audio[k];return v===true||(['music','vocal','slick','cue'].includes(k)&&v!=='none');});
+   byId('view-advanced').checked=advancedView;byId('view-advanced').onchange=()=>{advancedView=byId('view-advanced').checked;try{localStorage.setItem(VIEW_KEY,advancedView?'all':'basic');}catch{}refreshFields();};}
   function overlayBounds(g,c){
     const clip=(l,t,r,b)=>{l=Math.max(0,l);t=Math.max(0,t);r=Math.min(r,innerWidth);b=Math.min(b,innerHeight);return r>l&&b>t?{left:l,top:t,width:r-l,height:b-t}:null;};
     if(area==='screen')return clip(0,0,innerWidth,innerHeight);
@@ -1364,7 +1423,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     for (const [layer,r] of [[canvas,rectangle],[heads,headRectangle]]) {
       if (!r) continue;
       Object.assign(layer.style,{left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px'});
-      const ratio = Math.min(devicePixelRatio || 1,1.5), w = Math.round(r.width*ratio), h = Math.round(r.height*ratio);
+      const ratio = Math.min(devicePixelRatio || 1, 1.5, Math.sqrt(2.4e6 / Math.max(1, r.width * r.height))), w = Math.round(r.width*ratio), h = Math.round(r.height*ratio);
       if (layer.width !== w || layer.height !== h) { layer.width = w; layer.height = h; }
     }
   }
@@ -1402,8 +1461,13 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     c.restore();}
   function wrapText(message, maxWidth, ctx) {
     const lines = []; let line = '';
-    for (const char of message) {
-      if (line && ctx.measureText(line + char).width > maxWidth) { lines.push(line); line = char; } else line += char;
+    // Wrap between words; only a single word that cannot fit on a line by itself is split.
+    for (const word of message.split(/\s+/).filter(Boolean)) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width <= maxWidth) { line = test; continue; }
+      if (line) lines.push(line);
+      if (ctx.measureText(word).width <= maxWidth) { line = word; continue; }
+      line = ''; for (const ch of word) { if (line && ctx.measureText(line + ch).width > maxWidth) { lines.push(line); line = ch; } else line += ch; }
     }
     if (line) lines.push(line); return lines.slice(0, 12);
   }
@@ -1416,12 +1480,13 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     return t.color;}
   function drawText(frame, w, h, t = settings.text, context = ctx) {
     const ctx = context; if (!frame.message) return;
-    ctx.save(); ctx.fillStyle = textColor(t, frame); ctx.globalAlpha = t.opacity;
+    ctx.save(); ctx.fillStyle = textColor(t, frame); ctx.globalAlpha = Math.min(1, t.opacity * drawIntensity);
     const size = t.fontSize * Math.min(w, h) / 700;
     ctx.font = (FONT_STACKS[t.font] || FONT_STACKS.sans).replace('{s}', Math.max(9, size) + 'px'); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.shadowColor = '#000000'; ctx.shadowBlur = 3;
     const message = t.mode === 'write' ? [...frame.message].slice(0, Math.ceil([...frame.message].length * frame.progress)).join('') : frame.message;
     if(['zoom','fade','pulse','spin','tunnel','echo','stack','corners'].includes(t.mode)){
+      if(['tunnel','stack','corners','echo'].includes(t.mode))ctx.shadowBlur=0;
       const period=t.duration+t.gap,time=frame.time||0,fr=Math.min(1,(((time%period)+period)%period)/Math.max(.001,t.duration)),lines=wrapText(message,w*.9,ctx),spacing=size*1.3,base=ctx.globalAlpha;
       const block=(x,y)=>lines.forEach((line,i)=>ctx.fillText(line,x,y+(i-(lines.length-1)/2)*spacing,w*.94)),env=Math.max(0,Math.min(1,fr/.15,(1-fr)/.15));
       if(t.mode==='zoom'){ctx.translate(w/2,h/2);const k=.4+.85*fr;ctx.scale(k,k);ctx.globalAlpha=base*env;block(0,0);}
@@ -1434,11 +1499,13 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       else{const m=Math.min(w,h)*.2;for(const [x,y] of [[m,m],[w-m,m],[m,h-m],[w-m,h-m]]){ctx.save();ctx.translate(x,y);ctx.scale(.55,.55);ctx.globalAlpha=base*.7;block(0,0);ctx.restore();}ctx.globalAlpha=base;block(w/2,h/2);}
       ctx.restore();return;}
     if (t.mode === 'wall') {
+      ctx.shadowBlur = 0;
       const stepY = Math.max(15, size * 1.6), text = message + '   ';
       const stepX = Math.max(20, ctx.measureText(text).width);
       for (let y = stepY / 2; y < h; y += stepY) for (let x = stepX / 2; x < w + stepX / 2; x += stepX) ctx.fillText(text, x, y);
     } else if (t.mode === 'lines') {
-      for (let i = 0; i < t.lines; i++) ctx.fillText(message, w / 2, h * (i + 1) / (t.lines + 1), w * 0.94);
+      const k = Math.min(1, w * 0.94 / Math.max(1, ctx.measureText(message).width)); // shrink evenly rather than squashing
+      for (let i = 0; i < t.lines; i++) { ctx.save(); ctx.translate(w / 2, h * (i + 1) / (t.lines + 1)); ctx.scale(k, k); ctx.fillText(message, 0, 0); ctx.restore(); }
     } else if (t.mode === 'scatter' || t.mode === 'mixed') {
       // Random spots: wrap to the full width, then slide the block inward so long words and lines stay on screen.
       const pos = textPosition(t.mode, frame.cycle), margin = 8, lines = wrapText(message, w - 2*margin, ctx), spacing = size * 1.3;
@@ -1447,13 +1514,16 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
       const centerY = Math.max(blockH/2, Math.min(h - blockH/2, pos.y*h));
       lines.forEach((line,i) => ctx.fillText(line, centerX, centerY + (i-(lines.length-1)/2)*spacing, w - 2*margin));
     } else {
-      const lines = wrapText(message, w * 0.9, ctx), spacing = size * 1.3;
-      lines.forEach((line, i) => ctx.fillText(line, w / 2, h / 2 + (i - (lines.length - 1) / 2) * spacing));
+      // Wrap the whole sentence first so typewriter text appears in place; shrink the block if it is taller than the area.
+      let lines = wrapText(frame.message, w * 0.9, ctx); const spacing = size * 1.3, fit = Math.min(1, h * 0.92 / (lines.length * spacing));
+      if (t.mode === 'write') { let left = [...message].length; lines = lines.map(l => { const part = [...l].slice(0, Math.max(0, left)).join(''); left -= [...l].length + 1; return part; }); }
+      ctx.translate(w / 2, h / 2); ctx.scale(fit, fit);
+      lines.forEach((line, i) => ctx.fillText(line, 0, (i - (lines.length - 1) / 2) * spacing));
     }
     ctx.restore();
   }
   // Flash styles: the whole area, the edges (vignette), a glow from the centre, or a ring expanding outward.
-  function paintPulse(c,p,alpha,progress,w,h){c.save();c.globalAlpha=alpha;
+  function paintPulse(c,p,alpha,progress,w,h){c.save();c.globalAlpha=Math.min(.45,alpha*drawIntensity);
     if(p.style==='edges'){const g=c.createRadialGradient(w/2,h/2,Math.min(w,h)*.25,w/2,h/2,Math.hypot(w,h)/2);g.addColorStop(0,p.color+'00');g.addColorStop(1,p.color);c.fillStyle=g;c.fillRect(0,0,w,h);}
     else if(p.style==='center'){const g=c.createRadialGradient(w/2,h/2,0,w/2,h/2,Math.min(w,h)*.6);g.addColorStop(0,p.color);g.addColorStop(1,p.color+'00');c.fillStyle=g;c.fillRect(0,0,w,h);}
     else if(p.style==='ring'){const lw=Math.max(6,Math.min(w,h)*.12);c.strokeStyle=p.color;c.lineWidth=lw;c.shadowColor=p.color;c.shadowBlur=lw;c.beginPath();c.arc(w/2,h/2,Math.hypot(w,h)/2*Math.max(.02,Math.min(1,progress)),0,Math.PI*2);c.stroke();}
@@ -1540,10 +1610,11 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   const previewTextures=[document.createElement('canvas'),document.createElement('canvas')],previewKeys=['',''];
   let previewTime=0,previewConfig='',previewPulseState=newPulseState();
   function focusRadius(f,time,w,h){const end=Math.min(f.opening,f.endOpening),amount=f.tighten?Math.min(1,time/f.tightenSeconds):0;return Math.min(w,h)*(f.opening+(end-f.opening)*amount);}
+  let drawIntensity=1;
   function drawVisualLayer(c,s,time,w,h,index,textures,keys){
     if(!s.enabled)return;
-    c.save();c.globalAlpha=s.backgroundOpacity;c.fillStyle=s.background;c.fillRect(0,0,w,h);c.globalAlpha=s.opacity;c.fillStyle=c.strokeStyle=s.color;c.translate(w/2,h/2);
-    c.filter=s.blur?'blur('+s.blur*w/700+'px)':'none';
+    c.save();c.globalAlpha=Math.min(1,s.backgroundOpacity*drawIntensity);c.fillStyle=s.background;c.fillRect(0,0,w,h);c.globalAlpha=Math.min(1,s.opacity*drawIntensity);c.fillStyle=c.strokeStyle=s.color;c.translate(w/2,h/2);
+    c.filter=s.blur&&s.style!=='spiral'?'blur('+s.blur*w/700+'px)':'none';
     const throb=1+Math.sin(time*s.throbSpeed*Math.PI*2)*s.throbStrength;
     if(s.style==='spiral'){
       // A single spiral, slightly larger than the area's diagonal so it always reaches past the corners. Zoom in = fewer turns on screen; zoom out = more turns.
@@ -1570,7 +1641,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if(f.colorPulse){const rate=f.beatSource==='heartbeat'?config.audio.bpm/60:f.beatSource==='iso'?config.audio.isoRate:Math.abs(binauralHz(config.audio)[1]-binauralHz(config.audio)[0]);const seconds=Math.max(2,f.beats/Math.max(.01,rate)),mix=(1-Math.cos(beatTime/seconds*Math.PI*2))/2;
       const rgb=(color)=>[1,3,5].map(i=>parseInt(color.slice(i,i+2),16)),a=rgb(f.colorA),b=rgb(f.colorB);c.save();c.globalAlpha=f.colorOpacity;c.fillStyle='rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*mix)).join(',')+')';c.fillRect(0,0,w,h);c.restore();}
     if(f.enabled){const radius=focusRadius(f,time,w,h),outer=Math.max(radius+1,Math.min(w,h)*.65);
-      if(f.blur>0){if(focusScratch.width!==w||focusScratch.height!==h){focusScratch.width=w;focusScratch.height=h;}const sc=focusScratch.getContext('2d');sc.clearRect(0,0,w,h);sc.save();sc.filter='blur('+f.blur*w/700+'px)';sc.drawImage(c.canvas,0,0);sc.filter='none';sc.globalCompositeOperation='destination-in';const mask=sc.createRadialGradient(w/2,h/2,radius,w/2,h/2,Math.min(outer,radius+Math.min(w,h)*.12));mask.addColorStop(0,'transparent');mask.addColorStop(1,'black');sc.fillStyle=mask;sc.fillRect(0,0,w,h);sc.restore();c.drawImage(focusScratch,0,0);}
+      if(f.blur>0){const q=4,qw=Math.max(1,Math.round(w/q)),qh=Math.max(1,Math.round(h/q));if(focusScratch.width!==qw||focusScratch.height!==qh){focusScratch.width=qw;focusScratch.height=qh;}const sc=focusScratch.getContext('2d');sc.clearRect(0,0,qw,qh);sc.save();sc.filter='blur('+f.blur*w/700/q+'px)';sc.drawImage(c.canvas,0,0,qw,qh);sc.filter='none';sc.globalCompositeOperation='destination-in';const mask=sc.createRadialGradient(qw/2,qh/2,radius/q,qw/2,qh/2,Math.min(outer,radius+Math.min(w,h)*.12)/q);mask.addColorStop(0,'transparent');mask.addColorStop(1,'black');sc.fillStyle=mask;sc.fillRect(0,0,qw,qh);sc.restore();c.drawImage(focusScratch,0,0,w,h);}
       const gradient=c.createRadialGradient(w/2,h/2,radius,w/2,h/2,outer);gradient.addColorStop(0,'transparent');gradient.addColorStop(1,'rgba(0,0,0,'+f.darkness+')');c.fillStyle=gradient;c.fillRect(0,0,w,h);
     }
     if(f.fixation==='pendant'||f.fixation==='candle'||f.fixation==='breath'){const r=Math.min(w,h)*f.size;c.save();c.translate(w/2,h/2);
@@ -1607,7 +1678,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     byId('preview-label').textContent=(selected==='self'?'My overlay':label(Number(selected)))+' · unsent appearance preview';
     const c=previewContext,w=500,h=500;c.clearRect(0,0,w,h);c.fillStyle='#282331';c.fillRect(0,0,w,h);
     c.fillStyle='#71687f';c.beginPath();c.ellipse(250,195,38,48,0,0,Math.PI*2);c.fill();c.fillRect(210,245,80,230);
-    config.spirals.forEach((layer,i)=>drawVisualLayer(c,layer,previewTime,w,h,i,previewTextures,previewKeys));
+    drawIntensity=config.intensity;config.spirals.forEach((layer,i)=>drawVisualLayer(c,layer,previewTime,w,h,i,previewTextures,previewKeys));
     drawFocus(c,config,previewTime,w,h);
     const frame=textFrame(config.text,previewTime),pulse=config.pulse;
     const alpha=pulseFrame(pulse,frame,config.text.enabled,previewTime,previewPulseState);
@@ -1621,7 +1692,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
     if (!canvas.hidden && ctx) {
       activeTime += dt;
       const w = canvas.width, h = canvas.height; ctx.clearRect(0, 0, w, h);
-      settings.spirals.forEach((layer,i)=>drawVisualLayer(ctx,layer,activeTime,w,h,i,effectTextures,effectTextureKeys));
+      drawIntensity=settings.intensity;settings.spirals.forEach((layer,i)=>drawVisualLayer(ctx,layer,activeTime,w,h,i,effectTextures,effectTextureKeys));
       drawFocus(ctx,settings,activeTime,w,h,audioClock(activeTime));
       const text = textFrame(settings.text, activeTime); cueOnWord(text);
       drawPulse(text, w, h); drawText(text, w, h); drawPacer(w, h); updateImagery(text);
@@ -1642,7 +1713,7 @@ var bcModSdk=function(){"use strict";const o="1.2.0";function e(o){alert("Mod ER
   function syncAudio(){
     if(destroyed)return;
     if(wantsAudio())tryAutoAudio();
-    const config=audioDraft?editState().audio:settings.audio,validDraft=selected==='self'||receivedGrants.has(Number(selected));
+    const config={...(audioDraft?editState().audio:settings.audio),intensity:(audioDraft?editState():settings).intensity},validDraft=selected==='self'||receivedGrants.has(Number(selected));
     const play=audioReady&&audioContext?.state==='running'&&config.enabled&&(audioDraft?validDraft:enabled)&&!document.hidden;
     const key=play?JSON.stringify(config)+(audioDraft?selected:'live'):'';
     if(key!==audioKey){disposeAudio(audioGraph);audioGraph=null;audioKey=key;if(play){try{audioGraph=buildAudioMix(audioContext,config,audioContext.destination);}catch(error){audioKey='';audioReady=false;audioMutedByError=true;say('Audio could not start: '+error.message);}}}
